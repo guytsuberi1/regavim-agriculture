@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh auth *)",
+      "Bash(cd \"C:\\\\Users\\\\user\\\\AppData\\\\Local\\\\Temp\\\\regavim_xlsx\\\\xl\\\\worksheets\" && grep -oE '<row r=\"[0-9]+\"|<c r=\"[A-Z]+[0-9]+\"[^>]*t=\"s\"[^>]*><v>[0-9]+</v>' sheet2.xml | head -120)",
+      "PowerShell($src = \"D:\\\\Documents\\\\User\\\\‏‏הורדות\\\\אפריל מאי עבודה.docx\"; Test-Path $src; $dest = \"$env:TEMP\\\\plan_docx\"; if \\(Test-Path $dest\\) { Remove-Item -Recurse -Force $dest }; New-Item -ItemType Directory -Path $dest | Out-Null; Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::ExtractToDirectory\\($src, $dest\\); Get-ChildItem -Recurse $dest -File | Select-Object FullName)",
+      "Read(//c/Users/user/AppData/Local/Temp/plan_docx/word/**)",
+      "Bash(sed 's/<[^>]*>/ /g' document.xml)"
+    ]
+  }
+}

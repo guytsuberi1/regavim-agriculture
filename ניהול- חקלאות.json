@@ -1,0 +1,772 @@
+{
+  "meta": {
+    "version": 1,
+    "lastModified": "2026-06-07T11:35:27.780Z"
+  },
+  "settings": {
+    "schoolName": "רגבים בנימין",
+    "defaultHours": 8
+  },
+  "students": [
+    {
+      "id": "mq3gspipoyi421",
+      "name": "יגל אואנונו",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט1"
+    },
+    {
+      "id": "mq3gspiqtaq5j6",
+      "name": "יאיר משה אוחיון",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט1"
+    },
+    {
+      "id": "mq3gspiq37m66h",
+      "name": "אליאב אטינגר",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט1"
+    },
+    {
+      "id": "mq3gspiqi9k2bn",
+      "name": "נעם איזק",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט1"
+    },
+    {
+      "id": "mq3gspiqte5k9i",
+      "name": "יוסף אלקלעי",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט2"
+    },
+    {
+      "id": "mq3gspiqvfk9hz",
+      "name": "יוסף ארביב",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט1"
+    },
+    {
+      "id": "mq3gspiqsp26lo",
+      "name": "מתן אור גמליאל",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט2"
+    },
+    {
+      "id": "mq3gspiqgwkkvb",
+      "name": "ניגון שלום גסנבאור",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט1"
+    },
+    {
+      "id": "mq3gspiqyup8cy",
+      "name": "סער הלפרין",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט1"
+    },
+    {
+      "id": "mq3gspiqdk309p",
+      "name": "שקד הלפרין",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט2"
+    },
+    {
+      "id": "mq3gspiqsynuk0",
+      "name": "יהונתן וייס",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט2"
+    },
+    {
+      "id": "mq3gspiq0cas9b",
+      "name": "שמואל חיים וינברג",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט1"
+    },
+    {
+      "id": "mq3gspiqyhxkti",
+      "name": "אורי חסד ויסבלום",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט2"
+    },
+    {
+      "id": "mq3gspiqvz6pj7",
+      "name": "משה זגמן",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט1"
+    },
+    {
+      "id": "mq3gspiqj7pw88",
+      "name": "ערן טורם",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט2"
+    },
+    {
+      "id": "mq3gspiqwe2u8m",
+      "name": "אמיתי טננבאום",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט1"
+    },
+    {
+      "id": "mq3gspiqu9hl09",
+      "name": "נווה כהן",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט1"
+    },
+    {
+      "id": "mq3gspiq3nha64",
+      "name": "נתן כהן",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט1"
+    },
+    {
+      "id": "mq3gspiq26emvc",
+      "name": "ראם לוז",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט1"
+    },
+    {
+      "id": "mq3gspiqvj9aoi",
+      "name": "אורי לוי",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט2"
+    },
+    {
+      "id": "mq3gspiqygel5w",
+      "name": "דביר מאיר",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט1"
+    },
+    {
+      "id": "mq3gspiqv7dxbq",
+      "name": "בעז מואטי",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט1"
+    },
+    {
+      "id": "mq3gspiq1vwkod",
+      "name": "איתמר מור",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט1"
+    },
+    {
+      "id": "mq3gspiq3907tq",
+      "name": "יוסף עוז סבן",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט1"
+    },
+    {
+      "id": "mq3gspiq5syl2g",
+      "name": "אורי סולימן",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט2"
+    },
+    {
+      "id": "mq3gspiq4t00ox",
+      "name": "אלישיב סמין",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט2"
+    },
+    {
+      "id": "mq3gspiqeni5kx",
+      "name": "הראל עגיב",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט2"
+    },
+    {
+      "id": "mq3gspiqv04c74",
+      "name": "אמיתי פש",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט1"
+    },
+    {
+      "id": "mq3gspiq7cswf4",
+      "name": "יפתח קארו",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט2"
+    },
+    {
+      "id": "mq3gspiqi3skx4",
+      "name": "אהרן רוסנו",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט2"
+    },
+    {
+      "id": "mq3gspiqbam0k3",
+      "name": "נווה שוורץ",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט1"
+    },
+    {
+      "id": "mq3gspiqm5rlby",
+      "name": "יאיר משה שוקרון",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט2"
+    },
+    {
+      "id": "mq3gspiqi0qwpg",
+      "name": "יהודה שטמלר",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט2"
+    },
+    {
+      "id": "mq3gspiqbj839c",
+      "name": "שיר שריקי",
+      "grade": "ט",
+      "active": true,
+      "notes": "ט1"
+    },
+    {
+      "id": "mq3gspiquk9y3h",
+      "name": "עדו צבי בנימ אורבך",
+      "grade": "י",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiqobwpb6",
+      "name": "נצר בוכמן",
+      "grade": "י",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiqrjl5e6",
+      "name": "הראל בר יהודה (טייכמן)",
+      "grade": "י",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiqrstwel",
+      "name": "שילה ברדוגו",
+      "grade": "י",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiqbv9tyy",
+      "name": "אריה יוסף יצ ברוך",
+      "grade": "י",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiqrasyeo",
+      "name": "נועם גרינהוט",
+      "grade": "י",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiqz8o6xz",
+      "name": "יהונתן הלוי",
+      "grade": "י",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiqr6jd9f",
+      "name": "אמיתי זלבסקי",
+      "grade": "י",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiqlc4lxh",
+      "name": "עומר חלאג",
+      "grade": "י",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiqhm4fjr",
+      "name": "נועם ירושלמי",
+      "grade": "י",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiqsv444e",
+      "name": "בצלאל כהן",
+      "grade": "י",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiq4i3ot8",
+      "name": "אמיתי יחזקאל מטלון",
+      "grade": "י",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiqamv21o",
+      "name": "יוגב מיארה",
+      "grade": "י",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiq8tfi9f",
+      "name": "הראל נוילנדר",
+      "grade": "י",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiq3khha0",
+      "name": "יהונתן עמוס",
+      "grade": "י",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiqtnfrb5",
+      "name": "טוביה אהרון פודלשוק",
+      "grade": "י",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiql6s3jx",
+      "name": "אלון פרוכטר",
+      "grade": "י",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiqh1vth5",
+      "name": "ישראל ידידיה קרומביין",
+      "grade": "י",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiq4j4ie6",
+      "name": "אלעזר אפשטיין",
+      "grade": "יא",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiq5zjnyt",
+      "name": "בארי דוד בית הלחמי",
+      "grade": "יא",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiqm252bq",
+      "name": "אליה מאיר הראש",
+      "grade": "יא",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiqj8efx1",
+      "name": "גיל ברוך זגלמן",
+      "grade": "יא",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiqdwsm7j",
+      "name": "אלישע כהן",
+      "grade": "יא",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiquhxav8",
+      "name": "צור לוין",
+      "grade": "יא",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiq97ohxy",
+      "name": "אלחי יעקב לוי",
+      "grade": "יא",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiq4ci1tv",
+      "name": "סיני לזר",
+      "grade": "יא",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiq3ic1ti",
+      "name": "יהונתן רונצקי",
+      "grade": "יא",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiqendfzk",
+      "name": "ישראל שטיין",
+      "grade": "יא",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiq67w431",
+      "name": "איתן שטיינמץ",
+      "grade": "יא",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiqxguddt",
+      "name": "שריה יצחק שיינדל",
+      "grade": "יא",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiqjrpbws",
+      "name": "ידידיה שמח",
+      "grade": "יא",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiqk0wzue",
+      "name": "אבשלום ישראל אדוריאן",
+      "grade": "יב",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiqkhv68w",
+      "name": "גלעד יהושע אקרמן",
+      "grade": "יב",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiq8mjj5t",
+      "name": "אלישע דניאל ברגר",
+      "grade": "יב",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiqqobclx",
+      "name": "אליה גדות",
+      "grade": "יב",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiqzsjbe0",
+      "name": "ארז גל",
+      "grade": "יב",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiqi5d4lb",
+      "name": "יוגב יעקב גמליאל",
+      "grade": "יב",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiqobfytu",
+      "name": "אלון היימן",
+      "grade": "יב",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiq0lyzhi",
+      "name": "אלעד ווילף",
+      "grade": "יב",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiq8l0kx1",
+      "name": "מעיין שלמה וירצבורגר",
+      "grade": "יב",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiqw74mao",
+      "name": "ניר יצחק כהן",
+      "grade": "יב",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiqhi829y",
+      "name": "אורי כוהן אמין",
+      "grade": "יב",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiqlume07",
+      "name": "יהונתן לוי",
+      "grade": "יב",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiq4qhwez",
+      "name": "אליה מתתיה",
+      "grade": "יב",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiqrirlsa",
+      "name": "ישי נחמנה",
+      "grade": "יב",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiqjy3z3q",
+      "name": "ישי אליהו עובדיה",
+      "grade": "יב",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiqmi5klh",
+      "name": "גלעד עמירם",
+      "grade": "יב",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiqubv75o",
+      "name": "איתן פרוכטר",
+      "grade": "יב",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiqwykfrx",
+      "name": "עברי נפתלי שלם",
+      "grade": "יב",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiq0xykm2",
+      "name": "שמואל שמואליאן",
+      "grade": "יב",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3gspiq5qzgd5",
+      "name": "נצר שפילמן",
+      "grade": "יב",
+      "active": true,
+      "notes": ""
+    }
+  ],
+  "sites": [
+    {
+      "id": "mq3h0t0xcu19gh",
+      "name": "ארכיאולוגיה",
+      "location": "",
+      "contactName": "",
+      "phone": "",
+      "email": "",
+      "hourlyRate": 33,
+      "travelPay": 1000,
+      "defaultHours": 5,
+      "access": "",
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3h0t0xodfowd",
+      "name": "יקב פסגות",
+      "location": "שער בנימין",
+      "contactName": "",
+      "phone": "",
+      "hourlyRate": 34,
+      "travelPay": 0,
+      "defaultHours": 8,
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3h0t0xke5zef",
+      "name": "צביקי",
+      "location": "אש קודש",
+      "contactName": "",
+      "phone": "",
+      "hourlyRate": 34,
+      "travelPay": 0,
+      "defaultHours": 8,
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3h0t0xa4mjwe",
+      "name": "בן פורת",
+      "location": "מגדלים",
+      "contactName": "",
+      "phone": "",
+      "hourlyRate": 193,
+      "travelPay": 0,
+      "defaultHours": 8,
+      "active": true,
+      "notes": "תעריף יומי ולא שעתי — לבדוק"
+    },
+    {
+      "id": "mq3h0t0xyrr2dc",
+      "name": "זייציק",
+      "location": "אש קודש",
+      "contactName": "",
+      "phone": "",
+      "hourlyRate": 126,
+      "travelPay": 0,
+      "defaultHours": 8,
+      "active": true,
+      "notes": "תעריף יומי ולא שעתי — לבדוק"
+    },
+    {
+      "id": "mq3h0t0x94y75d",
+      "name": "הכורמים בהר",
+      "location": "בית נקופה",
+      "contactName": "עמית",
+      "phone": "",
+      "hourlyRate": 32,
+      "travelPay": 0,
+      "defaultHours": 8,
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3h0t0xy4y7ym",
+      "name": "אסף אזולאי",
+      "location": "",
+      "contactName": "",
+      "phone": "",
+      "hourlyRate": 34,
+      "travelPay": 0,
+      "defaultHours": 8,
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3h0t0xw1wf88",
+      "name": "רפופורט",
+      "location": "",
+      "contactName": "",
+      "phone": "",
+      "hourlyRate": 34,
+      "travelPay": 0,
+      "defaultHours": 8,
+      "active": true,
+      "notes": ""
+    },
+    {
+      "id": "mq3h0t0x7w9uh3",
+      "name": "משק גור אריה",
+      "location": "כוכב השחר",
+      "contactName": "קובי",
+      "phone": "0528663354",
+      "hourlyRate": 34,
+      "travelPay": 0,
+      "defaultHours": 8,
+      "active": true,
+      "notes": "",
+      "email": "meshekga@gmail.com"
+    },
+    {
+      "id": "mq3h0t0x1bbjj0",
+      "name": "משק אחיה",
+      "location": "שילה",
+      "contactName": "ידידיה",
+      "phone": "0586366714",
+      "hourlyRate": 34,
+      "travelPay": 0,
+      "defaultHours": 8,
+      "active": true,
+      "notes": ""
+    }
+  ],
+  "staff": [],
+  "transports": [
+    {
+      "name": "טרנספורטר1",
+      "capacity": 8,
+      "active": true,
+      "id": "mq3p9l7peqqwbl"
+    },
+    {
+      "name": "טרנספורטר2",
+      "capacity": 8,
+      "active": true,
+      "id": "mq3p9rekruzpf3"
+    },
+    {
+      "name": "טרנספורטר3",
+      "capacity": 8,
+      "active": true,
+      "id": "mq3p9wyp3utpo8"
+    },
+    {
+      "name": "מיניבוס",
+      "capacity": 19,
+      "active": true,
+      "id": "mq3pa2g47pai77"
+    },
+    {
+      "name": "אוטובוס",
+      "capacity": 55,
+      "active": true,
+      "id": "mq3pa7wm8ygi2y"
+    }
+  ],
+  "weeklyPlan": {},
+  "days": {
+    "2026-06-07": {
+      "cards": []
+    }
+  },
+  "billingAdjustments": {}
+}
