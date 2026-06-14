@@ -91,9 +91,14 @@
       return b;
     }));
 
+    // שדה הערה
+    var noteInp = U.el('input', { type: 'text', class: 'fstu-note', value: st.note || '', placeholder: '📝 הערה (לא חובה)' });
+    noteInp.addEventListener('change', function () { st.note = noteInp.value; Store.save(); });
+
     return U.el('div', { class: 'field-student' + (st.wentToWork ? ' done' : '') }, [
       U.el('div', { class: 'fstu-name', text: (st.teamLeader ? '⭐ ' : '') + name }),
-      U.el('div', { class: 'fstu-controls' }, [wentBtn, U.el('div', { class: 'frate-wrap' }, [U.el('span', { class: 'muted', text: 'ציון' }), rateWrap])])
+      U.el('div', { class: 'fstu-controls' }, [wentBtn, U.el('div', { class: 'frate-wrap' }, [U.el('span', { class: 'muted', text: 'ציון' }), rateWrap])]),
+      noteInp
     ]);
   }
 

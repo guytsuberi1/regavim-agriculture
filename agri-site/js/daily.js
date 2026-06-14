@@ -170,8 +170,12 @@
       ratingSel.addEventListener('change', function () { st.rating = ratingSel.value === '' ? null : U.num(ratingSel.value); Store.save(); });
 
       var gradeColors = { 'ט': '#fff3cd', 'י': '#d1ecf1', 'יא': '#d4edda', 'יב': '#f8d7da' };
+      var nameCell = U.el('div', { style: 'flex:1;' }, [
+        U.el('div', { text: (st.teamLeader ? '⭐ ' : '') + name }),
+        st.note ? U.el('div', { class: 'muted', style: 'font-size:11px;', text: '📝 ' + st.note }) : null
+      ]);
       var li = U.el('li', { class: (st.teamLeader ? 'leader ' : ''), draggable: 'true' }, [
-        U.el('span', { style: 'flex:1;', text: (st.teamLeader ? '⭐ ' : '') + name }),
+        nameCell,
         U.el('span', { class: 'chk', title: 'יצא לעבודה' }, [wentChk, U.el('span', { text: 'יצא', class: 'muted' })]),
         U.el('span', { class: 'chk no-print', title: 'ציון' }, [ratingSel]),
         U.el('button', { class: 'btn small danger no-print', onclick: function () { removeStudent(card, st.studentId); } }, '✕')
