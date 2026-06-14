@@ -5,6 +5,7 @@
 
   var TABS = {
     daily: global.DailyView,
+    field: global.FieldView,
     weekly: global.WeeklyView,
     billing: global.BillingView,
     reports: global.ReportsView,
