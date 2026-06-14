@@ -648,7 +648,8 @@
     var lis = ordered.map(function (st) {
       var stu = Store.getById('students', st.studentId);
       var nm = stu ? stu.name + (stu.grade ? ' (' + stu.grade + ')' : '') : '⚠';
-      return U.el('li', { style: 'padding:3px 6px;font-size:13px;border-bottom:1px solid #eee;' + (st.teamLeader ? 'font-weight:700;background:#fff8e1;' : ''), text: (st.teamLeader ? '⭐ ' : '') + nm });
+      var bg = (stu && chipGradeColors[stu.grade]) ? chipGradeColors[stu.grade] : '#fff';
+      return U.el('li', { style: 'padding:3px 7px;font-size:12.5px;border-bottom:1px solid rgba(0,0,0,.06);background:' + bg + ';' + (st.teamLeader ? 'font-weight:700;' : ''), text: (st.teamLeader ? '⭐ ' : '') + nm });
     });
 
     return U.el('div', { style: 'border:1px solid #2e7d32;border-top:5px solid #2e7d32;border-radius:10px;background:#fff;overflow:hidden;break-inside:avoid;' }, [
@@ -668,7 +669,7 @@
     var temp = U.el('div', { style: 'position:fixed;top:0;right:-12000px;width:794px;box-sizing:border-box;background:#fff;padding:20px;direction:rtl;font-family:Arial,sans-serif;' });
     temp.appendChild(U.el('div', { style: 'text-align:center;font-weight:700;font-size:20px;color:#1b5e20;margin-bottom:4px;', text: 'סידור עבודה — רגבים בנימין' }));
     temp.appendChild(U.el('div', { style: 'text-align:center;font-size:15px;margin-bottom:12px;', text: U.weekdayName(curDate) + ' · ' + U.hebrewDate(curDate) + ' · ' + U.gregLabel(curDate) }));
-    var board = U.el('div', { style: 'display:grid;grid-template-columns:repeat(3,1fr);gap:10px;align-items:start;direction:rtl;' });
+    var board = U.el('div', { style: 'display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;align-items:start;direction:rtl;' });
     day.cards.forEach(function (c) { board.appendChild(buildExportCard(c)); });
     temp.appendChild(board);
     document.body.appendChild(temp);
