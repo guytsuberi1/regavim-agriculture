@@ -136,7 +136,6 @@
     // הסעה / איש צוות / ראש צוות
     body.appendChild(labeledSelect('הסעה', 'transports', card, 'transportId'));
     body.appendChild(labeledSelect('איש צוות', 'staff', card, 'staffId', 'staff'));
-    body.appendChild(labeledSelect('ראש צוות', 'staff', card, 'leaderId', 'leader'));
 
     // שעות + נסיעות
     var hoursInp = U.el('input', { type: 'number', value: card.hours == null ? '' : card.hours, style: 'width:70px;', step: '0.5' });
@@ -165,9 +164,7 @@
       var name = stu ? stu.name + (stu.grade ? ' (' + stu.grade + ')' : '') : '⚠ נמחק';
 
       var wentChk = U.el('input', { type: 'checkbox', checked: !!st.wentToWork, title: 'יצא לעבודה' });
-      wentChk.addEventListener('change', function () { st.wentToWork = wentChk.checked; if (wentChk.checked) st.sick = false; Store.save(); App.render(); });
-      var sickChk = U.el('input', { type: 'checkbox', checked: !!st.sick, title: 'חולה' });
-      sickChk.addEventListener('change', function () { st.sick = sickChk.checked; if (sickChk.checked) st.wentToWork = false; Store.save(); App.render(); });
+      wentChk.addEventListener('change', function () { st.wentToWork = wentChk.checked; Store.save(); App.render(); });
       // ציון 1-5
       var ratingSel = U.el('select', { class: 'rating-sel', title: 'ציון 1-5' },
         [U.el('option', { value: '' }, '–')].concat([1, 2, 3, 4, 5].map(function (n) { return U.el('option', { value: n }, n); })));
@@ -175,10 +172,9 @@
       ratingSel.addEventListener('change', function () { st.rating = ratingSel.value === '' ? null : U.num(ratingSel.value); Store.save(); });
 
       var gradeColors = { 'ט': '#fff3cd', 'י': '#d1ecf1', 'יא': '#d4edda', 'יב': '#f8d7da' };
-      var li = U.el('li', { class: (st.teamLeader ? 'leader ' : '') + (st.sick ? 'sick' : ''), draggable: 'true' }, [
+      var li = U.el('li', { class: (st.teamLeader ? 'leader ' : ''), draggable: 'true' }, [
         U.el('span', { style: 'flex:1;', text: (st.teamLeader ? '⭐ ' : '') + name }),
         U.el('span', { class: 'chk', title: 'יצא לעבודה' }, [wentChk, U.el('span', { text: 'יצא', class: 'muted' })]),
-        U.el('span', { class: 'chk', title: 'חולה' }, [sickChk, U.el('span', { text: 'חולה', class: 'muted' })]),
         U.el('span', { class: 'chk no-print', title: 'ציון' }, [ratingSel]),
         U.el('button', { class: 'btn small danger no-print', onclick: function () { removeStudent(card, st.studentId); } }, '✕')
       ]);
