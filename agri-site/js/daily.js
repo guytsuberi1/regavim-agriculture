@@ -653,7 +653,7 @@
       return U.el('li', { style: 'padding:3px 6px;font-size:13px;border-bottom:1px solid #eee;' + (st.teamLeader ? 'font-weight:700;background:#fff8e1;' : ''), text: (st.teamLeader ? '⭐ ' : '') + nm });
     });
 
-    return U.el('div', { style: 'width:250px;border:1px solid #2e7d32;border-top:5px solid #2e7d32;border-radius:10px;background:#fff;overflow:hidden;' }, [
+    return U.el('div', { style: 'border:1px solid #2e7d32;border-top:5px solid #2e7d32;border-radius:10px;background:#fff;overflow:hidden;break-inside:avoid;' }, [
       U.el('div', { style: 'background:#e8f5e9;padding:8px 10px;' }, [
         U.el('div', { style: 'font-weight:700;font-size:16px;color:#1b5e20;', text: site ? site.name : '(אתר)' })
       ].concat(metaNodes)),
@@ -666,10 +666,11 @@
     if (!day.cards.length) { alert('אין אתרים להצגה ביום זה.'); return; }
     if (typeof global.html2canvas === 'undefined') { alert('רכיב הייצוא עדיין נטען — נסו שוב בעוד רגע.'); return; }
 
-    var temp = U.el('div', { style: 'position:fixed;top:0;right:-12000px;background:#fff;padding:18px;direction:rtl;font-family:Arial,sans-serif;' });
+    // רוחב A4 לאורך (794px @96dpi); הכרטיסים נערמים ל-3 עמודות
+    var temp = U.el('div', { style: 'position:fixed;top:0;right:-12000px;width:794px;box-sizing:border-box;background:#fff;padding:20px;direction:rtl;font-family:Arial,sans-serif;' });
     temp.appendChild(U.el('div', { style: 'text-align:center;font-weight:700;font-size:20px;color:#1b5e20;margin-bottom:4px;', text: 'סידור עבודה — רגבים בנימין' }));
     temp.appendChild(U.el('div', { style: 'text-align:center;font-size:15px;margin-bottom:12px;', text: U.weekdayName(curDate) + ' · ' + U.hebrewDate(curDate) + ' · ' + U.gregLabel(curDate) }));
-    var board = U.el('div', { style: 'display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;direction:rtl;' });
+    var board = U.el('div', { style: 'display:grid;grid-template-columns:repeat(3,1fr);gap:10px;align-items:start;direction:rtl;' });
     day.cards.forEach(function (c) { board.appendChild(buildExportCard(c)); });
     temp.appendChild(board);
     document.body.appendChild(temp);
