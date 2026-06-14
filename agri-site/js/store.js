@@ -67,7 +67,7 @@
   var applyingRemote = false;
 
   // הרשאות: רק המיילים האלה רואים את כל הגיליונות; כל השאר רואים רק "מצב שטח"
-  var ADMIN_EMAILS = ['guy@rgvb.org.il'];
+  var ADMIN_EMAILS = ['guy@rgvb.org.il', 'misrad@rgvb.org.il'];
   var sessionUser = null;
   function setSessionUser(u) { sessionUser = u || null; }
   function isAdmin() {
