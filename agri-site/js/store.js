@@ -66,6 +66,15 @@
   var cloudMode = !!sb;
   var applyingRemote = false;
 
+  // הרשאות: רק המיילים האלה רואים את כל הגיליונות; כל השאר רואים רק "מצב שטח"
+  var ADMIN_EMAILS = ['guy@rgvb.org.il'];
+  var sessionUser = null;
+  function setSessionUser(u) { sessionUser = u || null; }
+  function isAdmin() {
+    if (!cloudMode) return true; // מצב מקומי (ללא ענן) — גישה מלאה
+    return !!(sessionUser && sessionUser.email && ADMIN_EMAILS.indexOf(String(sessionUser.email).toLowerCase()) !== -1);
+  }
+
   var saveTimer = null;
   function save() {
     if (!data) return;
@@ -318,6 +327,7 @@
       sb.auth.signInWithPassword({ email: email, password: pass }).then(function (res) {
         if (btn) { btn.disabled = false; btn.textContent = 'כניסה'; }
         if (res.error) { if (errEl) errEl.textContent = 'התחברות נכשלה — בדקו אימייל/סיסמה'; return; }
+        setSessionUser(res.data && res.data.user);
         cloudStart(cb);
       });
     }
@@ -347,7 +357,7 @@
   function initPersistence(cb) {
     if (cloudMode) {
       sb.auth.getSession().then(function (r) {
-        if (r.data && r.data.session) cloudStart(cb);
+        if (r.data && r.data.session) { setSessionUser(r.data.session.user); cloudStart(cb); }
         else showLogin(cb);
       }).catch(function () { showLogin(cb); });
       return;
@@ -437,6 +447,7 @@
     replaceAll: replaceAll,
     autoSeedIfEmpty: autoSeedIfEmpty,
     initPersistence: initPersistence,
-    serverMode: serverMode
+    serverMode: serverMode,
+    isAdmin: isAdmin
   };
 })(window);

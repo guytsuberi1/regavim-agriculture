@@ -16,6 +16,16 @@
 
   var current = 'daily';
 
+  // הרשאות: לא-מנהל רואה רק את "מצב שטח"
+  function applyRole() {
+    var admin = Store.isAdmin();
+    U.$all('#tabs button').forEach(function (b) {
+      var t = b.getAttribute('data-tab');
+      b.style.display = (admin || t === 'field') ? '' : 'none';
+    });
+    if (!admin) current = 'field';
+  }
+
   function render() {
     var view = U.$('#view');
     U.clear(view);
@@ -28,6 +38,7 @@
   }
 
   function setTab(tab) {
+    if (!Store.isAdmin() && tab !== 'field') tab = 'field'; // הגנה: לא-מנהל רק מצב שטח
     current = tab;
     U.$all('#tabs button').forEach(function (b) {
       b.classList.toggle('active', b.getAttribute('data-tab') === tab);
@@ -65,8 +76,11 @@
     });
     // אתחול שמירה/טעינה אוטומטית (שרת → OneDrive, או נתונים מוטמעים ב-file://)
     Store.initPersistence(function () {
+      applyRole(); // קביעת טאבים לפי הרשאה (מנהל / מצב-שטח בלבד)
       // איחוד חד-פעמי של תכנון שבועי ↔ סידור יומי (ללא מחיקות)
       if (global.Sync) { Sync.mergeAll(); }
+      // הדגשת הטאב הפעיל הנכון
+      U.$all('#tabs button').forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-tab') === current); });
       render();
     });
   }
