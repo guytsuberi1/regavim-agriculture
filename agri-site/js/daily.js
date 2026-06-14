@@ -635,21 +635,47 @@
     XLSX.writeFile(wb, 'סידור-' + curDate + '.xlsx');
   }
 
-  // ---------- ייצוא תמונה מסודרת של הסידור היומי (לעובדים) ----------
+  // ---------- ייצוא תמונה מסודרת של הסידור היומי (לתלמידים) ----------
+  // מציג: שם חקלאי, מיקום, איש קשר, הסעה, איש צוות, ורשימת תלמידים בלבד.
+  function buildExportCard(card) {
+    var site = card.siteId ? Store.getById('sites', card.siteId) : null;
+    var staff = card.staffId ? Store.getById('staff', card.staffId) : null;
+    var trans = card.transportId ? Store.getById('transports', card.transportId) : null;
+
+    var lines = [];
+    if (site && site.location) lines.push('📍 ' + site.location);
+    if (site && (site.contactName || site.phone)) lines.push('☎ ' + [site.contactName, site.phone].filter(Boolean).join(' · '));
+    if (trans) lines.push('🚌 ' + trans.name);
+    if (staff) lines.push('👤 איש צוות: ' + staff.name);
+
+    var metaNodes = lines.map(function (t) { return U.el('div', { style: 'font-size:12px;color:#555;line-height:1.6;', text: t }); });
+
+    var ordered = (card.students || []).slice().sort(function (a, b) { return (b.teamLeader ? 1 : 0) - (a.teamLeader ? 1 : 0); });
+    var lis = ordered.map(function (st) {
+      var stu = Store.getById('students', st.studentId);
+      var nm = stu ? stu.name + (stu.grade ? ' (' + stu.grade + ')' : '') : '⚠';
+      return U.el('li', { style: 'padding:3px 6px;font-size:13px;border-bottom:1px solid #eee;' + (st.teamLeader ? 'font-weight:700;background:#fff8e1;' : ''), text: (st.teamLeader ? '⭐ ' : '') + nm });
+    });
+
+    return U.el('div', { style: 'width:250px;border:1px solid #2e7d32;border-top:5px solid #2e7d32;border-radius:10px;background:#fff;overflow:hidden;' }, [
+      U.el('div', { style: 'background:#e8f5e9;padding:8px 10px;' }, [
+        U.el('div', { style: 'font-weight:700;font-size:16px;color:#1b5e20;', text: site ? site.name : '(אתר)' })
+      ].concat(metaNodes)),
+      U.el('ul', { style: 'list-style:none;margin:0;padding:4px 8px 8px;' }, lis.length ? lis : [U.el('li', { style: 'font-size:12px;color:#999;', text: 'אין תלמידים' })])
+    ]);
+  }
+
   function exportImage() {
-    var board = document.querySelector('.day-board');
-    if (!board || !board.children.length) { alert('אין אתרים להצגה ביום זה.'); return; }
+    var day = getDay(curDate);
+    if (!day.cards.length) { alert('אין אתרים להצגה ביום זה.'); return; }
     if (typeof global.html2canvas === 'undefined') { alert('רכיב הייצוא עדיין נטען — נסו שוב בעוד רגע.'); return; }
 
-    var temp = U.el('div', { style: 'position:fixed;top:0;right:-12000px;background:#fff;padding:18px;direction:rtl;font-family:inherit;' });
+    var temp = U.el('div', { style: 'position:fixed;top:0;right:-12000px;background:#fff;padding:18px;direction:rtl;font-family:Arial,sans-serif;' });
     temp.appendChild(U.el('div', { style: 'text-align:center;font-weight:700;font-size:20px;color:#1b5e20;margin-bottom:4px;', text: 'סידור עבודה — רגבים בנימין' }));
     temp.appendChild(U.el('div', { style: 'text-align:center;font-size:15px;margin-bottom:12px;', text: U.weekdayName(curDate) + ' · ' + U.hebrewDate(curDate) + ' · ' + U.gregLabel(curDate) }));
-    var clone = board.cloneNode(true);
-    clone.style.overflow = 'visible';
-    clone.style.flexWrap = 'wrap';
-    // הסרת אלמנטים שלא נחוצים בתמונה (כפתורים, בוררי ציון וכו')
-    Array.prototype.forEach.call(clone.querySelectorAll('.no-print'), function (el) { el.parentNode && el.parentNode.removeChild(el); });
-    temp.appendChild(clone);
+    var board = U.el('div', { style: 'display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;direction:rtl;' });
+    day.cards.forEach(function (c) { board.appendChild(buildExportCard(c)); });
+    temp.appendChild(board);
     document.body.appendChild(temp);
 
     global.html2canvas(temp, { scale: 2, backgroundColor: '#ffffff' }).then(function (canvas) {
