@@ -37,9 +37,7 @@
       U.el('div', { class: 'spacer' }),
       U.el('button', { class: 'btn secondary', onclick: openAbsentDialog }, '🚫 נעדרים היום' + (Store.get().dailyAbsent[curDate] && Store.get().dailyAbsent[curDate].length ? ' (' + Store.get().dailyAbsent[curDate].length + ')' : '')),
       U.el('button', { class: 'btn secondary', onclick: dupPrev }, '⧉ שכפל מיום קודם'),
-      U.el('button', { class: 'btn secondary', onclick: loadFromWeekly }, '📅 טען מתכנון'),
       U.el('button', { class: 'btn accent', onclick: exportImage }, '🖼 ייצוא תמונה'),
-      U.el('button', { class: 'btn secondary', onclick: exportExcel }, '⬇ אקסל'),
       U.el('button', { class: 'btn', onclick: addCard }, '+ הוסף אתר')
     ]);
     root.appendChild(head);
