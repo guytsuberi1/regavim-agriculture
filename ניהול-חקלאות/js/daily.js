@@ -383,6 +383,8 @@
   }
   global.PickStudents = pickStudents; // לשימוש גם במסך התכנון השבועי
 
+  var poolSearchTerm = ''; // נשמר בין רינדורים כל עוד נשארים במסך הסידור
+
   function buildPool(day) {
     var assigned = assignedSet(day);
     var pool = U.el('div', { class: 'pool no-print' });
@@ -410,8 +412,10 @@
     // סינון לפי כיתה — ביטול סימון מסתיר את כל תלמידי הכיתה מהמאגר
     var hidden = getHiddenGrades();
     function gradeVisible(g) { return !hidden[g || '']; }
+    var searchInp = U.el('input', { type: 'search', class: 'pool-search', placeholder: '🔍 חיפוש שם תלמיד…', value: poolSearchTerm });
+    searchInp.addEventListener('input', function () { poolSearchTerm = searchInp.value; applyNameFilter(poolSearchTerm); });
     var filterRow = U.el('div', { class: 'pool-filter' },
-      [U.el('span', { class: 'muted', text: 'הצג כיתות:' })].concat(
+      [searchInp, U.el('span', { class: 'muted', text: 'הצג כיתות:' })].concat(
         U.GRADES.map(function (g) {
           var cb = U.el('input', { type: 'checkbox', checked: !hidden[g] });
           cb.addEventListener('change', function () { setGradeHidden(g, !cb.checked); App.render(); });
@@ -470,6 +474,25 @@
     }
 
     pool.appendChild(groupsWrap);
+
+    // חיפוש לפי שם — מסתיר תלמידים שאינם תואמים ומקפל צוותים שנשארים ריקים
+    function applyNameFilter(term) {
+      term = (term || '').trim();
+      var groups = groupsWrap.querySelectorAll('.pool-group');
+      Array.prototype.forEach.call(groups, function (g) {
+        var chips = g.querySelectorAll('.chip');
+        if (!chips.length) return;
+        var anyVisible = false;
+        Array.prototype.forEach.call(chips, function (c) {
+          var match = !term || c.textContent.indexOf(term) !== -1;
+          c.style.display = match ? '' : 'none';
+          if (match) anyVisible = true;
+        });
+        g.style.display = anyVisible ? '' : 'none';
+      });
+    }
+    applyNameFilter(poolSearchTerm);
+
     return pool;
   }
 
