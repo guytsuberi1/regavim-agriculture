@@ -157,6 +157,12 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
 .pool-group.loose { max-width: 320px; }
 .pool-group.loose .pg-chips { max-height: 220px; overflow-y: auto; }
 
+/* גיליון צוותים — גרירת חברים בין צוותים */
+.team-member { cursor: grab; }
+.team-member:hover { background: var(--green-light); }
+.team-member.dragging { opacity: .45; }
+.card.team-drop-over { outline: 2px dashed var(--accent); outline-offset: -3px; background: #f3faf4; }
+
 /* מונה משובצים מול רצוי */
 .tw-counter { margin-top: 6px; padding: 3px 8px; border-radius: 8px; font-size: 12px; font-weight: 700; text-align: center; }
 .tw-counter.under { background: #fdecea; color: var(--danger); border: 1px solid var(--danger); }
