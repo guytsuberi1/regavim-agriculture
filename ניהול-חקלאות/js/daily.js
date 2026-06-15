@@ -24,6 +24,8 @@
   }
 
   function render(root) {
+    bindAutoScroll();
+    Sync.mergeDate(curDate); // ודא שאתרים מהתכנון השבועי מופיעים ביום זה
     var day = getDay(curDate);
 
     var head = U.el('div', { class: 'page-head' }, [
@@ -33,10 +35,9 @@
       U.el('button', { class: 'btn secondary small', onclick: function () { curDate = U.addDays(curDate, 1); App.render(); } }, 'יום הבא ←'),
       U.el('span', { class: 'tag', text: U.weekdayName(curDate) + ' · ' + U.hebrewDate(curDate) }),
       U.el('div', { class: 'spacer' }),
+      U.el('button', { class: 'btn secondary', onclick: openAbsentDialog }, '🚫 נעדרים היום' + (Store.get().dailyAbsent[curDate] && Store.get().dailyAbsent[curDate].length ? ' (' + Store.get().dailyAbsent[curDate].length + ')' : '')),
       U.el('button', { class: 'btn secondary', onclick: dupPrev }, '⧉ שכפל מיום קודם'),
-      U.el('button', { class: 'btn secondary', onclick: loadFromWeekly }, '📅 טען מתכנון'),
-      U.el('button', { class: 'btn secondary', onclick: function () { window.print(); } }, '🖨 הדפסה'),
-      U.el('button', { class: 'btn accent', onclick: exportExcel }, '⬇ ייצוא אקסל'),
+      U.el('button', { class: 'btn accent', onclick: exportImage }, '🖼 ייצוא תמונה'),
       U.el('button', { class: 'btn', onclick: addCard }, '+ הוסף אתר')
     ]);
     root.appendChild(head);
@@ -56,8 +57,13 @@
       root.appendChild(board);
     }
 
-    // מאגר התלמידים בתחתית המסך (מחולק לצוותים) — לגרירה
-    root.appendChild(buildPool(day));
+    // מאגר התלמידים — מגירה תחתונה קבועה; גוררים את הקצה העליון כדי להגדיל אותה מעל האתרים
+    var poolEl = buildPool(day);
+    root.appendChild(poolEl);
+    // ריווח תחתון כך שהאתרים התחתונים לא יוסתרו כשהמגירה קטנה (כשמגדילים — היא מכסה את האתרים)
+    var gw = poolEl.querySelector('.pool-groups');
+    var chrome = poolEl.offsetHeight - (gw ? gw.offsetHeight : 0);
+    root.style.paddingBottom = (chrome + Math.min(getPoolHeight(), 280) + 14) + 'px';
   }
 
   function dateInput() {
@@ -67,20 +73,23 @@
   }
 
   function buildTotals(day) {
-    var arrived = 0, went = 0, total = 0;
+    var went = 0, total = 0, target = 0, sickN = 0;
     day.cards.forEach(function (c) {
+      target += U.num(c.targetWorkers);
       (c.students || []).forEach(function (s) {
         total++;
-        if (s.arrived) arrived++;
         if (s.wentToWork) went++;
+        if (s.sick) sickN++;
       });
     });
-    return U.el('div', { class: 'totbar' }, [
+    var items = [
       tot(day.cards.length, 'אתרים'),
       tot(total, 'משובצים'),
-      tot(arrived, 'הגיעו'),
       tot(went, 'יצאו לעבודה')
-    ]);
+    ];
+    if (sickN > 0) items.push(tot(sickN, 'חולים'));
+    if (target > 0) items.splice(1, 0, tot(target, 'מתוכננים'));
+    return U.el('div', { class: 'totbar' }, items);
   }
   function tot(n, label) { return U.el('div', { class: 't' }, [U.el('b', { text: n }), U.el('span', { text: label })]); }
 
@@ -95,6 +104,7 @@
       var s = card.siteId ? Store.getById('sites', card.siteId) : null;
       if (s && (card.hours == null || card.hours === '')) card.hours = s.defaultHours || Store.get().settings.defaultHours;
       if (s && !card.transportId && s.defaultTransportId) card.transportId = s.defaultTransportId;
+      Sync.dayChanged(curDate);
       Store.save(); App.render();
     });
 
@@ -105,11 +115,21 @@
       if (site.access) meta.appendChild(U.el('div', { text: '🚗 ' + site.access }));
     }
 
+    // מונה צבעוני: משובצים מול הכמות הרצויה (מהתכנון השבועי)
+    var counter = null;
+    if (card.targetWorkers !== '' && card.targetWorkers != null) {
+      var assignedN = (card.students || []).length;
+      var targetN = U.num(card.targetWorkers);
+      var cls = assignedN < targetN ? 'under' : (assignedN > targetN ? 'over' : 'ok');
+      counter = U.el('div', { class: 'tw-counter ' + cls, text: 'משובצים ' + assignedN + ' / רצוי ' + targetN });
+    }
+
     var head = U.el('div', { class: 'sc-head' }, [
       U.el('div', { style: 'display:flex;gap:4px;align-items:center;' }, [
         siteSel,
         U.el('button', { class: 'btn small danger no-print', title: 'הסר אתר', onclick: function () { removeCard(day, card); } }, '✕')
       ]),
+      counter,
       meta
     ]);
 
@@ -119,15 +139,21 @@
     // הסעה / איש צוות / ראש צוות
     body.appendChild(labeledSelect('הסעה', 'transports', card, 'transportId'));
     body.appendChild(labeledSelect('איש צוות', 'staff', card, 'staffId', 'staff'));
-    body.appendChild(labeledSelect('ראש צוות', 'staff', card, 'leaderId', 'leader'));
 
     // שעות + נסיעות
     var hoursInp = U.el('input', { type: 'number', value: card.hours == null ? '' : card.hours, style: 'width:70px;', step: '0.5' });
     hoursInp.addEventListener('change', function () { card.hours = hoursInp.value === '' ? '' : U.num(hoursInp.value); Store.save(); });
     var travelChk = U.el('input', { type: 'checkbox', checked: card.travel !== false });
     travelChk.addEventListener('change', function () { card.travel = travelChk.checked; Store.save(); });
+    var targetInp = U.el('input', { type: 'number', value: (card.targetWorkers === '' || card.targetWorkers == null) ? '' : card.targetWorkers, style: 'width:70px;', min: '0', title: 'כמות עובדים רצויה (מהתכנון השבועי)' });
+    targetInp.addEventListener('change', function () {
+      card.targetWorkers = targetInp.value === '' ? '' : U.num(targetInp.value);
+      Sync.dayChanged(curDate); // עדכון התכנון השבועי בהתאם
+      Store.save(); App.render();
+    });
     body.appendChild(U.el('div', { class: 'row', style: 'margin:6px 0;' }, [
       U.el('div', null, [U.el('label', { text: 'שעות' }), hoursInp]),
+      U.el('div', null, [U.el('label', { text: 'רצוי' }), targetInp]),
       U.el('div', null, [U.el('label', { text: 'נסיעות' }), U.el('div', null, [travelChk])])
     ]));
 
@@ -140,19 +166,23 @@
       var stu = Store.getById('students', st.studentId);
       var name = stu ? stu.name + (stu.grade ? ' (' + stu.grade + ')' : '') : '⚠ נמחק';
 
-      var dutyChk = U.el('input', { type: 'checkbox', checked: !!st.duty, title: 'תורן' });
-      dutyChk.addEventListener('change', function () { st.duty = dutyChk.checked; Store.save(); App.render(); });
-      var arrChk = U.el('input', { type: 'checkbox', checked: !!st.arrived, title: 'הגיע' });
-      arrChk.addEventListener('change', function () { st.arrived = arrChk.checked; if (arrChk.checked && st.wentToWork == null) {} Store.save(); App.render(); });
       var wentChk = U.el('input', { type: 'checkbox', checked: !!st.wentToWork, title: 'יצא לעבודה' });
-      wentChk.addEventListener('change', function () { st.wentToWork = wentChk.checked; if (wentChk.checked) st.arrived = true; Store.save(); App.render(); });
+      wentChk.addEventListener('change', function () { st.wentToWork = wentChk.checked; Store.save(); App.render(); });
+      // ציון 1-5
+      var ratingSel = U.el('select', { class: 'rating-sel', title: 'ציון 1-5' },
+        [U.el('option', { value: '' }, '–')].concat([1, 2, 3, 4, 5].map(function (n) { return U.el('option', { value: n }, n); })));
+      ratingSel.value = st.rating == null ? '' : st.rating;
+      ratingSel.addEventListener('change', function () { st.rating = ratingSel.value === '' ? null : U.num(ratingSel.value); Store.save(); });
 
       var gradeColors = { 'ט': '#fff3cd', 'י': '#d1ecf1', 'יא': '#d4edda', 'יב': '#f8d7da' };
-      var li = U.el('li', { class: (st.teamLeader ? 'leader ' : '') + (st.duty ? 'duty' : ''), draggable: 'true' }, [
-        U.el('span', { style: 'flex:1;', text: (st.teamLeader ? '⭐ ' : '') + (st.duty ? '★ ' : '') + name }),
-        U.el('span', { class: 'chk no-print', title: 'תורן' }, [dutyChk, U.el('span', { text: 'ת', class: 'muted' })]),
-        U.el('span', { class: 'chk', title: 'הגיע' }, [arrChk, U.el('span', { text: 'ה', class: 'muted' })]),
-        U.el('span', { class: 'chk', title: 'יצא' }, [wentChk, U.el('span', { text: 'י', class: 'muted' })]),
+      var nameCell = U.el('div', { style: 'flex:1;' }, [
+        U.el('div', { text: (st.teamLeader ? '⭐ ' : '') + name }),
+        st.note ? U.el('div', { class: 'muted', style: 'font-size:11px;', text: '📝 ' + st.note }) : null
+      ]);
+      var li = U.el('li', { class: (st.teamLeader ? 'leader ' : ''), draggable: 'true' }, [
+        nameCell,
+        U.el('span', { class: 'chk', title: 'יצא לעבודה' }, [wentChk, U.el('span', { text: 'יצא', class: 'muted' })]),
+        U.el('span', { class: 'chk no-print', title: 'ציון' }, [ratingSel]),
         U.el('button', { class: 'btn small danger no-print', onclick: function () { removeStudent(card, st.studentId); } }, '✕')
       ]);
       if (stu && stu.grade && gradeColors[stu.grade]) li.style.setProperty('background', gradeColors[stu.grade], 'important');
@@ -171,10 +201,10 @@
     node.appendChild(body);
 
     // ---- תחתית: סיכום ----
-    var arr = (card.students || []).filter(function (s) { return s.arrived; }).length;
     var went = (card.students || []).filter(function (s) { return s.wentToWork; }).length;
+    var sickN = (card.students || []).filter(function (s) { return s.sick; }).length;
     node.appendChild(U.el('div', { class: 'sc-foot' },
-      'משובצים: ' + (card.students || []).length + ' · הגיעו: ' + arr + ' · יצאו: ' + went));
+      'משובצים: ' + (card.students || []).length + ' · יצאו: ' + went + (sickN ? ' · חולים: ' + sickN : '')));
 
     // אזור גרירה — קבלת תלמיד בודד או צוות שלם
     node.addEventListener('dragover', function (e) { e.preventDefault(); node.classList.add('drag-over'); });
@@ -218,6 +248,7 @@
   function removeCard(day, card) {
     if ((card.students || []).length && !confirm('להסיר את האתר וכל השיבוצים בו?')) return;
     day.cards = day.cards.filter(function (c) { return c.id !== card.id; });
+    Sync.dayChanged(curDate);
     Store.save(); App.render();
   }
 
@@ -231,7 +262,7 @@
     day.cards.forEach(function (c) {
       c.students = (c.students || []).filter(function (s) { return s.studentId !== studentId; });
     });
-    card.students.push({ studentId: studentId, duty: false, arrived: false, wentToWork: false, teamLeader: !!teamLeader });
+    card.students.push({ studentId: studentId, wentToWork: false, sick: false, rating: null, teamLeader: !!teamLeader });
   }
 
   function addStudentToCard(day, card, studentId) {
@@ -281,13 +312,88 @@
     return set;
   }
 
+  function getPoolHeight() {
+    var h = parseInt(localStorage.getItem('agri_pool_height'), 10);
+    return (isNaN(h) ? 240 : Math.max(60, Math.min(2000, h)));
+  }
+  function setPoolHeight(h) { localStorage.setItem('agri_pool_height', Math.max(60, Math.min(2000, Math.round(h)))); }
+
+  function getHiddenGrades() {
+    try { return JSON.parse(localStorage.getItem('agri_pool_grades') || '{}'); } catch (e) { return {}; }
+  }
+  function setGradeHidden(g, hide) {
+    var h = getHiddenGrades();
+    if (hide) h[g] = true; else delete h[g];
+    localStorage.setItem('agri_pool_grades', JSON.stringify(h));
+  }
+
+  // תלמידים שיורדים מהמאגר היום (תורנים/חולים שבועיים + נעדרים יומיים) → { studentId: 'סיבה' }
+  function excludedSet() {
+    var d = Store.get();
+    var wk = U.startOfWeek(curDate);
+    var set = {};
+    (d.weeklyDuty[wk] || []).forEach(function (id) { set[id] = 'תורן שבועי'; });
+    (d.weeklySick[wk] || []).forEach(function (id) { set[id] = 'חולה השבוע'; });
+    (d.dailyAbsent[curDate] || []).forEach(function (id) { set[id] = 'נעדר היום'; });
+    return set;
+  }
+
+  // ניהול נעדרים ליום הנוכחי
+  function openAbsentDialog() {
+    var d = Store.get();
+    if (!d.dailyAbsent[curDate]) d.dailyAbsent[curDate] = [];
+    pickStudents('נעדרים ליום ' + U.gregLabel(curDate), d.dailyAbsent[curDate], function (sel) {
+      d.dailyAbsent[curDate] = sel;
+      if (!sel.length) delete d.dailyAbsent[curDate];
+      Store.save(); App.render();
+    });
+  }
+
+  // בורר תלמידים גנרי (שומר סימונים תוך כדי חיפוש) — לשימוש בנעדרים/תורנים/חולים
+  function pickStudents(title, preselectedIds, onSave) {
+    var students = activeList('students');
+    var selected = {};
+    (preselectedIds || []).forEach(function (id) { selected[id] = true; });
+    var search = U.el('input', { type: 'text', placeholder: 'חיפוש…', style: 'width:100%;margin-bottom:8px;' });
+    var countEl = U.el('span', { class: 'tag' });
+    var listBox = U.el('div', { style: 'max-height:340px;overflow:auto;' });
+    function updateCount() { countEl.textContent = 'נבחרו: ' + Object.keys(selected).filter(function (k) { return selected[k]; }).length; }
+    function build(filter) {
+      U.clear(listBox);
+      U.GRADES.concat(['']).forEach(function (g) {
+        var grp = students.filter(function (s) { return (s.grade || '') === g && (!filter || s.name.indexOf(filter) !== -1); });
+        if (!grp.length) return;
+        listBox.appendChild(U.el('div', { class: 'muted', style: 'margin:6px 0 2px;font-weight:600;', text: g ? 'כיתה ' + g : 'ללא כיתה' }));
+        grp.forEach(function (s) {
+          var cb = U.el('input', { type: 'checkbox', checked: !!selected[s.id] });
+          cb.addEventListener('change', function () { selected[s.id] = cb.checked; updateCount(); });
+          listBox.appendChild(U.el('label', { style: 'display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text);padding:2px 0;' }, [cb, s.name]));
+        });
+      });
+    }
+    search.addEventListener('input', function () { build(search.value.trim()); });
+    build(''); updateCount();
+    Modal.open(title, U.el('div', null, [U.el('div', { style: 'display:flex;gap:8px;align-items:center;margin-bottom:6px;' }, [search, countEl]), listBox]), [
+      { label: 'ביטול', class: 'secondary' },
+      { label: 'שמירה', onClick: function (close) {
+        onSave(Object.keys(selected).filter(function (k) { return selected[k]; }));
+        close();
+      } }
+    ]);
+  }
+  global.PickStudents = pickStudents; // לשימוש גם במסך התכנון השבועי
+
   function buildPool(day) {
     var assigned = assignedSet(day);
     var pool = U.el('div', { class: 'pool no-print' });
 
+    // ידית גרירה לשינוי גובה המאגר — גררו מעלה כדי להגדיל (אפילו מעל האתרים), מטה כדי להקטין
+    var resizer = U.el('div', { class: 'pool-resizer', title: 'גררו מעלה כדי להגדיל את המאגר (מעל האתרים) · מטה כדי להקטין' });
+    pool.appendChild(resizer);
+
     var head = U.el('div', { style: 'display:flex;align-items:center;gap:10px;' }, [
       U.el('h3', { style: 'margin:0;color:var(--green-dark);', text: '👥 מאגר תלמידים' }),
-      U.el('span', { class: 'muted', text: 'גררו צוות שלם (מהכותרת ⠿) או תלמיד בודד לאתר. גרירה לכאן מבטלת שיבוץ.' })
+      U.el('span', { class: 'muted', text: 'גררו צוות שלם (מהכותרת ⠿) או תלמיד בודד לאתר. גרירה לכאן מבטלת שיבוץ. גררו את הפס העליון כדי להגדיל.' })
     ]);
     pool.appendChild(head);
 
@@ -301,18 +407,59 @@
       else if (p.indexOf('student:') === 0) unassignStudent(day, p.slice(8));
     });
 
+    // סינון לפי כיתה — ביטול סימון מסתיר את כל תלמידי הכיתה מהמאגר
+    var hidden = getHiddenGrades();
+    function gradeVisible(g) { return !hidden[g || '']; }
+    var filterRow = U.el('div', { class: 'pool-filter' },
+      [U.el('span', { class: 'muted', text: 'הצג כיתות:' })].concat(
+        U.GRADES.map(function (g) {
+          var cb = U.el('input', { type: 'checkbox', checked: !hidden[g] });
+          cb.addEventListener('change', function () { setGradeHidden(g, !cb.checked); App.render(); });
+          return U.el('label', { class: 'gf' }, [cb, ' ' + g]);
+        })
+      ));
+    pool.appendChild(filterRow);
+
     var groupsWrap = U.el('div', { class: 'pool-groups' });
+    groupsWrap.style.height = getPoolHeight() + 'px';
+
+    // לוגיקת גרירת הידית לשינוי גובה
+    resizer.addEventListener('mousedown', function (e) {
+      e.preventDefault();
+      var startY = e.clientY;
+      var startH = groupsWrap.getBoundingClientRect().height;
+      document.body.style.userSelect = 'none';
+      function onMove(ev) {
+        var nh = startH + (startY - ev.clientY); // גרירה מעלה = גדל
+        nh = Math.max(60, Math.min(Math.round(window.innerHeight * 0.8), nh));
+        groupsWrap.style.height = nh + 'px';
+      }
+      function onUp() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.body.style.userSelect = '';
+        setPoolHeight(parseInt(groupsWrap.style.height, 10));
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+
+    // תלמידים שיורדים מהמאגר היום: תורנים/חולים שבועיים + נעדרים יומיים
+    var excluded = excludedSet();
+    function show(id, g) { return gradeVisible(g) && !excluded[id]; }
 
     var teams = global.TeamUtil.allTeams();
     teams.forEach(function (t) {
-      var ids = global.TeamUtil.orderedStudentIds(t);
+      var ids = global.TeamUtil.orderedStudentIds(t).filter(function (id) {
+        var s = Store.getById('students', id); return s && show(id, s.grade);
+      });
       if (!ids.length) return;
       groupsWrap.appendChild(buildTeamGroup(day, t, ids, assigned));
     });
 
     // תלמידים ללא צוות
     var noTeam = (Store.get().students || []).filter(function (s) {
-      return s.active !== false && !global.TeamUtil.teamOfStudent(s.id);
+      return s.active !== false && show(s.id, s.grade) && !global.TeamUtil.teamOfStudent(s.id);
     });
     if (noTeam.length) {
       groupsWrap.appendChild(buildLooseGroup(noTeam, assigned));
@@ -359,18 +506,27 @@
       U.el('span', { class: 'muted', style: 'font-size:11px;', text: '(' + students.length + ')' })]);
     var chips = U.el('div', { class: 'pg-chips' });
     students.forEach(function (s) { var c = studentChip(s.id, assigned); if (c) chips.appendChild(c); });
-    return U.el('div', { class: 'pool-group' }, [header, chips]);
+    return U.el('div', { class: 'pool-group loose' }, [header, chips]);
   }
 
   function openAddStudents(day, card) {
     var assigned = assignedStudentIds(day, card.id);
     var students = activeList('students');
-    var checks = [];
+
+    // הסימונים נשמרים במפה קבועה — כך חיפוש לא מאפס בחירות קודמות
+    var selectedMap = {};
+    (card.students || []).forEach(function (x) { selectedMap[x.studentId] = true; });
+
     var search = U.el('input', { type: 'text', placeholder: 'חיפוש…', style: 'width:100%;margin-bottom:8px;' });
+    var countEl = U.el('span', { class: 'tag', text: '' });
     var listBox = U.el('div', { style: 'max-height:320px;overflow:auto;' });
 
+    function updateCount() {
+      countEl.textContent = 'נבחרו: ' + Object.keys(selectedMap).filter(function (k) { return selectedMap[k]; }).length;
+    }
+
     function build(filter) {
-      U.clear(listBox); checks = [];
+      U.clear(listBox);
       U.GRADES.concat(['']).forEach(function (g) {
         var grp = students.filter(function (s) {
           return (s.grade || '') === g &&
@@ -379,31 +535,33 @@
         if (!grp.length) return;
         listBox.appendChild(U.el('div', { class: 'muted', style: 'margin:6px 0 2px;font-weight:600;', text: g ? 'כיתה ' + g : 'ללא כיתה' }));
         grp.forEach(function (s) {
-          var already = assigned[s.id] || (card.students || []).some(function (x) { return x.studentId === s.id; });
-          var cb = U.el('input', { type: 'checkbox', checked: (card.students || []).some(function (x) { return x.studentId === s.id; }) });
-          checks.push({ cb: cb, id: s.id });
-          var lbl = U.el('label', { style: 'display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text);' + (already && !cb.checked ? 'opacity:.5;' : '') },
-            [cb, s.name + (already && !cb.checked ? ' (משובץ באתר אחר)' : '')]);
+          var already = assigned[s.id] || !!selectedMap[s.id];
+          var cb = U.el('input', { type: 'checkbox', checked: !!selectedMap[s.id] });
+          cb.addEventListener('change', function () { selectedMap[s.id] = cb.checked; updateCount(); });
+          var lbl = U.el('label', { style: 'display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text);' + (assigned[s.id] && !selectedMap[s.id] ? 'opacity:.5;' : '') },
+            [cb, s.name + (assigned[s.id] && !selectedMap[s.id] ? ' (משובץ באתר אחר)' : '')]);
           listBox.appendChild(lbl);
         });
       });
     }
     search.addEventListener('input', function () { build(search.value.trim()); });
     build('');
+    updateCount();
 
+    var headRow = U.el('div', { style: 'display:flex;gap:8px;align-items:center;margin-bottom:6px;' }, [search, countEl]);
     Modal.open('הוספת תלמידים — ' + (card.siteId ? (Store.getById('sites', card.siteId) || {}).name : 'אתר'),
-      U.el('div', null, [search, listBox]), [
+      U.el('div', null, [headRow, listBox]), [
       { label: 'ביטול', class: 'secondary' },
       { label: 'שמירה', onClick: function (close) {
         var selected = {};
-        checks.forEach(function (c) { if (c.cb.checked) selected[c.id] = true; });
+        Object.keys(selectedMap).forEach(function (k) { if (selectedMap[k]) selected[k] = true; });
         // הסר מהאתר את מי שבוטל
         card.students = (card.students || []).filter(function (s) { return selected[s.studentId]; });
         // הוסף חדשים (תוך הסרה מאתרים אחרים)
         Object.keys(selected).forEach(function (id) {
           if (!card.students.some(function (s) { return s.studentId === id; })) {
             day.cards.forEach(function (c) { if (c.id !== card.id) c.students = (c.students || []).filter(function (s) { return s.studentId !== id; }); });
-            card.students.push({ studentId: id, duty: false, arrived: false, wentToWork: false });
+            card.students.push({ studentId: id, wentToWork: false, sick: false, rating: null });
           }
         });
         Store.save(); close(); App.render();
@@ -426,9 +584,11 @@
       return {
         id: Store.uid(), siteId: c.siteId, transportId: c.transportId,
         staffId: c.staffId, leaderId: c.leaderId, hours: c.hours, travel: c.travel, notes: c.notes,
-        students: (c.students || []).map(function (s) { return { studentId: s.studentId, duty: s.duty, arrived: false, wentToWork: false }; })
+        targetWorkers: c.targetWorkers, group: c.group || '',
+        students: (c.students || []).map(function (s) { return { studentId: s.studentId, wentToWork: false, sick: false, rating: null, teamLeader: s.teamLeader }; })
       };
     });
+    Sync.dayChanged(curDate);
     Store.save(); App.render();
   }
 
@@ -462,20 +622,99 @@
       if (site && (site.contactName || site.phone)) aoa.push(['איש קשר:', [site.contactName, site.phone].filter(Boolean).join(' ')]);
       aoa.push(['הסעה:', trans ? trans.name : '', 'איש צוות:', staff ? staff.name : '', 'ראש צוות:', leader ? leader.name : '']);
       aoa.push(['שעות:', c.hours, 'נסיעות:', c.travel !== false ? 'כן' : 'לא']);
-      aoa.push(['תלמיד', 'כיתה', 'תורן', 'הגיע', 'יצא לעבודה']);
+      aoa.push(['תלמיד', 'כיתה', 'יצא לעבודה', 'חולה', 'ציון']);
       (c.students || []).forEach(function (s) {
         var stu = Store.getById('students', s.studentId);
-        aoa.push([stu ? stu.name : '', stu ? stu.grade : '', s.duty ? 'כן' : '', s.arrived ? 'כן' : '', s.wentToWork ? 'כן' : '']);
+        aoa.push([stu ? stu.name : '', stu ? stu.grade : '', s.wentToWork ? 'כן' : '', s.sick ? 'כן' : '', s.rating || '']);
       });
-      var arr = (c.students || []).filter(function (s) { return s.arrived; }).length;
       var went = (c.students || []).filter(function (s) { return s.wentToWork; }).length;
-      aoa.push(['סה"כ הגיעו:', arr, 'סה"כ יצאו:', went]);
+      var sickN = (c.students || []).filter(function (s) { return s.sick; }).length;
+      aoa.push(['סה"כ יצאו:', went, 'חולים:', sickN]);
       aoa.push([]);
     });
     var ws = XLSX.utils.aoa_to_sheet(aoa);
     var wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'סידור');
     XLSX.writeFile(wb, 'סידור-' + curDate + '.xlsx');
+  }
+
+  // ---------- ייצוא תמונה מסודרת של הסידור היומי (לתלמידים) ----------
+  // מציג: שם חקלאי, מיקום, איש קשר, הסעה, איש צוות, ורשימת תלמידים בלבד.
+  function buildExportCard(card) {
+    var site = card.siteId ? Store.getById('sites', card.siteId) : null;
+    var staff = card.staffId ? Store.getById('staff', card.staffId) : null;
+    var trans = card.transportId ? Store.getById('transports', card.transportId) : null;
+
+    var lines = [];
+    if (site && site.location) lines.push('📍 ' + site.location);
+    if (site && (site.contactName || site.phone)) lines.push('☎ ' + [site.contactName, site.phone].filter(Boolean).join(' · '));
+    if (trans) lines.push('🚌 ' + trans.name);
+    if (staff) lines.push('👤 איש צוות: ' + staff.name);
+
+    var metaNodes = lines.map(function (t) { return U.el('div', { style: 'font-size:12px;color:#555;line-height:1.6;', text: t }); });
+
+    var ordered = (card.students || []).slice().sort(function (a, b) { return (b.teamLeader ? 1 : 0) - (a.teamLeader ? 1 : 0); });
+    var lis = ordered.map(function (st) {
+      var stu = Store.getById('students', st.studentId);
+      var nm = stu ? stu.name + (stu.grade ? ' (' + stu.grade + ')' : '') : '⚠';
+      var bg = (stu && chipGradeColors[stu.grade]) ? chipGradeColors[stu.grade] : '#fff';
+      return U.el('li', { style: 'padding:3px 7px;font-size:12.5px;border-bottom:1px solid rgba(0,0,0,.06);background:' + bg + ';' + (st.teamLeader ? 'font-weight:700;' : ''), text: (st.teamLeader ? '⭐ ' : '') + nm });
+    });
+
+    return U.el('div', { style: 'border:1px solid #2e7d32;border-top:5px solid #2e7d32;border-radius:10px;background:#fff;overflow:hidden;break-inside:avoid;' }, [
+      U.el('div', { style: 'background:#e8f5e9;padding:8px 10px;' }, [
+        U.el('div', { style: 'font-weight:700;font-size:16px;color:#1b5e20;', text: site ? site.name : '(אתר)' })
+      ].concat(metaNodes)),
+      U.el('ul', { style: 'list-style:none;margin:0;padding:4px 8px 8px;' }, lis.length ? lis : [U.el('li', { style: 'font-size:12px;color:#999;', text: 'אין תלמידים' })])
+    ]);
+  }
+
+  function exportImage() {
+    var day = getDay(curDate);
+    if (!day.cards.length) { alert('אין אתרים להצגה ביום זה.'); return; }
+    if (typeof global.html2canvas === 'undefined') { alert('רכיב הייצוא עדיין נטען — נסו שוב בעוד רגע.'); return; }
+
+    // רוחב A4 לאורך (794px @96dpi); הכרטיסים נערמים ל-3 עמודות
+    var temp = U.el('div', { style: 'position:fixed;top:0;right:-12000px;width:794px;box-sizing:border-box;background:#fff;padding:20px;direction:rtl;font-family:Arial,sans-serif;' });
+    temp.appendChild(U.el('div', { style: 'text-align:center;font-weight:700;font-size:20px;color:#1b5e20;margin-bottom:4px;', text: 'סידור עבודה — רגבים בנימין' }));
+    temp.appendChild(U.el('div', { style: 'text-align:center;font-size:15px;margin-bottom:12px;', text: U.weekdayName(curDate) + ' · ' + U.hebrewDate(curDate) + ' · ' + U.gregLabel(curDate) }));
+    var board = U.el('div', { style: 'display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;align-items:start;direction:rtl;' });
+    day.cards.forEach(function (c) { board.appendChild(buildExportCard(c)); });
+    temp.appendChild(board);
+    document.body.appendChild(temp);
+
+    global.html2canvas(temp, { scale: 2, backgroundColor: '#ffffff' }).then(function (canvas) {
+      document.body.removeChild(temp);
+      canvas.toBlob(function (blob) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url; a.download = 'סידור-' + curDate + '.png';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      });
+    }).catch(function (e) {
+      if (temp.parentNode) document.body.removeChild(temp);
+      alert('שגיאה בייצוא התמונה: ' + e.message);
+    });
+  }
+
+  // ---------- גלילה אוטומטית בזמן גרירה (כשהיעד רחוק) ----------
+  var autoScrollBound = false;
+  function bindAutoScroll() {
+    if (autoScrollBound) return; autoScrollBound = true;
+    document.addEventListener('dragover', function (e) {
+      var edge = 70, step = 28;
+      if (e.clientY < edge) window.scrollBy(0, -step);
+      else if (window.innerHeight - e.clientY < edge) window.scrollBy(0, step);
+      var board = document.querySelector('.day-board');
+      if (board) {
+        var r = board.getBoundingClientRect();
+        if (e.clientY > r.top && e.clientY < r.bottom) {
+          if (e.clientX - r.left < edge) board.scrollLeft -= step;
+          else if (r.right - e.clientX < edge) board.scrollLeft += step;
+        }
+      }
+    });
   }
 
   global.DailyView = { render: render };

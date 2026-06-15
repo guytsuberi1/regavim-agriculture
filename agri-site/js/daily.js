@@ -57,8 +57,13 @@
       root.appendChild(board);
     }
 
-    // מאגר התלמידים בתחתית המסך (מחולק לצוותים) — לגרירה
-    root.appendChild(buildPool(day));
+    // מאגר התלמידים — מגירה תחתונה קבועה; גוררים את הקצה העליון כדי להגדיל אותה מעל האתרים
+    var poolEl = buildPool(day);
+    root.appendChild(poolEl);
+    // ריווח תחתון כך שהאתרים התחתונים לא יוסתרו כשהמגירה קטנה (כשמגדילים — היא מכסה את האתרים)
+    var gw = poolEl.querySelector('.pool-groups');
+    var chrome = poolEl.offsetHeight - (gw ? gw.offsetHeight : 0);
+    root.style.paddingBottom = (chrome + Math.min(getPoolHeight(), 280) + 14) + 'px';
   }
 
   function dateInput() {
@@ -309,9 +314,9 @@
 
   function getPoolHeight() {
     var h = parseInt(localStorage.getItem('agri_pool_height'), 10);
-    return (isNaN(h) ? 240 : Math.max(60, Math.min(640, h)));
+    return (isNaN(h) ? 240 : Math.max(60, Math.min(2000, h)));
   }
-  function setPoolHeight(h) { localStorage.setItem('agri_pool_height', Math.max(60, Math.min(640, Math.round(h)))); }
+  function setPoolHeight(h) { localStorage.setItem('agri_pool_height', Math.max(60, Math.min(2000, Math.round(h)))); }
 
   function getHiddenGrades() {
     try { return JSON.parse(localStorage.getItem('agri_pool_grades') || '{}'); } catch (e) { return {}; }
@@ -382,13 +387,13 @@
     var assigned = assignedSet(day);
     var pool = U.el('div', { class: 'pool no-print' });
 
-    // ידית גרירה לשינוי גובה המאגר (מעלה/מטה)
-    var resizer = U.el('div', { class: 'pool-resizer', title: 'גררו מעלה/מטה לשינוי גובה המאגר' });
+    // ידית גרירה לשינוי גובה המאגר — גררו מעלה כדי להגדיל (אפילו מעל האתרים), מטה כדי להקטין
+    var resizer = U.el('div', { class: 'pool-resizer', title: 'גררו מעלה כדי להגדיל את המאגר (מעל האתרים) · מטה כדי להקטין' });
     pool.appendChild(resizer);
 
     var head = U.el('div', { style: 'display:flex;align-items:center;gap:10px;' }, [
       U.el('h3', { style: 'margin:0;color:var(--green-dark);', text: '👥 מאגר תלמידים' }),
-      U.el('span', { class: 'muted', text: 'גררו צוות שלם (מהכותרת ⠿) או תלמיד בודד לאתר. גרירה לכאן מבטלת שיבוץ.' })
+      U.el('span', { class: 'muted', text: 'גררו צוות שלם (מהכותרת ⠿) או תלמיד בודד לאתר. גרירה לכאן מבטלת שיבוץ. גררו את הפס העליון כדי להגדיל.' })
     ]);
     pool.appendChild(head);
 
@@ -426,7 +431,7 @@
       document.body.style.userSelect = 'none';
       function onMove(ev) {
         var nh = startH + (startY - ev.clientY); // גרירה מעלה = גדל
-        nh = Math.max(60, Math.min(640, nh));
+        nh = Math.max(60, Math.min(Math.round(window.innerHeight * 0.8), nh));
         groupsWrap.style.height = nh + 'px';
       }
       function onUp() {
