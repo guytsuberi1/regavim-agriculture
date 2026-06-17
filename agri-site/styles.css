@@ -226,6 +226,8 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
 .fadd-item:hover { background: var(--green-light); border-color: var(--green); }
 .fadd-plus { color: var(--green); font-weight: 700; }
 .fadd-note { font-size: 12px; opacity: .7; }
+.sc-teamgrip { display: block; text-align: center; margin: 4px 0 6px; padding: 5px; font-size: 13px; font-weight: 600; color: var(--green-dark); background: var(--green-light); border: 1px dashed var(--green); border-radius: 8px; cursor: grab; user-select: none; }
+.sc-teamgrip:active { cursor: grabbing; }
 
 /* ---------- מודאל ---------- */
 .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; z-index: 100; }
