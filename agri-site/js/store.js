@@ -76,7 +76,7 @@
   }
 
   var saveTimer = null;
-  var selfStamp = null;
+  var CLIENT_ID = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   function save() {
     if (!data) return;
     data.meta.lastModified = new Date().toISOString();
@@ -103,7 +103,7 @@
   // ---------- ענן: שמירה/טעינה/זמן-אמת ----------
   function cloudSave() {
     if (!sb) return;
-    selfStamp = data && data.meta ? data.meta.lastModified : null;
+    if (data && data.meta) data.meta.savedBy = CLIENT_ID;
     sb.from('app_state').upsert({ id: ROW_ID, data: data, updated_at: new Date().toISOString() })
       .then(function (res) {
         if (res.error) { console.error('cloudSave', res.error); setStatus('שגיאת שמירה לענן'); }
@@ -124,12 +124,15 @@
       function (payload) {
         var incoming = payload.new && payload.new.data;
         if (!incoming) return;
-        // דלג על הד של שמירה שלנו (זיהוי לפי חותמת זמן) — מונע רינדור מחדש שמקפיץ את הדף למעלה
-        if (incoming.meta && selfStamp && incoming.meta.lastModified === selfStamp) return;
+        // דלג על כל הד שמקורו בלקוח הזה (מזוהה לפי CLIENT_ID, ללא תלות בתזמון/סדר) —
+        // מונע גם את "הסימון שנעלם" וגם את הקפיצה למעלה אחרי כל שמירה.
+        if (incoming.meta && incoming.meta.savedBy === CLIENT_ID) return;
         if (JSON.stringify(incoming) === JSON.stringify(data)) return;
         applyingRemote = true;
+        var _sy = (global.scrollY || 0);
         replaceAll(incoming);
         if (global.App && App.render) App.render();
+        global.scrollTo(0, _sy);
         applyingRemote = false;
         setStatus('עודכן בזמן אמת ' + new Date().toLocaleTimeString('he-IL'));
       }).subscribe();
