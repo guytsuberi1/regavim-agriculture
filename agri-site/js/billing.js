@@ -193,6 +193,7 @@
     var siteIds = Object.keys(bySite);
     if (!siteIds.length) { alert('אין נתונים לייצוא בחודש זה.'); return; }
     var wb = XLSX.utils.book_new();
+    wb.Workbook = { Views: [{ RTL: true }] }; // כל הגיליונות נפתחים מימין לשמאל
 
     // ---- גיליון מסכם (מסובב: שדות בשורות, חקלאי לכל עמודה) ----
     var labels = ['שם עסקי:', 'מיקום:', 'שם', 'טלפון:', 'שעות עבודה', 'תשלום שעתי', 'תשלום עבודה', 'תשלום נסיעות', 'סה"כ לתשלום'];
@@ -205,7 +206,6 @@
     var sumAoa = [['דרישת תשלום — רגבים בנימין · ' + U.monthLabel(curMonth)], []].concat(rows);
     var ws1 = XLSX.utils.aoa_to_sheet(sumAoa);
     var ncol = 1 + siteIds.length;
-    ws1['!views'] = [{ RTL: true }];
     ws1['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: ncol - 1 } }];
     ws1['!cols'] = [{ wch: 16 }].concat(siteIds.map(function () { return { wch: 14 }; }));
     setStyle(ws1, 0, 0, ST.title);
@@ -239,7 +239,6 @@
       aoa.push(['סה"כ לתשלום', Math.round(t.total)]);
 
       var ws = XLSX.utils.aoa_to_sheet(aoa);
-      ws['!views'] = [{ RTL: true }];
       ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }];
       ws['!cols'] = [{ wch: 22 }, { wch: 8 }, { wch: 12 }, { wch: 10 }, { wch: 16 }, { wch: 10 }];
       setStyle(ws, 0, 0, ST.title);
