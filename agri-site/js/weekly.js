@@ -169,10 +169,8 @@
       } else {
         items.forEach(function (it) {
           var site = it.siteId ? Store.getById('sites', it.siteId) : null;
-          var trans = it.transportId ? Store.getById('transports', it.transportId) : null;
           cell.appendChild(U.el('div', { style: 'border-top:1px solid #eef0ee;padding:5px 6px;' }, [
-            U.el('div', { style: 'font-size:12px;font-weight:600;color:#1c2733;', text: (it.group ? it.group + ' · ' : '') + (site ? site.name : '(אתר)') + (it.workers ? ' · ' + it.workers : '') }),
-            trans ? U.el('div', { style: 'font-size:11px;color:#555;margin-top:1px;', text: '🚌 ' + trans.name }) : null
+            U.el('div', { style: 'font-size:12px;font-weight:600;color:#1c2733;', text: (it.group ? it.group + ' · ' : '') + (site ? site.name : '(אתר)') + (it.workers ? ' · ' + it.workers : '') })
           ]));
         });
       }

@@ -70,12 +70,24 @@
   }
 
   var hebFmt = null;
+  // המרת יום בחודש (1-30) לגימטריה עברית עם גרש/גרשיים (ט"ו/ט"ז כמקובל)
+  function hebGematriaDay(n) {
+    if (n === 15) return 'ט"ו';
+    if (n === 16) return 'ט"ז';
+    var ones = ['', 'א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט'];
+    var tens = ['', 'י', 'כ', 'ל'];
+    var s = (tens[Math.floor(n / 10)] || '') + (ones[n % 10] || '');
+    if (s.length <= 1) return s + '׳';
+    return s.slice(0, -1) + '"' + s.slice(-1);
+  }
   function hebrewDate(iso) {
     try {
       if (!hebFmt) {
         hebFmt = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', { day: 'numeric', month: 'long' });
       }
-      return hebFmt.format(fromISO(iso));
+      return hebFmt.formatToParts(fromISO(iso)).map(function (p) {
+        return p.type === 'day' ? hebGematriaDay(parseInt(p.value, 10)) : p.value;
+      }).join('');
     } catch (e) { return ''; }
   }
 
