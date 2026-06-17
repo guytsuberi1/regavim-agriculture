@@ -157,12 +157,8 @@
       U.el('div', null, [U.el('label', { text: 'נסיעות' }), U.el('div', null, [travelChk])])
     ]));
 
-    // תלמידים — ראשי צוות מוצגים ראשונים
-    var ul = U.el('ul', { class: 'sc-students' });
-    var ordered = (card.students || []).slice().sort(function (a, b) {
-      return (b.teamLeader ? 1 : 0) - (a.teamLeader ? 1 : 0);
-    });
-    ordered.forEach(function (st) {
+    // בניית שורת תלמיד בודד
+    function buildStudentLi(st) {
       var stu = Store.getById('students', st.studentId);
       var name = stu ? stu.name + (stu.grade ? ' (' + stu.grade + ')' : '') : '⚠ נמחק';
 
@@ -187,15 +183,45 @@
       ]);
       if (stu && stu.grade && gradeColors[stu.grade]) li.style.setProperty('background', gradeColors[stu.grade], 'important');
       li.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text/plain', 'student:' + st.studentId); e.dataTransfer.effectAllowed = 'move'; });
-      ul.appendChild(li);
-    });
-    // ידית לגרירת כל הצוות יחד (לאתר אחר או חזרה למאגר)
-    if (ordered.length) {
-      var teamGrip = U.el('div', { class: 'sc-teamgrip no-print', draggable: 'true', title: 'גרירת כל הצוות לאתר אחר או חזרה למאגר' }, '⠿ גרירת כל הצוות');
-      teamGrip.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text/plain', 'cardteam:' + card.id); e.dataTransfer.effectAllowed = 'move'; });
-      body.appendChild(teamGrip);
+      return li;
     }
-    body.appendChild(ul);
+    function sortLeadersFirst(arr) {
+      return arr.slice().sort(function (a, b) { return (b.teamLeader ? 1 : 0) - (a.teamLeader ? 1 : 0); });
+    }
+
+    // תלמידים — מקובצים לפי הצוות המקורי (כמו במאגר); כל צוות ניתן לגרירה בנפרד
+    var byTeam = {}, teamOrder = [], looseItems = [];
+    (card.students || []).forEach(function (st) {
+      var t = global.TeamUtil.teamOfStudent(st.studentId);
+      if (t) {
+        if (!byTeam[t.id]) { byTeam[t.id] = { team: t, items: [] }; teamOrder.push(t.id); }
+        byTeam[t.id].items.push(st);
+      } else { looseItems.push(st); }
+    });
+
+    teamOrder.forEach(function (tid) {
+      var g = byTeam[tid];
+      var grip = U.el('span', { class: 'grip no-print', draggable: 'true', title: 'גרירת הצוות לאתר אחר או חזרה למאגר', text: '⠿' });
+      grip.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text/plain', 'team:' + g.team.id); e.dataTransfer.effectAllowed = 'move'; });
+      var gh = U.el('div', { class: 'sc-team-head' }, [
+        grip,
+        U.el('span', { class: 'sc-team-title', text: '⭐ ' + global.TeamUtil.teamLabel(g.team) }),
+        U.el('span', { class: 'muted', style: 'font-size:11px;', text: '(' + g.items.length + ')' })
+      ]);
+      var ulT = U.el('ul', { class: 'sc-students' });
+      sortLeadersFirst(g.items).forEach(function (st) { ulT.appendChild(buildStudentLi(st)); });
+      body.appendChild(U.el('div', { class: 'sc-team' }, [gh, ulT]));
+    });
+
+    if (looseItems.length) {
+      var ulL = U.el('ul', { class: 'sc-students' });
+      sortLeadersFirst(looseItems).forEach(function (st) { ulL.appendChild(buildStudentLi(st)); });
+      body.appendChild(U.el('div', { class: 'sc-team loose' }, [
+        U.el('div', { class: 'sc-team-head' }, [U.el('span', { class: 'sc-team-title muted', text: 'ללא צוות' })]),
+        ulL
+      ]));
+    }
+
     body.appendChild(U.el('button', { class: 'btn small secondary no-print', onclick: function () { openAddStudents(day, card); } }, '+ הוסף תלמידים'));
 
     // הערות
@@ -304,31 +330,10 @@
     Store.save(); App.render();
   }
 
-  // העברת כל הצוות שבכרטיס לאתר אחר — שומר על הסימונים (יצא/ציון/הערה/ראש צוות)
-  function moveCardTeam(day, targetCard, sourceCardId) {
-    if (sourceCardId === targetCard.id) return;
-    var src = day.cards.filter(function (c) { return c.id === sourceCardId; })[0];
-    if (!src || !(src.students || []).length) return;
-    var moving = src.students.slice();
-    var ids = {}; moving.forEach(function (s) { ids[s.studentId] = true; });
-    day.cards.forEach(function (c) { c.students = (c.students || []).filter(function (s) { return !ids[s.studentId]; }); });
-    moving.forEach(function (s) { targetCard.students.push(s); });
-    Store.save(); App.render();
-  }
-
-  // החזרת כל הצוות שבכרטיס למאגר
-  function unassignCardTeam(day, cardId) {
-    var src = day.cards.filter(function (c) { return c.id === cardId; })[0];
-    if (!src || !(src.students || []).length) return;
-    src.students = [];
-    Store.save(); App.render();
-  }
-
   // טיפול בגרירה לתוך כרטיס אתר
   function handleDrop(day, card, payload) {
     if (!payload) return;
-    if (payload.indexOf('cardteam:') === 0) moveCardTeam(day, card, payload.slice(9));
-    else if (payload.indexOf('team:') === 0) assignTeamToCard(day, card, payload.slice(5));
+    if (payload.indexOf('team:') === 0) assignTeamToCard(day, card, payload.slice(5));
     else if (payload.indexOf('student:') === 0) { placeStudent(day, card, payload.slice(8), false); Store.save(); App.render(); }
   }
 
@@ -432,8 +437,7 @@
     pool.addEventListener('drop', function (e) {
       e.preventDefault(); pool.classList.remove('drag-over');
       var p = e.dataTransfer.getData('text/plain');
-      if (p.indexOf('cardteam:') === 0) unassignCardTeam(day, p.slice(9));
-      else if (p.indexOf('team:') === 0) unassignTeam(day, p.slice(5));
+      if (p.indexOf('team:') === 0) unassignTeam(day, p.slice(5));
       else if (p.indexOf('student:') === 0) unassignStudent(day, p.slice(8));
     });
 
