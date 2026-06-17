@@ -14,7 +14,7 @@
       U.el('div', { class: 'spacer' }),
       U.el('button', { class: 'btn secondary', onclick: function () { editWeekList('weeklyDuty', 'תורנים שבועיים'); } }, '🧹 תורנים' + countSuffix('weeklyDuty')),
       U.el('button', { class: 'btn secondary', onclick: function () { editWeekList('weeklySick', 'חולים השבוע'); } }, '🤒 חולים' + countSuffix('weeklySick')),
-      U.el('button', { class: 'btn secondary', onclick: function () { window.print(); } }, '🖨 הדפסה'),
+      U.el('button', { class: 'btn accent', onclick: exportImage }, '🖼 ייצוא תמונה'),
       U.el('button', { class: 'btn accent', onclick: exportExcel }, '⬇ ייצוא אקסל')
     ]);
     root.appendChild(head);
@@ -148,6 +148,52 @@
     var wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'תכנון');
     XLSX.writeFile(wb, 'תכנון-שבועי-' + weekStart + '.xlsx');
+  }
+
+  // ---------- ייצוא תמונה של התכנון השבועי (ימים, תאריכים, אתרים + דרך הגעה; ללא הערות) ----------
+  function exportImage() {
+    if (typeof global.html2canvas === 'undefined') { alert('רכיב הייצוא עדיין נטען — נסו שוב בעוד רגע.'); return; }
+    var plan = Store.get().weeklyPlan;
+    var temp = U.el('div', { style: 'position:fixed;top:0;right:-12000px;width:1100px;box-sizing:border-box;background:#fff;padding:20px;direction:rtl;font-family:Arial,sans-serif;' });
+    temp.appendChild(U.el('div', { style: 'text-align:center;font-weight:700;font-size:20px;color:#1b5e20;margin-bottom:4px;', text: 'תכנון שבועי — רגבים בנימין' }));
+    temp.appendChild(U.el('div', { style: 'text-align:center;font-size:15px;margin-bottom:12px;', text: U.gregLabel(weekStart) + ' – ' + U.gregLabel(U.addDays(weekStart, 6)) }));
+    var board = U.el('div', { style: 'display:grid;grid-template-columns:repeat(7,1fr);gap:6px;align-items:start;direction:rtl;' });
+    for (var i = 0; i < 7; i++) {
+      var iso = U.addDays(weekStart, i);
+      var items = plan[iso] || [];
+      var cell = U.el('div', { style: 'border:1px solid #cdd6cf;border-radius:8px;overflow:hidden;' });
+      cell.appendChild(U.el('div', { style: 'background:#e8f5e9;color:#1b5e20;font-weight:700;font-size:13px;text-align:center;padding:5px 4px;', text: U.weekdayName(iso) }));
+      cell.appendChild(U.el('div', { style: 'text-align:center;font-size:11px;color:#555;padding:2px 4px 6px;', text: U.hebrewDate(iso) + ' · ' + U.gregLabel(iso) }));
+      if (!items.length) {
+        cell.appendChild(U.el('div', { style: 'text-align:center;color:#aaa;font-size:11px;padding:4px 0 8px;', text: '—' }));
+      } else {
+        items.forEach(function (it) {
+          var site = it.siteId ? Store.getById('sites', it.siteId) : null;
+          var trans = it.transportId ? Store.getById('transports', it.transportId) : null;
+          cell.appendChild(U.el('div', { style: 'border-top:1px solid #eef0ee;padding:5px 6px;' }, [
+            U.el('div', { style: 'font-size:12px;font-weight:600;color:#1c2733;', text: (it.group ? it.group + ' · ' : '') + (site ? site.name : '(אתר)') + (it.workers ? ' · ' + it.workers : '') }),
+            trans ? U.el('div', { style: 'font-size:11px;color:#555;margin-top:1px;', text: '🚌 ' + trans.name }) : null
+          ]));
+        });
+      }
+      board.appendChild(cell);
+    }
+    temp.appendChild(board);
+    document.body.appendChild(temp);
+
+    global.html2canvas(temp, { scale: 2, backgroundColor: '#ffffff' }).then(function (canvas) {
+      document.body.removeChild(temp);
+      canvas.toBlob(function (blob) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url; a.download = 'תכנון-שבועי-' + weekStart + '.png';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      });
+    }).catch(function (e) {
+      if (temp.parentNode) document.body.removeChild(temp);
+      alert('שגיאה בייצוא התמונה: ' + e.message);
+    });
   }
 
   global.WeeklyView = { render: render };
