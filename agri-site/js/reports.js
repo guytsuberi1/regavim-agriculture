@@ -71,6 +71,22 @@
     }).sort(function (a, b) { return b.days - a.days; });
   }
 
+  function transportReport() {
+    var stats = {};
+    eachCard(function (iso, c) {
+      if (!c.transportId) return;
+      if (!stats[c.transportId]) stats[c.transportId] = { days: {}, trips: 0, workers: 0 };
+      var st = stats[c.transportId];
+      st.days[iso] = true;
+      st.trips++;
+      st.workers += (c.students || []).filter(function (s) { return s.wentToWork; }).length;
+    });
+    return Object.keys(stats).map(function (id) {
+      var tr = Store.getById('transports', id) || { name: '(נמחק)' };
+      return { name: tr.name, days: Object.keys(stats[id].days).length, trips: stats[id].trips, workers: stats[id].workers };
+    }).sort(function (a, b) { return b.days - a.days; });
+  }
+
   function render(root) {
     var head = U.el('div', { class: 'page-head' }, [
       U.el('h2', { text: 'דוחות' }),
@@ -81,14 +97,15 @@
     root.appendChild(head);
 
     root.appendChild(U.el('div', { class: 'subtabs' }, [
-      ['students', 'תלמידים'], ['sites', 'אתרים'], ['staff', 'צוות']
+      ['students', 'תלמידים'], ['sites', 'אתרים'], ['staff', 'צוות'], ['transports', 'הסעה']
     ].map(function (p) {
       return U.el('button', { class: sub === p[0] ? 'active' : '', onclick: function () { sub = p[0]; App.render(); } }, p[1]);
     })));
 
     if (sub === 'students') root.appendChild(renderStudents());
     else if (sub === 'sites') root.appendChild(renderTable(['אתר', 'ימי פעילות', 'סה"כ עובדים', 'סה"כ שעות'], siteReport().map(function (r) { return [r.name, r.days, r.workers, r.hours]; })));
-    else root.appendChild(renderTable(['שם', 'ימי פעילות'], staffReport().map(function (r) { return [r.name, r.days]; })));
+    else if (sub === 'staff') root.appendChild(renderTable(['שם', 'ימי פעילות'], staffReport().map(function (r) { return [r.name, r.days]; })));
+    else root.appendChild(renderTable(['הסעה', 'ימי פעילות', 'מספר הסעות', 'סה"כ נוסעים'], transportReport().map(function (r) { return [r.name, r.days, r.trips, r.workers]; })));
   }
 
   function renderStudents() {
@@ -134,6 +151,8 @@
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['אתר', 'ימי פעילות', 'סה"כ עובדים', 'סה"כ שעות']].concat(si.map(function (r) { return [r.name, r.days, r.workers, r.hours]; }))), 'אתרים');
     var sf = staffReport();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['שם', 'ימי פעילות']].concat(sf.map(function (r) { return [r.name, r.days]; }))), 'צוות');
+    var tp = transportReport();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['הסעה', 'ימי פעילות', 'מספר הסעות', 'סה"כ נוסעים']].concat(tp.map(function (r) { return [r.name, r.days, r.trips, r.workers]; }))), 'הסעות');
     XLSX.writeFile(wb, 'דוחות-' + fromDate + '_' + toDate + '.xlsx');
   }
 
