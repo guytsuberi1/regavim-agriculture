@@ -72,11 +72,14 @@ body {
 .um-item { display: block; width: 100%; background: none; border: 0; text-align: right; padding: 9px 12px; font-size: 14px; font-family: inherit; color: var(--text); cursor: pointer; border-radius: 8px; }
 .um-item:hover { background: var(--bg); }
 .um-item.um-logout { color: var(--danger); }
-.sb-toggle { display: inline-flex; align-items: center; background: none; border: 0; font-size: 22px; cursor: pointer; color: var(--green-dark); padding: 2px 6px; line-height: 1; }
+.sb-toggle { display: none; align-items: center; background: none; border: 0; font-size: 22px; cursor: pointer; color: var(--green-dark); padding: 2px 6px; line-height: 1; }
+.sb-close { margin-inline-start: auto; background: none; border: 0; font-size: 20px; cursor: pointer; color: var(--muted); padding: 2px 6px; line-height: 1; }
+.sb-close:hover { color: var(--green-dark); }
 
-/* כיווץ הסרגל בדסקטופ */
+/* כיווץ הסרגל בדסקטופ — כפתור הפתיחה (☰) מופיע רק כשהסרגל סגור */
 @media (min-width: 861px) {
   .layout.collapsed .sidebar { display: none; }
+  .layout.collapsed .sb-toggle { display: inline-flex; }
 }
 
 @media (max-width: 860px) {
@@ -85,6 +88,8 @@ body {
     transition: transform .25s; box-shadow: -4px 0 16px rgba(0,0,0,.18);
   }
   .sidebar.open { transform: translateX(0); }
+  .sb-toggle { display: inline-flex; }
+  .sidebar.open ~ .content .sb-toggle { display: none; }
 }
 
 /* ---------- אזור תוכן ---------- */

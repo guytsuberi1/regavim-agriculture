@@ -25,6 +25,7 @@
       <div class="brand">
         <span class="brand-logo">🌱</span>
         <span class="brand-txt">ניהול חקלאות<small>רגבים בנימין</small></span>
+        <button id="sbClose" class="sb-close no-print" aria-label="סגירת סרגל הצד" title="סגירת סרגל הצד">«</button>
       </div>
       <nav class="tabs" id="tabs">
         <button data-tab="daily" class="active">🗓️ סידור יומי</button>
@@ -68,18 +69,16 @@
   <script>
     (function () {
       var sb = document.getElementById('sidebar'), tg = document.getElementById('sbToggle');
-      var layout = document.querySelector('.layout');
+      var sbClose = document.getElementById('sbClose'), layout = document.querySelector('.layout');
+      function mobile() { return window.innerWidth <= 860; }
+      function openSb() { if (mobile()) { if (sb) sb.classList.add('open'); } else if (layout) { layout.classList.remove('collapsed'); localStorage.setItem('agri_sidebar_collapsed', '0'); } }
+      function closeSb() { if (mobile()) { if (sb) sb.classList.remove('open'); } else if (layout) { layout.classList.add('collapsed'); localStorage.setItem('agri_sidebar_collapsed', '1'); } }
       if (layout && localStorage.getItem('agri_sidebar_collapsed') === '1') layout.classList.add('collapsed');
-      if (tg) tg.addEventListener('click', function () {
-        if (window.innerWidth <= 860) { if (sb) sb.classList.toggle('open'); }
-        else if (layout) {
-          layout.classList.toggle('collapsed');
-          localStorage.setItem('agri_sidebar_collapsed', layout.classList.contains('collapsed') ? '1' : '0');
-        }
-      });
+      if (tg) tg.addEventListener('click', openSb);
+      if (sbClose) sbClose.addEventListener('click', closeSb);
       var tabs = document.getElementById('tabs');
       if (tabs && sb) tabs.addEventListener('click', function (e) {
-        if (e.target.closest('button') && window.innerWidth <= 860) sb.classList.remove('open');
+        if (e.target.closest('button') && mobile()) sb.classList.remove('open');
       });
     })();
   </script>
