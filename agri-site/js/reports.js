@@ -60,7 +60,11 @@
       if (!stats[id]) stats[id] = { days: {}, role: role };
       stats[id].days[iso] = true;
     }
-    eachCard(function (iso, c) { bump(c.staffId, iso, 'איש צוות'); bump(c.leaderId, iso, 'ראש צוות'); });
+    eachCard(function (iso, c) {
+      var sids = (c.staffIds && c.staffIds.length) ? c.staffIds : (c.staffId ? [c.staffId] : []);
+      sids.forEach(function (sid) { bump(sid, iso, 'איש צוות'); });
+      bump(c.leaderId, iso, 'ראש צוות');
+    });
     return Object.keys(stats).map(function (id) {
       var p = Store.getById('staff', id) || { name: '(נמחק)' };
       return { name: p.name, days: Object.keys(stats[id].days).length };

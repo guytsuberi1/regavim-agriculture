@@ -230,6 +230,9 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
 .site-card .sc-team-head { display: flex; align-items: center; gap: 6px; padding: 2px 4px; border-bottom: 1px dashed var(--border); }
 .site-card .sc-team-title { font-size: 12px; font-weight: 600; color: var(--green-dark); }
 .site-card .sc-team .sc-students { margin: 2px 0 0; }
+.staff-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; }
+.staff-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--green-light); border: 1px solid var(--green); color: var(--green-dark); border-radius: 14px; padding: 2px 8px; font-size: 12px; }
+.staff-chip-x { background: none; border: none; color: var(--green-dark); cursor: pointer; font-size: 12px; padding: 0; line-height: 1; }
 
 /* ---------- מודאל ---------- */
 .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; z-index: 100; }

@@ -49,7 +49,7 @@
 
   function renderSite(root, card) {
     var site = card.siteId ? Store.getById('sites', card.siteId) : null;
-    var staff = card.staffId ? Store.getById('staff', card.staffId) : null;
+    var staffIds = (card.staffIds && card.staffIds.length) ? card.staffIds : (card.staffId ? [card.staffId] : []);
     var trans = card.transportId ? Store.getById('transports', card.transportId) : null;
 
     root.appendChild(U.el('button', { class: 'btn secondary', style: 'margin-bottom:10px;', onclick: function () { fieldCardId = null; App.render(); } }, '→ חזרה לרשימת האתרים'));
@@ -57,7 +57,7 @@
     var metaParts = [];
     if (site && site.location) metaParts.push('📍 ' + site.location);
     if (trans) metaParts.push('🚌 ' + trans.name);
-    if (staff) metaParts.push('👤 ' + staff.name);
+    if (staffIds.length) metaParts.push('👤 ' + staffIds.map(function (id) { var p = Store.getById('staff', id); return p ? p.name : ''; }).filter(Boolean).join(', '));
 
     root.appendChild(U.el('div', { class: 'field-site-head' }, [
       U.el('div', { class: 'fsh-name', text: site ? site.name : '(אתר)' }),

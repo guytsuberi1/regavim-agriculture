@@ -138,7 +138,7 @@
 
     // הסעה / איש צוות / ראש צוות
     body.appendChild(labeledSelect('הסעה', 'transports', card, 'transportId'));
-    body.appendChild(labeledSelect('איש צוות', 'staff', card, 'staffId', 'staff'));
+    body.appendChild(staffMultiControl(card));
 
     // שעות + נסיעות
     var hoursInp = U.el('input', { type: 'number', value: card.hours == null ? '' : card.hours, style: 'width:70px;', step: '0.5' });
@@ -268,6 +268,47 @@
     var sel = U.el('select', { style: isSite ? 'flex:1;font-weight:600;' : 'width:100%;' }, opts);
     sel.value = selectedId || '';
     return sel;
+  }
+
+  // ---------- אנשי צוות מרובים בכרטיס ----------
+  function cardStaffIds(card) {
+    if (card.staffIds && card.staffIds.length) return card.staffIds;
+    return card.staffId ? [card.staffId] : [];
+  }
+  function cardStaffNames(card) {
+    return cardStaffIds(card).map(function (id) { var p = Store.getById('staff', id); return p ? p.name : ''; }).filter(Boolean).join(', ');
+  }
+  function staffMultiControl(card) {
+    if (!card.staffIds) card.staffIds = card.staffId ? [card.staffId] : [];
+    var wrap = U.el('div', { class: 'field', style: 'margin:6px 0;' });
+    wrap.appendChild(U.el('label', { text: 'אנשי צוות' }));
+    var chips = U.el('div', { class: 'staff-chips' });
+    var sel = selectFrom('staff', '', '+ הוסף איש צוות', false, 'staff');
+    function sync() {
+      U.clear(chips);
+      card.staffIds.forEach(function (id) {
+        var p = Store.getById('staff', id);
+        chips.appendChild(U.el('span', { class: 'staff-chip' }, [
+          U.el('span', { text: p ? p.name : '(נמחק)' }),
+          U.el('button', { class: 'staff-chip-x no-print', title: 'הסר', onclick: function () {
+            card.staffIds = card.staffIds.filter(function (x) { return x !== id; });
+            card.staffId = card.staffIds[0] || null;
+            Store.save(); sync();
+          } }, '✕')
+        ]));
+      });
+      Array.prototype.forEach.call(sel.options, function (o) { if (o.value) o.disabled = card.staffIds.indexOf(o.value) !== -1; });
+      sel.value = '';
+    }
+    sel.addEventListener('change', function () {
+      var id = sel.value;
+      if (id && card.staffIds.indexOf(id) === -1) { card.staffIds.push(id); card.staffId = card.staffIds[0] || null; Store.save(); }
+      sync();
+    });
+    sync();
+    wrap.appendChild(chips);
+    wrap.appendChild(sel);
+    return wrap;
   }
 
   // ---------- פעולות ----------
@@ -484,13 +525,20 @@
     var excluded = excludedSet();
     function show(id, g) { return gradeVisible(g) && !excluded[id]; }
 
-    var teams = global.TeamUtil.allTeams();
-    teams.forEach(function (t) {
+    var teams = global.TeamUtil.allTeams().map(function (t) {
       var ids = global.TeamUtil.orderedStudentIds(t).filter(function (id) {
         var s = Store.getById('students', id); return s && show(id, s.grade);
       });
-      if (!ids.length) return;
-      groupsWrap.appendChild(buildTeamGroup(day, t, ids, assigned));
+      return { team: t, ids: ids };
+    }).filter(function (e) { return e.ids.length; });
+    // צוותים שכל חבריהם כבר משובצים יורדים לתחתית המאגר, שלא יפריעו לשיבוץ הנותרים
+    teams.sort(function (a, b) {
+      var aa = a.ids.every(function (id) { return assigned[id]; }) ? 1 : 0;
+      var bb = b.ids.every(function (id) { return assigned[id]; }) ? 1 : 0;
+      return aa - bb;
+    });
+    teams.forEach(function (e) {
+      groupsWrap.appendChild(buildTeamGroup(day, e.team, e.ids, assigned));
     });
 
     // תלמידים ללא צוות
@@ -638,7 +686,7 @@
     day.cards = src.cards.map(function (c) {
       return {
         id: Store.uid(), siteId: c.siteId, transportId: c.transportId,
-        staffId: c.staffId, leaderId: c.leaderId, hours: c.hours, travel: c.travel, notes: c.notes,
+        staffId: c.staffId, staffIds: (c.staffIds || []).slice(), leaderId: c.leaderId, hours: c.hours, travel: c.travel, notes: c.notes,
         targetWorkers: c.targetWorkers, group: c.group || '',
         students: (c.students || []).map(function (s) { return { studentId: s.studentId, wentToWork: false, sick: false, rating: null, teamLeader: s.teamLeader }; })
       };
@@ -669,13 +717,13 @@
     var aoa = [['סידור עבודה — רגבים בנימין'], [U.weekdayName(curDate) + ' · ' + U.hebrewDate(curDate) + ' · ' + U.gregLabel(curDate)], []];
     day.cards.forEach(function (c) {
       var site = c.siteId ? Store.getById('sites', c.siteId) : null;
-      var staff = c.staffId ? Store.getById('staff', c.staffId) : null;
+      var staffNames = cardStaffNames(c);
       var leader = c.leaderId ? Store.getById('staff', c.leaderId) : null;
       var trans = c.transportId ? Store.getById('transports', c.transportId) : null;
       aoa.push(['אתר:', site ? site.name : '']);
       if (site && site.location) aoa.push(['מיקום:', site.location]);
       if (site && (site.contactName || site.phone)) aoa.push(['איש קשר:', [site.contactName, site.phone].filter(Boolean).join(' ')]);
-      aoa.push(['הסעה:', trans ? trans.name : '', 'איש צוות:', staff ? staff.name : '', 'ראש צוות:', leader ? leader.name : '']);
+      aoa.push(['הסעה:', trans ? trans.name : '', 'אנשי צוות:', staffNames, 'ראש צוות:', leader ? leader.name : '']);
       aoa.push(['שעות:', c.hours, 'נסיעות:', c.travel !== false ? 'כן' : 'לא']);
       aoa.push(['תלמיד', 'כיתה', 'יצא לעבודה', 'חולה', 'ציון']);
       (c.students || []).forEach(function (s) {
@@ -697,14 +745,14 @@
   // מציג: שם חקלאי, מיקום, איש קשר, הסעה, איש צוות, ורשימת תלמידים בלבד.
   function buildExportCard(card) {
     var site = card.siteId ? Store.getById('sites', card.siteId) : null;
-    var staff = card.staffId ? Store.getById('staff', card.staffId) : null;
+    var staffNames = cardStaffNames(card);
     var trans = card.transportId ? Store.getById('transports', card.transportId) : null;
 
     var lines = [];
     if (site && site.location) lines.push('📍 ' + site.location);
     if (site && (site.contactName || site.phone)) lines.push('☎ ' + [site.contactName, site.phone].filter(Boolean).join(' · '));
     if (trans) lines.push('🚌 ' + trans.name);
-    if (staff) lines.push('👤 איש צוות: ' + staff.name);
+    if (staffNames) lines.push('👤 אנשי צוות: ' + staffNames);
 
     var metaNodes = lines.map(function (t) { return U.el('div', { style: 'font-size:12px;color:#555;line-height:1.6;', text: t }); });
 
