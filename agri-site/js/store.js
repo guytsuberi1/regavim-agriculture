@@ -76,6 +76,7 @@
   }
 
   var saveTimer = null;
+  var selfStamp = null;
   function save() {
     if (!data) return;
     data.meta.lastModified = new Date().toISOString();
@@ -102,6 +103,7 @@
   // ---------- ענן: שמירה/טעינה/זמן-אמת ----------
   function cloudSave() {
     if (!sb) return;
+    selfStamp = data && data.meta ? data.meta.lastModified : null;
     sb.from('app_state').upsert({ id: ROW_ID, data: data, updated_at: new Date().toISOString() })
       .then(function (res) {
         if (res.error) { console.error('cloudSave', res.error); setStatus('שגיאת שמירה לענן'); }
@@ -122,6 +124,8 @@
       function (payload) {
         var incoming = payload.new && payload.new.data;
         if (!incoming) return;
+        // דלג על הד של שמירה שלנו (זיהוי לפי חותמת זמן) — מונע רינדור מחדש שמקפיץ את הדף למעלה
+        if (incoming.meta && selfStamp && incoming.meta.lastModified === selfStamp) return;
         if (JSON.stringify(incoming) === JSON.stringify(data)) return;
         applyingRemote = true;
         replaceAll(incoming);

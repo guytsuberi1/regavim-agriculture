@@ -65,41 +65,122 @@
     ]));
 
     var ordered = (card.students || []).slice().sort(function (a, b) { return (b.teamLeader ? 1 : 0) - (a.teamLeader ? 1 : 0); });
-    if (!ordered.length) {
-      root.appendChild(U.el('div', { class: 'card empty' }, 'אין תלמידים משובצים באתר זה.'));
-      return;
-    }
 
     var list = U.el('div', { class: 'field-students' });
     ordered.forEach(function (st) { list.appendChild(buildStudentRow(st)); });
+    if (!ordered.length) {
+      list.appendChild(U.el('div', { class: 'card empty field-empty-ph', style: 'margin:0;' }, 'אין תלמידים משובצים — אפשר להוסיף תלמיד שעבד למטה.'));
+    }
     root.appendChild(list);
+
+    root.appendChild(U.el('button', { class: 'btn fadd-btn', onclick: function () { openAddWorked(card, list); } }, '➕ הוסף תלמיד שעבד באתר'));
+  }
+
+  // הוספת תלמיד שעבד באתר אך לא תוכנן ע"י רכז החקלאות
+  function openAddWorked(card, listEl) {
+    var existing = {};
+    (card.students || []).forEach(function (s) { existing[s.studentId] = true; });
+    var all = (Store.get().students || []).filter(function (s) { return s.active !== false; })
+      .sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'he'); });
+
+    // מיפוי: תלמיד -> שם אתר אחר שבו שובץ היום (חיווי שמדובר בהעברה)
+    var elsewhere = {};
+    dayOf().cards.forEach(function (c) {
+      if (c.id === card.id) return;
+      var sn = c.siteId ? ((Store.getById('sites', c.siteId) || {}).name || 'אתר אחר') : 'אתר אחר';
+      (c.students || []).forEach(function (x) { elsewhere[x.studentId] = sn; });
+    });
+
+    var listBox = U.el('div', { class: 'fadd-list' });
+    var search = U.el('input', { type: 'text', class: 'fadd-search', placeholder: '🔎 חיפוש תלמיד...' });
+
+    function build() {
+      U.clear(listBox);
+      var ql = (search.value || '').trim().toLowerCase();
+      var shown = all.filter(function (s) { return !existing[s.id] && (!ql || (s.name || '').toLowerCase().indexOf(ql) >= 0); });
+      if (!shown.length) { listBox.appendChild(U.el('div', { class: 'muted', style: 'padding:10px;', text: ql ? 'לא נמצאו תלמידים' : 'כל התלמידים כבר באתר' })); return; }
+      shown.forEach(function (s) {
+        var b = U.el('button', { class: 'fadd-item' }, [
+          U.el('span', null, [
+            U.el('span', { text: s.name + (s.grade ? ' (' + s.grade + ')' : '') }),
+            elsewhere[s.id] ? U.el('span', { class: 'fadd-note', text: ' · משובץ ב' + elsewhere[s.id] }) : null
+          ]),
+          U.el('span', { class: 'fadd-plus', text: '➕' })
+        ]);
+        b.addEventListener('click', function () {
+          existing[s.id] = true;
+          // תלמיד = אתר אחד ביום: הסר מכל אתר אחר באותו יום
+          dayOf().cards.forEach(function (c) {
+            if (c.id !== card.id) c.students = (c.students || []).filter(function (x) { return x.studentId !== s.id; });
+          });
+          var entry = { studentId: s.id, wentToWork: true, sick: false, rating: null };
+          card.students.push(entry);
+          Store.save();
+          var ph = listEl.querySelector('.field-empty-ph'); if (ph) ph.parentNode.removeChild(ph);
+          listEl.appendChild(buildStudentRow(entry));
+          build();
+        });
+        listBox.appendChild(b);
+      });
+    }
+    search.addEventListener('input', build);
+    build();
+
+    Modal.open('הוספת תלמיד שעבד באתר', U.el('div', null, [
+      U.el('p', { class: 'muted', style: 'margin:0 0 8px;', text: 'תלמידים שעבדו ולא תוכננו ע״י הרכז — נוספים מסומנים כ"יצא":' }),
+      search, listBox
+    ]), [{ label: 'סגור', class: 'secondary' }]);
   }
 
   function buildStudentRow(st) {
     var stu = Store.getById('students', st.studentId);
     var name = stu ? stu.name + (stu.grade ? ' (' + stu.grade + ')' : '') : '⚠ נמחק';
 
-    // כפתור יצא לעבודה
-    var wentBtn = U.el('button', { class: 'fbtn went' + (st.wentToWork ? ' on' : '') },
-      st.wentToWork ? '✓ יצא' : 'יצא?');
-    wentBtn.addEventListener('click', function () { st.wentToWork = !st.wentToWork; Store.save(); App.render(); });
+    var row = U.el('div', { class: 'field-student' });
 
-    // ציון 1-5
-    var rateWrap = U.el('div', { class: 'frate' }, [1, 2, 3, 4, 5].map(function (n) {
-      var b = U.el('button', { class: 'frbtn' + (st.rating === n ? ' on' : '') }, String(n));
-      b.addEventListener('click', function () { st.rating = (st.rating === n ? null : n); Store.save(); App.render(); });
+    // כפתורי יצא / לא יצא — עדכון במקום (בלי רינדור מחדש, כדי שהדף לא יקפוץ למעלה)
+    var wentBtn = U.el('button', { class: 'fbtn went' }, '✓ יצא');
+    var absentBtn = U.el('button', { class: 'fbtn absent' }, '✕ לא יצא');
+    function syncWent() {
+      wentBtn.classList.toggle('on', !!st.wentToWork);
+      absentBtn.classList.toggle('on', !!st.absent);
+      row.classList.toggle('done', !!st.wentToWork);
+      row.classList.toggle('absent', !!st.absent);
+    }
+    wentBtn.addEventListener('click', function () {
+      st.wentToWork = !st.wentToWork;
+      if (st.wentToWork) st.absent = false;
+      syncWent(); Store.save();
+    });
+    absentBtn.addEventListener('click', function () {
+      st.absent = !st.absent;
+      if (st.absent) st.wentToWork = false;
+      syncWent(); Store.save();
+    });
+    var wentGrp = U.el('div', { class: 'fwent-grp' }, [wentBtn, absentBtn]);
+
+    // ציון 1-5 — עדכון במקום
+    var rbtns = [1, 2, 3, 4, 5].map(function (n) {
+      var b = U.el('button', { class: 'frbtn' }, String(n));
+      b.addEventListener('click', function () {
+        st.rating = (st.rating === n ? null : n);
+        rbtns.forEach(function (x, i) { x.classList.toggle('on', st.rating === i + 1); });
+        Store.save();
+      });
       return b;
-    }));
+    });
+    var rateWrap = U.el('div', { class: 'frate' }, rbtns);
 
     // שדה הערה
     var noteInp = U.el('input', { type: 'text', class: 'fstu-note', value: st.note || '', placeholder: '📝 הערה (לא חובה)' });
     noteInp.addEventListener('change', function () { st.note = noteInp.value; Store.save(); });
 
-    return U.el('div', { class: 'field-student' + (st.wentToWork ? ' done' : '') }, [
-      U.el('div', { class: 'fstu-name', text: (st.teamLeader ? '⭐ ' : '') + name }),
-      U.el('div', { class: 'fstu-controls' }, [wentBtn, U.el('div', { class: 'frate-wrap' }, [U.el('span', { class: 'muted', text: 'ציון' }), rateWrap])]),
-      noteInp
-    ]);
+    row.appendChild(U.el('div', { class: 'fstu-name', text: (st.teamLeader ? '⭐ ' : '') + name }));
+    row.appendChild(U.el('div', { class: 'fstu-controls' }, [wentGrp, U.el('div', { class: 'frate-wrap' }, [U.el('span', { class: 'muted', text: 'ציון' }), rateWrap])]));
+    row.appendChild(noteInp);
+    rbtns.forEach(function (x, i) { x.classList.toggle('on', st.rating === i + 1); });
+    syncWent();
+    return row;
   }
 
   global.FieldView = { render: render };
