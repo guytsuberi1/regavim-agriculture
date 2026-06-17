@@ -34,7 +34,7 @@
         <button data-tab="reports">📊 דוחות</button>
         <button data-tab="teams">👥 צוותים</button>
         <button data-tab="base">🗂️ נתוני בסיס</button>
-        <button data-tab="settings">⚙️ הגדרות וגיבוי</button>
+        <button data-tab="settings" class="tab-foot" aria-label="הגדרות וגיבוי" title="הגדרות וגיבוי">⚙️</button>
       </nav>
     </aside>
     <div class="content">
@@ -68,7 +68,15 @@
   <script>
     (function () {
       var sb = document.getElementById('sidebar'), tg = document.getElementById('sbToggle');
-      if (tg && sb) tg.addEventListener('click', function () { sb.classList.toggle('open'); });
+      var layout = document.querySelector('.layout');
+      if (layout && localStorage.getItem('agri_sidebar_collapsed') === '1') layout.classList.add('collapsed');
+      if (tg) tg.addEventListener('click', function () {
+        if (window.innerWidth <= 860) { if (sb) sb.classList.toggle('open'); }
+        else if (layout) {
+          layout.classList.toggle('collapsed');
+          localStorage.setItem('agri_sidebar_collapsed', layout.classList.contains('collapsed') ? '1' : '0');
+        }
+      });
       var tabs = document.getElementById('tabs');
       if (tabs && sb) tabs.addEventListener('click', function (e) {
         if (e.target.closest('button') && window.innerWidth <= 860) sb.classList.remove('open');

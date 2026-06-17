@@ -342,19 +342,30 @@
     if (passEl) passEl.onkeydown = function (e) { if (e.key === 'Enter') doLogin(); };
   }
 
+  function userInitials(u) {
+    var n = (u.user_metadata && (u.user_metadata.full_name || u.user_metadata.name)) || '';
+    if (n && n.trim()) { var p = n.trim().split(/\s+/); return (p[0].charAt(0) + (p[1] ? p[1].charAt(0) : '')).toUpperCase(); }
+    return ((u.email || '?').trim().charAt(0) || '?').toUpperCase();
+  }
   function updateUserBar() {
     if (!sb) return;
     sb.auth.getUser().then(function (r) {
       var u = r.data && r.data.user;
       var el = document.getElementById('headerSync');
-      if (el && u) {
-        el.innerHTML = '';
-        var s = document.createElement('span');
-        s.textContent = '🟢 ' + u.email; s.style.cssText = 'font-size:12px;margin-inline:8px;opacity:.9';
-        var b = document.createElement('button');
-        b.textContent = 'יציאה'; b.className = 'btn small secondary'; b.onclick = doLogout;
-        el.appendChild(s); el.appendChild(b);
+      if (!el || !u) return;
+      var email = u.email || '';
+      el.innerHTML = '<div class="usermenu">'
+        + '<button class="avatar" id="avatarBtn" aria-label="תפריט משתמש" title="' + email + '">' + userInitials(u) + '</button>'
+        + '<div class="usermenu-pop" id="userPop">'
+          + '<div class="um-email">' + email + '</div>'
+          + '<button class="um-item um-logout" id="umLogout">↩️ התנתקות</button>'
+        + '</div></div>';
+      var ab = document.getElementById('avatarBtn'), pop = document.getElementById('userPop');
+      if (ab && pop) {
+        ab.onclick = function (e) { e.stopPropagation(); pop.classList.toggle('open'); };
+        document.addEventListener('click', function () { pop.classList.remove('open'); });
       }
+      var lo = document.getElementById('umLogout'); if (lo) lo.onclick = doLogout;
     }).catch(function () {});
   }
   function doLogout() { if (sb) sb.auth.signOut().then(function () { location.reload(); }); }
