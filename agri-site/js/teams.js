@@ -32,7 +32,11 @@
   function teamLabel(team) {
     if (team.name && team.name.trim()) return team.name.trim();
     var l = team.leaderStudentId ? Store.getById('students', team.leaderStudentId) : null;
-    return l ? l.name : '(ללא ראש צוות)';
+    if (l && l.name && l.name.trim()) {
+      var parts = l.name.trim().split(/\s+/);
+      return 'צוות ' + parts[parts.length - 1]; // שם המשפחה של ראש הצוות
+    }
+    return '(ללא ראש צוות)';
   }
 
   global.TeamUtil = {
