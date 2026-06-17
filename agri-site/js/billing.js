@@ -170,47 +170,94 @@
     return inp;
   }
 
-  // ---------- ייצוא אקסל בפורמט הגבייה ----------
+  var THIN = { style: 'thin', color: { rgb: 'CBD5C0' } };
+  var BORDER = { top: THIN, bottom: THIN, left: THIN, right: THIN };
+  var ST = {
+    title: { font: { bold: true, sz: 14, color: { rgb: '1B5E20' } }, alignment: { horizontal: 'center', readingOrder: 2 } },
+    head:  { font: { bold: true, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '2E7D32' } }, alignment: { horizontal: 'center', vertical: 'center', readingOrder: 2 }, border: BORDER },
+    label: { font: { bold: true, color: { rgb: '1B5E20' } }, fill: { fgColor: { rgb: 'E8F5E9' } }, alignment: { readingOrder: 2 }, border: BORDER },
+    cell:  { alignment: { horizontal: 'center', readingOrder: 2 }, border: BORDER },
+    total: { font: { bold: true }, fill: { fgColor: { rgb: 'EFE6DB' } }, alignment: { horizontal: 'center', readingOrder: 2 }, border: BORDER }
+  };
+  var MONEY = '#,##0';
+  function setStyle(ws, r, c, style, z) {
+    var addr = XLSX.utils.encode_cell({ r: r, c: c });
+    if (!ws[addr]) ws[addr] = { t: 's', v: '' };
+    ws[addr].s = style;
+    if (z) ws[addr].z = z;
+  }
+
+  // ---------- ייצוא אקסל בפורמט הגבייה (מעוצב + RTL) ----------
   function exportExcel() {
     var bySite = computeMonth(curMonth);
     var siteIds = Object.keys(bySite);
     if (!siteIds.length) { alert('אין נתונים לייצוא בחודש זה.'); return; }
     var wb = XLSX.utils.book_new();
 
-    // טבלה מסכמת
-    var sum = [['דרישת תשלום — רגבים בנימין · ' + U.monthLabel(curMonth)], [],
-      ['שם עסקי', 'מיקום', 'איש קשר', 'טלפון', 'ימים', 'סה"כ שעות', 'תשלום שעתי', 'תשלום עבודה', 'תשלום נסיעות', 'סה"כ לתשלום']];
-    var grand = 0;
+    // ---- גיליון מסכם (מסובב: שדות בשורות, חקלאי לכל עמודה) ----
+    var labels = ['שם עסקי:', 'מיקום:', 'שם', 'טלפון:', 'שעות עבודה', 'תשלום שעתי', 'תשלום עבודה', 'תשלום נסיעות', 'סה"כ לתשלום'];
+    var rows = labels.map(function (l) { return [l]; });
     siteIds.forEach(function (id) {
       var e = bySite[id], s = e.site || { name: '(נמחק)' }, t = siteTotals(e, curMonth);
-      grand += t.total;
-      sum.push([s.name, s.location || '', s.contactName || '', s.phone || '', t.days, t.totHours, t.rate, Math.round(t.workPay), Math.round(t.travelTot), Math.round(t.total)]);
+      rows[0].push(s.name || ''); rows[1].push(s.location || ''); rows[2].push(s.contactName || ''); rows[3].push(s.phone || '');
+      rows[4].push(t.totHours); rows[5].push(t.rate); rows[6].push(Math.round(t.workPay)); rows[7].push(Math.round(t.travelTot)); rows[8].push(Math.round(t.total));
     });
-    sum.push(['', '', '', '', '', '', '', '', 'סה"כ', Math.round(grand)]);
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sum), 'טבלה מסכמת');
+    var sumAoa = [['דרישת תשלום — רגבים בנימין · ' + U.monthLabel(curMonth)], []].concat(rows);
+    var ws1 = XLSX.utils.aoa_to_sheet(sumAoa);
+    var ncol = 1 + siteIds.length;
+    ws1['!views'] = [{ RTL: true }];
+    ws1['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: ncol - 1 } }];
+    ws1['!cols'] = [{ wch: 16 }].concat(siteIds.map(function () { return { wch: 14 }; }));
+    setStyle(ws1, 0, 0, ST.title);
+    for (var c1 = 0; c1 < ncol; c1++) setStyle(ws1, 2, c1, c1 === 0 ? ST.label : ST.head); // שורת שמות החקלאים
+    for (var ri = 3; ri <= 10; ri++) {
+      for (var ci = 0; ci < ncol; ci++) {
+        if (ci === 0) { setStyle(ws1, ri, ci, ST.label); continue; }
+        setStyle(ws1, ri, ci, ri === 10 ? ST.total : ST.cell, ri >= 7 ? MONEY : null);
+      }
+    }
+    XLSX.utils.book_append_sheet(wb, ws1, 'טבלה מסכמת');
 
-    // גיליון לכל אתר
+    // ---- גיליון לכל חקלאי (רק ימים שעבדו) ----
     var usedNames = {};
     siteIds.forEach(function (id) {
-      var e = bySite[id], s = e.site || { name: 'אתר' }, adjAll = adjFor(curMonth, id);
-      var aoa = [['שם עסקי:', s.name], ['מיקום:', s.location || ''], ['איש קשר:', s.contactName || ''], ['טלפון:', s.phone || ''],
-        ['תשלום שעתי:', U.num(s.hourlyRate)], ['תשלום נסיעות:', U.num(s.travelPay)], [],
-        ['תאריך', 'כמות עובדים', 'מס\' שעות', 'סה"כ שעות', 'נסיעות', 'הערה']];
+      var e = bySite[id], s = e.site || { name: 'אתר' }, adjAll = adjFor(curMonth, id), t = siteTotals(e, curMonth);
+      var aoa = [[s.name || 'אתר'],
+        ['פירוט', 'תאריך', 'כמות עובדים', 'מס\' שעות', 'סה"כ שעות עבודה', 'נסיעות']];
       Object.keys(e.days).sort().forEach(function (iso) {
         var eff = effective(e.days[iso], adjAll[iso]);
         var th = eff.workers * eff.hours;
-        aoa.push([U.gregLabel(iso), eff.workers, eff.hours, th, (eff.travel && eff.workers > 0) ? 'כן' : 'לא', (adjAll[iso] && adjAll[iso].note) || '']);
+        var travAmt = (eff.travel && eff.workers > 0) ? t.travelPay : '';
+        aoa.push([(adjAll[iso] && adjAll[iso].note) || '', parseInt(iso.split('-')[2], 10), eff.workers, eff.hours, th, travAmt]);
       });
-      var t = siteTotals(e, curMonth);
+      var nDays = aoa.length - 2;
       aoa.push([]);
-      aoa.push(['סה"כ שעות', t.totHours, '', 'תשלום עבודה', Math.round(t.workPay)]);
-      aoa.push(['תשלום נסיעות', Math.round(t.travelTot), '', 'סה"כ לתשלום', Math.round(t.total)]);
+      aoa.push(['סה"כ שעות עבודה', t.totHours]);
+      aoa.push(['תשלום שעתי', t.rate]);
+      aoa.push(['תשלום עבודה', Math.round(t.workPay)]);
+      aoa.push(['תשלום נסיעות', Math.round(t.travelTot)]);
+      aoa.push(['סה"כ לתשלום', Math.round(t.total)]);
+
+      var ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws['!views'] = [{ RTL: true }];
+      ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }];
+      ws['!cols'] = [{ wch: 22 }, { wch: 8 }, { wch: 12 }, { wch: 10 }, { wch: 16 }, { wch: 10 }];
+      setStyle(ws, 0, 0, ST.title);
+      for (var hc = 0; hc < 6; hc++) setStyle(ws, 1, hc, ST.head);
+      for (var dr = 0; dr < nDays; dr++) {
+        for (var dc = 0; dc < 6; dc++) setStyle(ws, 2 + dr, dc, ST.cell, dc === 5 ? MONEY : null);
+      }
+      var tbase = aoa.length - 5;
+      for (var tr = 0; tr < 5; tr++) {
+        setStyle(ws, tbase + tr, 0, ST.label);
+        setStyle(ws, tbase + tr, 1, ST.total, tr >= 1 ? MONEY : null);
+      }
       // שם גיליון חוקי (≤31 תווים, ייחודי)
       var nm = (s.name || 'אתר').replace(/[\\\/\?\*\[\]:]/g, ' ').slice(0, 28);
-      var base = nm, i = 2;
-      while (usedNames[nm]) { nm = base.slice(0, 26) + ' ' + (i++); }
+      var bn = nm, i = 2;
+      while (usedNames[nm]) { nm = bn.slice(0, 26) + ' ' + (i++); }
       usedNames[nm] = true;
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), nm);
+      XLSX.utils.book_append_sheet(wb, ws, nm);
     });
 
     XLSX.writeFile(wb, 'דרישת-תשלום-' + curMonth + '.xlsx');
