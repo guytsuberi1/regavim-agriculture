@@ -189,6 +189,12 @@
       return arr.slice().sort(function (a, b) { return (b.teamLeader ? 1 : 0) - (a.teamLeader ? 1 : 0); });
     }
 
+    // סיכום בראש רשימת התלמידים (משובצים / יצאו)
+    var went = (card.students || []).filter(function (s) { return s.wentToWork; }).length;
+    var sickN = (card.students || []).filter(function (s) { return s.sick; }).length;
+    body.appendChild(U.el('div', { class: 'sc-summary' },
+      'משובצים: ' + (card.students || []).length + ' · יצאו: ' + went + (sickN ? ' · חולים: ' + sickN : '')));
+
     // תלמידים — מקובצים לפי הצוות המקורי (כמו במאגר); כל צוות ניתן לגרירה בנפרד
     var byTeam = {}, teamOrder = [], looseItems = [];
     (card.students || []).forEach(function (st) {
@@ -231,12 +237,6 @@
 
     node.appendChild(head);
     node.appendChild(body);
-
-    // ---- תחתית: סיכום ----
-    var went = (card.students || []).filter(function (s) { return s.wentToWork; }).length;
-    var sickN = (card.students || []).filter(function (s) { return s.sick; }).length;
-    node.appendChild(U.el('div', { class: 'sc-foot' },
-      'משובצים: ' + (card.students || []).length + ' · יצאו: ' + went + (sickN ? ' · חולים: ' + sickN : '')));
 
     // אזור גרירה — קבלת תלמיד בודד או צוות שלם
     node.addEventListener('dragover', function (e) { e.preventDefault(); node.classList.add('drag-over'); });
