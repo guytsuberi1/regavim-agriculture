@@ -160,7 +160,6 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
 .site-card .sc-students li.grade-11 { background: #d4edda !important; }
 .site-card .sc-students li.grade-12 { background: #f8d7da !important; }
 .site-card .sc-foot { margin-top: auto; padding: 8px 10px; border-top: 1px solid var(--border); font-size: 12px; background: #fafafa; border-radius: 0 0 var(--radius) var(--radius); }
-.site-card .sc-summary { margin: 2px 0 8px; padding: 5px 9px; border-radius: 8px; font-size: 12px; font-weight: 600; color: var(--green-dark); background: var(--green-light); }
 .chk { display: inline-flex; gap: 3px; align-items: center; }
 .pool { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 12px; margin-bottom: 14px; }
 .pool .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; max-height: 160px; overflow-y: auto; }
@@ -202,7 +201,7 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
 .card.team-drop-over { outline: 2px dashed var(--accent); outline-offset: -3px; background: #f3faf4; }
 
 /* מונה משובצים מול רצוי */
-.tw-counter { margin-top: 6px; padding: 3px 8px; border-radius: 8px; font-size: 12px; font-weight: 700; text-align: center; }
+.tw-counter { margin-top: 6px; padding: 3px 8px; border-radius: 8px; font-size: 12px; font-weight: 700; text-align: center; background: var(--green-light); color: var(--green-dark); border: 1px solid var(--border); }
 .tw-counter.under { background: #fdecea; color: var(--danger); border: 1px solid var(--danger); }
 .tw-counter.ok { background: var(--green-light); color: var(--green-dark); border: 1px solid var(--green); }
 .tw-counter.over { background: #fff8e1; color: #8a6d00; border: 1px solid var(--accent); }

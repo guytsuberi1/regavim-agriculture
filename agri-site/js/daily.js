@@ -115,13 +115,15 @@
       if (site.access) meta.appendChild(U.el('div', { text: '🚗 ' + site.access }));
     }
 
-    // מונה צבעוני: משובצים מול הכמות הרצויה (מהתכנון השבועי)
-    var counter = null;
+    // מונה: משובצים מול הרצוי (אם הוזן בתכנון השבועי), אחרת רק סה"כ המשובצים
+    var assignedN = (card.students || []).length;
+    var counter;
     if (card.targetWorkers !== '' && card.targetWorkers != null) {
-      var assignedN = (card.students || []).length;
       var targetN = U.num(card.targetWorkers);
       var cls = assignedN < targetN ? 'under' : (assignedN > targetN ? 'over' : 'ok');
       counter = U.el('div', { class: 'tw-counter ' + cls, text: 'משובצים ' + assignedN + ' / רצוי ' + targetN });
+    } else {
+      counter = U.el('div', { class: 'tw-counter', text: 'משובצים: ' + assignedN });
     }
 
     var head = U.el('div', { class: 'sc-head' }, [
@@ -188,12 +190,6 @@
     function sortLeadersFirst(arr) {
       return arr.slice().sort(function (a, b) { return (b.teamLeader ? 1 : 0) - (a.teamLeader ? 1 : 0); });
     }
-
-    // סיכום בראש רשימת התלמידים (משובצים / יצאו)
-    var went = (card.students || []).filter(function (s) { return s.wentToWork; }).length;
-    var sickN = (card.students || []).filter(function (s) { return s.sick; }).length;
-    body.appendChild(U.el('div', { class: 'sc-summary' },
-      'משובצים: ' + (card.students || []).length + ' · יצאו: ' + went + (sickN ? ' · חולים: ' + sickN : '')));
 
     // תלמידים — מקובצים לפי הצוות המקורי (כמו במאגר); כל צוות ניתן לגרירה בנפרד
     var byTeam = {}, teamOrder = [], looseItems = [];
