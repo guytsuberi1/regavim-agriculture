@@ -61,6 +61,7 @@
     var head = U.el('div', { class: 'page-head' }, [
       U.el('h2', { text: 'נתוני בסיס' }),
       U.el('div', { class: 'spacer' }),
+      sub === 'students' ? U.el('button', { class: 'btn secondary', onclick: mergeDuplicateStudents }, '🧹 איחוד כפילויות') : null,
       U.el('button', { class: 'btn accent', onclick: openImport }, '⬆ ייבוא מאקסל'),
       U.el('button', { class: 'btn', onclick: function () { openForm(null); } }, '+ הוספה')
     ]);
@@ -164,6 +165,49 @@
   // ---------- ייבוא מאקסל ----------
   function openImport() {
     if (global.ImportExcel) global.ImportExcel.openDialog(sub);
+  }
+
+  // ---------- איחוד תלמידים כפולים (אחרי ייבוא שיצר כפילויות) ----------
+  function mergeDuplicateStudents() {
+    var data = Store.get();
+    var students = data.students || [];
+    // מי מוזכר בצוותים/בימים — אותו נשמר (כדי לא לשבור שיבוצים)
+    var refed = {};
+    (data.teams || []).forEach(function (t) {
+      if (t.leaderStudentId) refed[t.leaderStudentId] = true;
+      (t.memberIds || []).forEach(function (id) { refed[id] = true; });
+    });
+    Object.keys(data.days || {}).forEach(function (iso) {
+      (data.days[iso].cards || []).forEach(function (c) {
+        (c.students || []).forEach(function (s) { refed[s.studentId] = true; });
+      });
+    });
+    // מפתח לפי קבוצת מילות השם (מתעלם מסדר שם פרטי/משפחה)
+    function key(n) { return String(n || '').replace(/["'״׳.\-]/g, '').split(/\s+/).filter(Boolean).sort().join(' '); }
+    var groups = {};
+    students.forEach(function (st) { var k = key(st.name); if (k) (groups[k] = groups[k] || []).push(st); });
+    var removeIds = {}, mergedGroups = 0;
+    Object.keys(groups).forEach(function (k) {
+      var grp = groups[k];
+      if (grp.length < 2) return;
+      var primary = null;
+      grp.forEach(function (s) { if (!primary && refed[s.id]) primary = s; });
+      if (!primary) primary = grp[0];
+      grp.forEach(function (s) {
+        if (s === primary) return;
+        if (!primary.phone && s.phone) primary.phone = s.phone;
+        if (!primary.grade && s.grade) primary.grade = s.grade;
+        removeIds[s.id] = true;
+      });
+      mergedGroups++;
+    });
+    var n = Object.keys(removeIds).length;
+    if (!n) { alert('לא נמצאו כפילויות לפי שם.'); return; }
+    if (!confirm('נמצאו ' + mergedGroups + ' שמות עם כפילות (' + n + ' רשומות עודפות).\nלאחד — לשמור רשומה אחת לכל שם (כולל הטלפון) ולמחוק את העודפות?')) return;
+    data.students = students.filter(function (s) { return !removeIds[s.id]; });
+    Store.save();
+    alert('בוצע: אוחדו ' + mergedGroups + ' שמות · הוסרו ' + n + ' כפילויות.');
+    App.render();
   }
 
   global.BaseView = { render: render };
