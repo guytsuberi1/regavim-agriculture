@@ -4,13 +4,70 @@
   var U = global.U;
   var weekStart = U.startOfWeek(U.todayISO());
 
+  // ---------- מזג אוויר (Open-Meteo, חינמי, ללא מפתח) ----------
+  var DEF_LOC = { name: 'שילה', lat: 32.0556, lon: 35.2897 };
+  var wxData = null, wxKey = null, wxLoading = null;
+  function getLoc() { try { var s = JSON.parse(localStorage.getItem('agri_weather_loc')); if (s && s.lat) return s; } catch (e) {} return DEF_LOC; }
+  function setLoc(o) { localStorage.setItem('agri_weather_loc', JSON.stringify(o)); }
+  function wxIcon(code) {
+    if (code === 0) return ['☀️', 'בהיר'];
+    if (code <= 2) return ['🌤️', 'מעונן חלקית'];
+    if (code === 3) return ['☁️', 'מעונן'];
+    if (code === 45 || code === 48) return ['🌫️', 'ערפל'];
+    if (code >= 51 && code <= 57) return ['🌦️', 'טפטוף'];
+    if (code >= 61 && code <= 67) return ['🌧️', 'גשם'];
+    if (code >= 71 && code <= 77) return ['❄️', 'שלג'];
+    if (code >= 80 && code <= 82) return ['🌦️', 'ממטרים'];
+    if (code >= 95) return ['⛈️', 'סופות'];
+    return ['🌡️', ''];
+  }
+  function ensureForecast() {
+    var loc = getLoc(), key = loc.lat + ',' + loc.lon;
+    if ((wxKey === key && wxData) || wxLoading === key) return;
+    wxLoading = key;
+    var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + loc.lat + '&longitude=' + loc.lon +
+      '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia%2FJerusalem&forecast_days=16&past_days=3';
+    fetch(url).then(function (r) { return r.json(); }).then(function (j) {
+      var map = {};
+      if (j && j.daily && j.daily.time) j.daily.time.forEach(function (d, i) {
+        map[d] = { code: j.daily.weather_code[i], tmax: j.daily.temperature_2m_max[i], tmin: j.daily.temperature_2m_min[i], pop: j.daily.precipitation_probability_max[i] };
+      });
+      wxData = map; wxKey = key; wxLoading = null;
+      if (global.App && App.render) App.render();
+    }).catch(function () { wxLoading = null; });
+  }
+  // יישובי אזור בנימין (תחזית אזורית — דיוק הקואורדינטות אינו קריטי)
+  var PRESETS = [
+    { name: 'שילה', lat: 32.0556, lon: 35.2897 },
+    { name: 'עפרה', lat: 31.9558, lon: 35.2722 },
+    { name: 'כוכב השחר', lat: 31.9636, lon: 35.3433 },
+    { name: 'בית אל', lat: 31.9436, lon: 35.2206 },
+    { name: 'שער בנימין', lat: 31.8639, lon: 35.2492 },
+    { name: 'פסגות', lat: 31.8983, lon: 35.2289 },
+    { name: 'ירושלים', lat: 31.7683, lon: 35.2137 }
+  ];
+  function chooseLocation() {
+    var sel = U.el('select', { style: 'width:100%;' }, PRESETS.map(function (p) { return U.el('option', { value: p.name }, p.name); }));
+    sel.value = getLoc().name;
+    Modal.open('מיקום לתחזית מזג האוויר', U.el('div', { class: 'field' }, [U.el('label', { text: 'בחרו יישוב באזור:' }), sel]), [
+      { label: 'ביטול', class: 'secondary' },
+      { label: 'שמירה', onClick: function (close) {
+        var p = PRESETS.filter(function (x) { return x.name === sel.value; })[0];
+        if (p) { setLoc({ name: p.name, lat: p.lat, lon: p.lon }); wxData = null; wxKey = null; }
+        close(); App.render();
+      } }
+    ]);
+  }
+
   function render(root) {
+    ensureForecast();
     var head = U.el('div', { class: 'page-head' }, [
       U.el('h2', { text: 'תכנון שבועי' }),
       U.el('button', { class: 'btn secondary small', onclick: function () { weekStart = U.addDays(weekStart, -7); App.render(); } }, '→ שבוע קודם'),
       U.el('button', { class: 'btn secondary small', onclick: function () { weekStart = U.startOfWeek(U.todayISO()); App.render(); } }, 'השבוע'),
       U.el('button', { class: 'btn secondary small', onclick: function () { weekStart = U.addDays(weekStart, 7); App.render(); } }, 'שבוע הבא ←'),
       U.el('span', { class: 'tag', text: U.gregLabel(weekStart) + ' – ' + U.gregLabel(U.addDays(weekStart, 6)) }),
+      U.el('button', { class: 'btn secondary small', title: 'שינוי מיקום לתחזית מזג האוויר', onclick: chooseLocation }, '📍 ' + getLoc().name),
       U.el('div', { class: 'spacer' }),
       U.el('button', { class: 'btn secondary', onclick: function () { editWeekList('weeklyDuty', 'תורנים שבועיים'); } }, '🧹 תורנים' + countSuffix('weeklyDuty')),
       U.el('button', { class: 'btn secondary', onclick: function () { editWeekList('weeklySick', 'חולים השבוע'); } }, '🤒 חולים' + countSuffix('weeklySick')),
@@ -80,6 +137,15 @@
     });
 
     cell.appendChild(U.el('button', { class: 'btn small secondary no-print', style: 'margin-top:auto;', onclick: function () { openItem(iso, null, -1); } }, '+ הוסף'));
+
+    // מזג אוויר ליום זה (אם בטווח התחזית)
+    var w = wxData && wxData[iso];
+    if (w) {
+      var ic = wxIcon(w.code);
+      cell.appendChild(U.el('div', { class: 'wx-line' },
+        ic[0] + ' ' + ic[1] + ' · ' + Math.round(w.tmax) + '°/' + Math.round(w.tmin) + '°' +
+        (w.pop != null && w.pop > 0 ? ' · 💧' + w.pop + '%' : '')));
+    }
     return cell;
   }
 
