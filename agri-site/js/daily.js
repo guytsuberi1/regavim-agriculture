@@ -39,6 +39,7 @@
       U.el('button', { class: 'btn secondary', onclick: dupPrev }, '⧉ שכפל מיום קודם'),
       U.el('button', { class: 'btn accent', onclick: exportImage }, '🖼 ייצוא תמונה'),
       U.el('button', { class: 'btn secondary', onclick: openWhatsApp }, '📲 וואטסאפ'),
+      U.el('button', { class: 'btn secondary', onclick: sendAllSms }, '📩 SMS לכולם'),
       U.el('button', { class: 'btn', onclick: addCard }, '+ הוסף אתר')
     ]);
     root.appendChild(head);
@@ -869,6 +870,48 @@
     });
     if (!any) { alert('אין משובצים ליום זה.'); return; }
     Modal.open('שליחת שיבוצים בוואטסאפ — ' + U.weekdayName(curDate) + ' ' + U.gregLabel(curDate), body, [{ label: 'סגור', class: 'secondary' }]);
+  }
+
+  // ---------- שליחת SMS אישי לכולם (דרך 019) ----------
+  function smsPhone(phone) {
+    var d = String(phone || '').replace(/\D/g, '');
+    if (d.indexOf('972') === 0) d = '0' + d.slice(3);
+    if (d.length === 9 && d.charAt(0) !== '0') d = '0' + d;
+    return d.length >= 9 ? d : null;
+  }
+  function cardSmsMessage(card, name) {
+    var site = card.siteId ? Store.getById('sites', card.siteId) : null;
+    var trans = card.transportId ? Store.getById('transports', card.transportId) : null;
+    var lines = ['שלום ' + name + ',',
+      'סידור עבודה ל' + U.weekdayName(curDate) + ' (' + U.gregLabel(curDate) + '):',
+      'אתר: ' + (site ? site.name : '') + (site && site.location ? ' - ' + site.location : '')];
+    if (trans) lines.push('הסעה: ' + trans.name);
+    lines.push('נא לא לשכוח להביא כובע');
+    return lines.join('\n');
+  }
+  function sendAllSms() {
+    var day = getDay(curDate);
+    var messages = [], noPhone = [];
+    day.cards.forEach(function (card) {
+      var people = [];
+      cardStaffIds(card).forEach(function (id) { var p = Store.getById('staff', id); if (p) people.push(p); });
+      (card.students || []).forEach(function (s) { var st = Store.getById('students', s.studentId); if (st) people.push(st); });
+      people.forEach(function (p) {
+        var ph = smsPhone(p.phone);
+        if (ph) messages.push({ phone: ph, text: cardSmsMessage(card, p.name) });
+        else noPhone.push(p.name);
+      });
+    });
+    if (!messages.length) { alert('אין נמענים עם מספר טלפון ליום זה.'); return; }
+    if (!confirm('לשלוח SMS ל-' + messages.length + ' נמענים?' +
+      (noPhone.length ? '\n(' + noPhone.length + ' ללא טלפון יידלגו)' : '') +
+      '\n\n⚠️ שליחת SMS עולה כסף בחשבון 019.')) return;
+    Store.sendSms(messages).then(function (res) {
+      alert('✓ נשלחו: ' + (res.sent || 0) + ' · נכשלו: ' + (res.failed || 0) +
+        ((res.errors && res.errors.length) ? '\n\nשגיאה לדוגמה:\n' + res.errors[0] : ''));
+    }).catch(function (e) {
+      alert('✗ שגיאה בשליחה: ' + ((e && e.message) ? e.message : e));
+    });
   }
 
   // ---------- גלילה אוטומטית בזמן גרירה (כשהיעד רחוק) ----------
