@@ -60,7 +60,7 @@
   }
 
   // ---------- אירועי בית הספר (Google Calendar API · מפתח מוגבל לדומיין, קריאה בלבד) ----------
-  var GCAL_ID = 'd98113e9d24447f15e7e475ea54f1163ae084c4d53795ef37495ea4874cd1bc0@group.calendar.google.com';
+  var GCAL_ID = 'regbn2024@gmail.com';
   var GCAL_KEY = 'AIzaSyDPv5eBvcZHauq7S8si1ONUdzW9MQK6Bbs';
   var evMap = null, evWeek = null, evLoading = false, evAt = 0;
   function ensureEvents() {
