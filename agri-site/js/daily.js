@@ -818,11 +818,37 @@
     lines.push('*נא לא לשכוח להביא כובע*');
     return lines.join('\n');
   }
+  function dayGroupMessage() {
+    var day = getDay(curDate);
+    var parts = ['*סידור עבודה — ' + U.weekdayName(curDate) + ' (' + U.gregLabel(curDate) + ')*', ''];
+    day.cards.forEach(function (card) {
+      var site = card.siteId ? Store.getById('sites', card.siteId) : null;
+      if (!site && !(card.students || []).length) return;
+      var trans = card.transportId ? Store.getById('transports', card.transportId) : null;
+      var staffNames = cardStaffNames(card);
+      parts.push('📍 *' + (site ? site.name : '(אתר)') + '*' + (site && site.location ? ' · ' + site.location : ''));
+      var sub = [];
+      if (trans) sub.push('🚌 ' + trans.name);
+      if (card.hours) sub.push('🕐 ' + card.hours + ' שעות');
+      if (sub.length) parts.push(sub.join(' · '));
+      if (staffNames) parts.push('👤 ' + staffNames);
+      var studentNames = (card.students || []).map(function (s) { var st = Store.getById('students', s.studentId); return st ? (s.teamLeader ? '⭐' : '') + st.name : null; }).filter(Boolean);
+      if (studentNames.length) parts.push('תלמידים: ' + studentNames.join(', '));
+      parts.push('');
+    });
+    parts.push('*נא לא לשכוח להביא כובע*');
+    return parts.join('\n');
+  }
   function openWhatsApp() {
     var day = getDay(curDate);
     if (!day.cards.length) { alert('אין שיבוצים ליום זה.'); return; }
     var body = U.el('div', { style: 'max-height:62vh;overflow:auto;' });
-    body.appendChild(U.el('p', { class: 'muted', style: 'margin:0 0 8px;', text: 'לחצו "שלח" ליד כל אדם — וואטסאפ ייפתח עם השיבוץ שלו מוכן לשליחה.' }));
+    body.appendChild(U.el('div', { style: 'margin:0 0 10px;padding:10px;background:var(--green-light);border-radius:8px;' }, [
+      U.el('div', { style: 'font-weight:700;color:var(--green-dark);margin-bottom:4px;', text: '📤 שליחה אחת לקבוצה' }),
+      U.el('div', { class: 'muted', style: 'font-size:13px;margin-bottom:8px;', text: 'סיכום מלא של היום — לחיצה תפתח וואטסאפ, בחרו קבוצה ושלחו.' }),
+      U.el('a', { class: 'btn small', href: 'https://wa.me/?text=' + encodeURIComponent(dayGroupMessage()), target: '_blank', rel: 'noopener', style: 'background:#25D366;color:#fff;border:0;', text: '📤 שלח סיכום לקבוצה' })
+    ]));
+    body.appendChild(U.el('p', { class: 'muted', style: 'margin:0 0 8px;', text: 'או — שליחה אישית לכל אדם:' }));
     var any = false;
     day.cards.forEach(function (card) {
       var site = card.siteId ? Store.getById('sites', card.siteId) : null;
