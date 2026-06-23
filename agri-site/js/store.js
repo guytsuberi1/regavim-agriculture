@@ -448,7 +448,7 @@
   // ---------- שליחת SMS (דרך Edge Function send-sms) ----------
   function sendSms(messages) {
     if (!sb) return Promise.reject(new Error('אין חיבור לענן'));
-    return sb.functions.invoke('send-sms', { body: { messages: messages } }).then(function (res) {
+    return sb.functions.invoke('rapid-worker', { body: { messages: messages } }).then(function (res) {
       if (res.error) throw res.error;
       return res.data || {};
     });
