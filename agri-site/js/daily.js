@@ -815,7 +815,7 @@
       'סידור עבודה ל' + U.weekdayName(curDate) + ' (' + U.gregLabel(curDate) + '):',
       '📍 *אתר:* ' + (site ? site.name : '(אתר)') + (site && site.location ? ' · ' + site.location : '')];
     if (trans) lines.push('🚌 *הסעה:* ' + trans.name);
-    lines.push('*נא לא לשכוח להביא כובעים*');
+    lines.push('*נא לא לשכוח להביא כובע*');
     return lines.join('\n');
   }
   function openWhatsApp() {
