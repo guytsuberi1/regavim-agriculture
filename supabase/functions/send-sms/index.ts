@@ -34,9 +34,10 @@ Deno.serve(async (req) => {
     return reply({ error: "unauthorized" }, 401);
   }
 
-  const TOKEN = Deno.env.get("SMS019_TOKEN");
-  const USER = Deno.env.get("SMS019_USER");
-  const SENDER = Deno.env.get("SMS019_SENDER") ?? "Regavim";
+  // ניקוי תווים לא-ASCII/רווחים מהטוקן (כותרת HTTP חייבת ASCII בלבד)
+  const TOKEN = (Deno.env.get("SMS019_TOKEN") ?? "").replace(/[^\x21-\x7E]/g, "");
+  const USER = (Deno.env.get("SMS019_USER") ?? "").trim();
+  const SENDER = (Deno.env.get("SMS019_SENDER") ?? "Regavim").trim();
   if (!TOKEN || !USER) return reply({ error: "missing SMS019_TOKEN / SMS019_USER secrets" }, 500);
 
   let messages: { phone: string; text: string }[] = [];
