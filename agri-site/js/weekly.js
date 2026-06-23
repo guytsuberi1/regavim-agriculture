@@ -80,8 +80,8 @@
           var d = st.date, endEx = (ev.end && ev.end.date) || U.addDays(st.date, 1), guard = 0;
           while (d < endEx && guard++ < 60) { (map[d] = map[d] || []).push(title); d = U.addDays(d, 1); }
         } else if (st.dateTime) {
-          var iso = st.dateTime.slice(0, 10);
-          (map[iso] = map[iso] || []).push(title);
+          var iso = st.dateTime.slice(0, 10), hm = st.dateTime.slice(11, 16);
+          (map[iso] = map[iso] || []).push(hm + ' · ' + title);
         }
       });
       evMap = map; evWeek = wk; evAt = Date.now(); evLoading = false;
