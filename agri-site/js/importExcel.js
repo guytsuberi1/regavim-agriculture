@@ -189,7 +189,7 @@
     content.appendChild(mapWrap);
 
     function targetFields() {
-      if (coll === 'students') return [['name', 'שם *'], ['grade', 'כיתה'], ['notes', 'הערות']];
+      if (coll === 'students') return [['name', 'שם *'], ['grade', 'כיתה'], ['phone', 'טלפון'], ['notes', 'הערות']];
       if (coll === 'sites') return [['name', 'שם העסק *'], ['location', 'מיקום'], ['contactName', 'איש קשר'], ['phone', 'טלפון'], ['email', 'אימייל'], ['hourlyRate', 'תשלום שעתי'], ['travelPay', 'תשלום נסיעות']];
       if (coll === 'staff') return [['name', 'שם *'], ['phone', 'טלפון']];
       return [['name', 'שם *'], ['capacity', 'קיבולת']];
@@ -213,8 +213,11 @@
         mapWrap.appendChild(U.el('div', { class: 'field' }, [U.el('label', { text: tf[1] }), sel]));
       });
 
+      var updChk = U.el('input', { type: 'checkbox', checked: true });
+      mapWrap.appendChild(U.el('label', { class: 'field', style: 'display:flex;align-items:center;gap:6px;' },
+        [updChk, U.el('span', { text: 'עדכן רשומות קיימות (התאמה לפי שם) — נדרש להוספת טלפונים לתלמידים קיימים' })]));
       var btn = U.el('button', { class: 'btn', onclick: function () {
-        doImportTable(rows, hr, selects, coll);
+        doImportTable(rows, hr, selects, coll, updChk.checked);
       } }, '✓ ייבא טבלה');
       mapWrap.appendChild(btn);
     }
@@ -222,18 +225,29 @@
     rebuildMap();
   }
 
-  function doImportTable(rows, headerRow, selects, coll) {
+  // נרמול שכבה לערכים הנתמכים (ט1/ט2 → ט וכו')
+  function baseGrade(v) {
+    v = String(v == null ? '' : v).trim();
+    if (v.indexOf('יא') === 0) return 'יא';
+    if (v.indexOf('יב') === 0) return 'יב';
+    if (v.charAt(0) === 'ט') return 'ט';
+    if (v.charAt(0) === 'י') return 'י';
+    return v;
+  }
+  function doImportTable(rows, headerRow, selects, coll, updateExisting) {
     var data = Store.get();
-    var existing = {};
-    (data[coll] || []).forEach(function (x) { existing[normName(x.name)] = true; });
-    var added = 0;
+    var byName = {};
+    (data[coll] || []).forEach(function (x) { byName[normName(x.name)] = x; });
+    var added = 0, updated = 0;
     for (var r = headerRow + 1; r < rows.length; r++) {
       var row = rows[r] || [];
-      var rec = { active: true };
       var nameIdx = selects.name.value;
       if (nameIdx === '') continue;
       var name = String(row[parseInt(nameIdx, 10)] == null ? '' : row[parseInt(nameIdx, 10)]).trim();
-      if (!name || existing[normName(name)]) continue;
+      if (!name) continue;
+      var existRec = byName[normName(name)];
+      if (existRec && !updateExisting) continue;
+      var rec = existRec ? Object.assign({}, existRec) : { name: name, active: true };
       rec.name = name;
       for (var key in selects) {
         if (key === 'name') continue;
@@ -242,14 +256,15 @@
         var val = row[parseInt(idx, 10)];
         if (val == null || val === '') continue;
         if (key === 'hourlyRate' || key === 'travelPay' || key === 'capacity') val = U.num(val);
+        else if (key === 'grade' && coll === 'students') val = baseGrade(val);
+        else if (key === 'phone') val = String(val).trim();
         rec[key] = val;
       }
-      if (coll === 'staff') rec.role = 'staff';
-      existing[normName(name)] = true;
+      if (coll === 'staff' && !rec.role) rec.role = 'staff';
       Store.upsert(coll, rec);
-      added++;
+      if (existRec) { updated++; } else { byName[normName(name)] = rec; added++; }
     }
-    alert('יובאו ' + added + ' רשומות חדשות.');
+    alert('יובאו ' + added + ' חדשים · עודכנו ' + updated + ' קיימים.');
     App.render();
     var bg = U.$('.modal-bg'); if (bg) bg.parentNode.removeChild(bg);
   }
