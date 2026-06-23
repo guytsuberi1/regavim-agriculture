@@ -59,58 +59,36 @@
     ]);
   }
 
-  // ---------- אירועי בית הספר (יומן Google ציבורי דרך proxy, ללא מפתח) ----------
-  var EV_CAL = 'd98113e9d24447f15e7e475ea54f1163ae084c4d53795ef37495ea4874cd1bc0@group.calendar.google.com';
-  var evAll = null, evLoading = false, evAt = 0;
-  function ensureEvents(force) {
+  // ---------- אירועי בית הספר (Google Calendar API · מפתח מוגבל לדומיין, קריאה בלבד) ----------
+  var GCAL_ID = 'd98113e9d24447f15e7e475ea54f1163ae084c4d53795ef37495ea4874cd1bc0@group.calendar.google.com';
+  var GCAL_KEY = 'AIzaSyDPv5eBvcZHauq7S8si1ONUdzW9MQK6Bbs';
+  var evMap = null, evWeek = null, evLoading = false, evAt = 0;
+  function ensureEvents() {
+    var wk = weekStart;
     if (evLoading) return;
-    if (!force && evAll && Date.now() - evAt < 300000) return; // רענון אוטומטי כל 5 דקות
+    if (evWeek === wk && evMap && Date.now() - evAt < 300000) return; // רענון אוטומטי כל 5 דקות
     evLoading = true;
-    var ics = 'https://calendar.google.com/calendar/ical/' + encodeURIComponent(EV_CAL) + '/public/basic.ics';
-    var proxies = ['https://corsproxy.io/?url=', 'https://api.allorigins.win/raw?url='];
-    (function tryProxy(i) {
-      if (i >= proxies.length) { evLoading = false; return; }
-      fetch(proxies[i] + encodeURIComponent(ics)).then(function (r) { if (!r.ok) throw 0; return r.text(); }).then(function (txt) {
-        var parsed = parseICS(txt);
-        if (!parsed.length) throw 0;
-        evAll = parsed; evAt = Date.now(); evLoading = false;
-        if (global.App && App.render) App.render();
-      }).catch(function () { tryProxy(i + 1); });
-    })(0);
+    var url = 'https://www.googleapis.com/calendar/v3/calendars/' + encodeURIComponent(GCAL_ID) + '/events' +
+      '?key=' + GCAL_KEY + '&singleEvents=true&orderBy=startTime&maxResults=100' +
+      '&timeMin=' + U.addDays(wk, -1) + 'T00:00:00Z&timeMax=' + U.addDays(wk, 8) + 'T00:00:00Z';
+    fetch(url).then(function (r) { return r.json(); }).then(function (j) {
+      var map = {};
+      (j.items || []).forEach(function (ev) {
+        if (ev.status === 'cancelled') return;
+        var title = ev.summary || '(ללא כותרת)', st = ev.start || {};
+        if (st.date) { // אירוע יום-שלם (יכול להימשך כמה ימים)
+          var d = st.date, endEx = (ev.end && ev.end.date) || U.addDays(st.date, 1), guard = 0;
+          while (d < endEx && guard++ < 60) { (map[d] = map[d] || []).push(title); d = U.addDays(d, 1); }
+        } else if (st.dateTime) {
+          var iso = st.dateTime.slice(0, 10);
+          (map[iso] = map[iso] || []).push(title);
+        }
+      });
+      evMap = map; evWeek = wk; evAt = Date.now(); evLoading = false;
+      if (global.App && App.render) App.render();
+    }).catch(function () { evLoading = false; });
   }
-  function unescapeICS(s) { return s.replace(/\\n/gi, ' ').replace(/\\,/g, ',').replace(/\\;/g, ';').replace(/\\\\/g, '\\'); }
-  function digits8(v) { var m = v.replace(/[^0-9]/g, ''); return m.length >= 8 ? m.slice(0, 4) + '-' + m.slice(4, 6) + '-' + m.slice(6, 8) : null; }
-  function parseICS(txt) {
-    txt = txt.replace(/\r\n[ \t]/g, '').replace(/\n[ \t]/g, '');
-    var events = [], cur = null;
-    txt.split(/\r?\n/).forEach(function (line) {
-      if (line === 'BEGIN:VEVENT') { cur = {}; return; }
-      if (line === 'END:VEVENT') { if (cur && cur.start && cur.summary) events.push(cur); cur = null; return; }
-      if (!cur) return;
-      var ci = line.indexOf(':'); if (ci < 0) return;
-      var name = line.slice(0, ci), val = line.slice(ci + 1), base = name.split(';')[0];
-      if (base === 'SUMMARY') cur.summary = unescapeICS(val);
-      else if (base === 'DTSTART') cur.start = digits8(val);
-      else if (base === 'RRULE') cur.rrule = val;
-    });
-    return events;
-  }
-  function dow(iso) { var p = iso.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]).getDay(); }
-  function occursOn(ev, iso) {
-    if (!ev.start) return false;
-    if (!ev.rrule) return ev.start === iso;
-    if (iso < ev.start) return false;
-    var until = (ev.rrule.match(/UNTIL=([0-9]+)/) || [])[1];
-    if (until && iso.replace(/-/g, '') > until.slice(0, 8)) return false;
-    var freq = (ev.rrule.match(/FREQ=([A-Z]+)/) || [])[1];
-    var s = ev.start.split('-'), d = iso.split('-');
-    if (freq === 'DAILY') return true;
-    if (freq === 'WEEKLY') return dow(iso) === dow(ev.start);
-    if (freq === 'MONTHLY') return s[2] === d[2];
-    if (freq === 'YEARLY') return s[1] === d[1] && s[2] === d[2];
-    return ev.start === iso;
-  }
-  function eventsOn(iso) { return evAll ? evAll.filter(function (ev) { return occursOn(ev, iso); }).map(function (ev) { return ev.summary; }) : []; }
+  function eventsOn(iso) { return (evMap && evWeek === weekStart && evMap[iso]) ? evMap[iso] : []; }
 
   function render(root) {
     ensureForecast();
