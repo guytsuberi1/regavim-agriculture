@@ -813,10 +813,9 @@
     var trans = card.transportId ? Store.getById('transports', card.transportId) : null;
     var lines = ['שלום ' + name + ',',
       'סידור עבודה ל' + U.weekdayName(curDate) + ' (' + U.gregLabel(curDate) + '):',
-      '📍 אתר: ' + (site ? site.name : '(אתר)') + (site && site.location ? ' · ' + site.location : '')];
-    if (trans) lines.push('🚌 הסעה: ' + trans.name);
-    if (card.hours) lines.push('🕐 שעות: ' + card.hours);
-    if (site && site.access) lines.push('🚗 דרך הגעה: ' + site.access);
+      '📍 *אתר:* ' + (site ? site.name : '(אתר)') + (site && site.location ? ' · ' + site.location : '')];
+    if (trans) lines.push('🚌 *הסעה:* ' + trans.name);
+    lines.push('*נא לא לשכוח להביא כובעים*');
     return lines.join('\n');
   }
   function openWhatsApp() {
