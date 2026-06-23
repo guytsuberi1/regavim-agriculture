@@ -59,8 +59,62 @@
     ]);
   }
 
+  // ---------- אירועי בית הספר (יומן Google ציבורי דרך proxy, ללא מפתח) ----------
+  var EV_CAL = 'd98113e9d24447f15e7e475ea54f1163ae084c4d53795ef37495ea4874cd1bc0@group.calendar.google.com';
+  var evAll = null, evLoading = false, evAt = 0;
+  function ensureEvents(force) {
+    if (evLoading) return;
+    if (!force && evAll && Date.now() - evAt < 300000) return; // רענון אוטומטי כל 5 דקות
+    evLoading = true;
+    var ics = 'https://calendar.google.com/calendar/ical/' + encodeURIComponent(EV_CAL) + '/public/basic.ics';
+    var proxies = ['https://corsproxy.io/?url=', 'https://api.allorigins.win/raw?url='];
+    (function tryProxy(i) {
+      if (i >= proxies.length) { evLoading = false; return; }
+      fetch(proxies[i] + encodeURIComponent(ics)).then(function (r) { if (!r.ok) throw 0; return r.text(); }).then(function (txt) {
+        var parsed = parseICS(txt);
+        if (!parsed.length) throw 0;
+        evAll = parsed; evAt = Date.now(); evLoading = false;
+        if (global.App && App.render) App.render();
+      }).catch(function () { tryProxy(i + 1); });
+    })(0);
+  }
+  function unescapeICS(s) { return s.replace(/\\n/gi, ' ').replace(/\\,/g, ',').replace(/\\;/g, ';').replace(/\\\\/g, '\\'); }
+  function digits8(v) { var m = v.replace(/[^0-9]/g, ''); return m.length >= 8 ? m.slice(0, 4) + '-' + m.slice(4, 6) + '-' + m.slice(6, 8) : null; }
+  function parseICS(txt) {
+    txt = txt.replace(/\r\n[ \t]/g, '').replace(/\n[ \t]/g, '');
+    var events = [], cur = null;
+    txt.split(/\r?\n/).forEach(function (line) {
+      if (line === 'BEGIN:VEVENT') { cur = {}; return; }
+      if (line === 'END:VEVENT') { if (cur && cur.start && cur.summary) events.push(cur); cur = null; return; }
+      if (!cur) return;
+      var ci = line.indexOf(':'); if (ci < 0) return;
+      var name = line.slice(0, ci), val = line.slice(ci + 1), base = name.split(';')[0];
+      if (base === 'SUMMARY') cur.summary = unescapeICS(val);
+      else if (base === 'DTSTART') cur.start = digits8(val);
+      else if (base === 'RRULE') cur.rrule = val;
+    });
+    return events;
+  }
+  function dow(iso) { var p = iso.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]).getDay(); }
+  function occursOn(ev, iso) {
+    if (!ev.start) return false;
+    if (!ev.rrule) return ev.start === iso;
+    if (iso < ev.start) return false;
+    var until = (ev.rrule.match(/UNTIL=([0-9]+)/) || [])[1];
+    if (until && iso.replace(/-/g, '') > until.slice(0, 8)) return false;
+    var freq = (ev.rrule.match(/FREQ=([A-Z]+)/) || [])[1];
+    var s = ev.start.split('-'), d = iso.split('-');
+    if (freq === 'DAILY') return true;
+    if (freq === 'WEEKLY') return dow(iso) === dow(ev.start);
+    if (freq === 'MONTHLY') return s[2] === d[2];
+    if (freq === 'YEARLY') return s[1] === d[1] && s[2] === d[2];
+    return ev.start === iso;
+  }
+  function eventsOn(iso) { return evAll ? evAll.filter(function (ev) { return occursOn(ev, iso); }).map(function (ev) { return ev.summary; }) : []; }
+
   function render(root) {
     ensureForecast();
+    ensureEvents();
     var head = U.el('div', { class: 'page-head' }, [
       U.el('h2', { text: 'תכנון שבועי' }),
       U.el('button', { class: 'btn secondary small', onclick: function () { weekStart = U.addDays(weekStart, -7); App.render(); } }, '→ שבוע קודם'),
@@ -145,6 +199,14 @@
       cell.appendChild(U.el('div', { class: 'wx-line' },
         ic[0] + ' ' + ic[1] + ' · ' + Math.round(w.tmax) + '°/' + Math.round(w.tmin) + '°' +
         (w.pop != null && w.pop > 0 ? ' · 💧' + w.pop + '%' : '')));
+    }
+
+    // אירועי בית הספר ליום זה
+    var evs = eventsOn(iso);
+    if (evs.length) {
+      var evBox = U.el('div', { class: 'ev-line' });
+      evs.forEach(function (t) { evBox.appendChild(U.el('div', { class: 'ev-item', text: '📌 ' + t })); });
+      cell.appendChild(evBox);
     }
     return cell;
   }
