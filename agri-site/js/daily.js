@@ -38,6 +38,7 @@
       U.el('button', { class: 'btn secondary', onclick: openAbsentDialog }, '🚫 נעדרים היום' + (Store.get().dailyAbsent[curDate] && Store.get().dailyAbsent[curDate].length ? ' (' + Store.get().dailyAbsent[curDate].length + ')' : '')),
       U.el('button', { class: 'btn secondary', onclick: dupPrev }, '⧉ שכפל מיום קודם'),
       U.el('button', { class: 'btn accent', onclick: exportImage }, '🖼 ייצוא תמונה'),
+      U.el('button', { class: 'btn secondary', onclick: openWhatsApp }, '📲 וואטסאפ'),
       U.el('button', { class: 'btn', onclick: addCard }, '+ הוסף אתר')
     ]);
     root.appendChild(head);
@@ -795,6 +796,54 @@
       if (temp.parentNode) document.body.removeChild(temp);
       alert('שגיאה בייצוא התמונה: ' + e.message);
     });
+  }
+
+  // ---------- שליחת שיבוצים בוואטסאפ (בלחיצה, חינם) ----------
+  function waNumber(phone) {
+    if (!phone) return null;
+    var d = ('' + phone).replace(/\D/g, '');
+    if (!d) return null;
+    if (d.indexOf('972') === 0) return d;
+    if (d.charAt(0) === '0') return '972' + d.slice(1);
+    if (d.length === 9) return '972' + d;
+    return d;
+  }
+  function cardMessage(card, name) {
+    var site = card.siteId ? Store.getById('sites', card.siteId) : null;
+    var trans = card.transportId ? Store.getById('transports', card.transportId) : null;
+    var lines = ['שלום ' + name + ',',
+      'סידור עבודה ל' + U.weekdayName(curDate) + ' (' + U.gregLabel(curDate) + '):',
+      '📍 אתר: ' + (site ? site.name : '(אתר)') + (site && site.location ? ' · ' + site.location : '')];
+    if (trans) lines.push('🚌 הסעה: ' + trans.name);
+    if (card.hours) lines.push('🕐 שעות: ' + card.hours);
+    if (site && site.access) lines.push('🚗 דרך הגעה: ' + site.access);
+    return lines.join('\n');
+  }
+  function openWhatsApp() {
+    var day = getDay(curDate);
+    if (!day.cards.length) { alert('אין שיבוצים ליום זה.'); return; }
+    var body = U.el('div', { style: 'max-height:62vh;overflow:auto;' });
+    body.appendChild(U.el('p', { class: 'muted', style: 'margin:0 0 8px;', text: 'לחצו "שלח" ליד כל אדם — וואטסאפ ייפתח עם השיבוץ שלו מוכן לשליחה.' }));
+    var any = false;
+    day.cards.forEach(function (card) {
+      var site = card.siteId ? Store.getById('sites', card.siteId) : null;
+      var people = [];
+      cardStaffIds(card).forEach(function (id) { var p = Store.getById('staff', id); if (p) people.push({ name: p.name, phone: p.phone, role: 'צוות' }); });
+      (card.students || []).forEach(function (s) { var st = Store.getById('students', s.studentId); if (st) people.push({ name: st.name, phone: st.phone, role: 'תלמיד' }); });
+      if (!people.length) return;
+      any = true;
+      body.appendChild(U.el('div', { style: 'font-weight:700;color:var(--green-dark);margin:10px 0 2px;' }, site ? site.name : '(אתר)'));
+      people.forEach(function (pp) {
+        var wn = waNumber(pp.phone);
+        var link = (wn ? 'https://wa.me/' + wn : 'https://wa.me/') + '?text=' + encodeURIComponent(cardMessage(card, pp.name));
+        body.appendChild(U.el('div', { style: 'display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);' }, [
+          U.el('span', { style: 'flex:1;font-size:14px;', text: pp.name + ' · ' + pp.role + (wn ? '' : ' · (אין מספר)') }),
+          U.el('a', { class: 'btn small', href: link, target: '_blank', rel: 'noopener', style: 'background:#25D366;color:#fff;border:0;' }, '📲 שלח')
+        ]));
+      });
+    });
+    if (!any) { alert('אין משובצים ליום זה.'); return; }
+    Modal.open('שליחת שיבוצים בוואטסאפ — ' + U.weekdayName(curDate) + ' ' + U.gregLabel(curDate), body, [{ label: 'סגור', class: 'secondary' }]);
   }
 
   // ---------- גלילה אוטומטית בזמן גרירה (כשהיעד רחוק) ----------

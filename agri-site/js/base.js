@@ -9,6 +9,7 @@
     if (coll === 'students') return [
       { key: 'name', label: 'שם התלמיד', type: 'text', required: true, col: true },
       { key: 'grade', label: 'כיתה', type: 'select', options: U.GRADES, col: true },
+      { key: 'phone', label: 'טלפון', type: 'text', col: true },
       { key: 'active', label: 'פעיל', type: 'bool', col: true, def: true },
       { key: 'notes', label: 'הערות', type: 'text' }
     ];
