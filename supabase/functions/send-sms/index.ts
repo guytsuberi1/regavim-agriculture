@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
           username: USER,
           source: SENDER,
           message: text,
-          destinations: { phone: [{ number: phone }] },
+          destinations: { phone: [phone] },
         }),
       });
       const body = await r.text();
