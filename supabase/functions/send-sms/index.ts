@@ -55,10 +55,12 @@ Deno.serve(async (req) => {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${TOKEN}` },
         body: JSON.stringify({
-          username: USER,
-          source: SENDER,
-          message: text,
-          destinations: { phone: [phone] },
+          sms: {
+            user: { username: USER },
+            source: SENDER,
+            destinations: { phone: [{ _: phone }] },
+            message: text,
+          },
         }),
       });
       const body = await r.text();
