@@ -102,7 +102,6 @@
 
     var head = U.el('div', { class: 'page-head' }, [
       U.el('h2', { text: '💰 ניהול חובות חקלאים' }),
-      U.el('span', { class: 'tag', html: 'סה"כ חוב: <b>' + money(grandAll) + '</b>' }),
       U.el('div', { class: 'spacer' }),
       U.el('button', { class: 'btn', onclick: function () { openRecord(null, selectedSiteId || ''); } }, '+ חוב חדש'),
       U.el('button', { class: 'btn accent', onclick: exportExcel }, '⬇ ייצוא לאקסל'),
