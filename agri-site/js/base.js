@@ -43,7 +43,7 @@
   }
 
   function collTitle(c) {
-    return { students: 'תלמידים', sites: 'אתרים / לקוחות', staff: 'אנשי צוות', transports: 'הסעות' }[c];
+    return { students: 'תלמידים', sites: 'אתרים / לקוחות', staff: 'אנשי צוות', transports: 'הסעות', teams: 'צוותים' }[c];
   }
 
   function displayVal(def, item) {
@@ -59,26 +59,33 @@
   function render(root) {
     var data = Store.get();
 
+    var isTeams = sub === 'teams';
     var head = U.el('div', { class: 'page-head' }, [
       U.el('h2', { text: 'נתוני בסיס' }),
       U.el('div', { class: 'spacer' }),
-      sub === 'students' ? U.el('button', { class: 'btn secondary', onclick: mergeDuplicateStudents }, '🧹 איחוד כפילויות') : null,
-      U.el('button', { class: 'btn accent', onclick: openImport }, '⬆ ייבוא מאקסל'),
-      U.el('button', { class: 'btn', onclick: function () { openForm(null); } }, '+ הוספה')
+      (!isTeams && sub === 'students') ? U.el('button', { class: 'btn secondary', onclick: mergeDuplicateStudents }, '🧹 איחוד כפילויות') : null,
+      isTeams ? null : U.el('button', { class: 'btn accent', onclick: openImport }, '⬆ ייבוא מאקסל'),
+      isTeams ? null : U.el('button', { class: 'btn', onclick: function () { openForm(null); } }, '+ הוספה')
     ]);
 
     var tabs = U.el('div', { class: 'subtabs' },
-      ['students', 'sites', 'staff', 'transports'].map(function (c) {
+      ['students', 'sites', 'staff', 'transports', 'teams'].map(function (c) {
+        var count = c === 'teams' ? (data.teams ? data.teams.length : 0) : (data[c] ? data[c].length : 0);
         return U.el('button', {
           class: sub === c ? 'active' : '',
           onclick: function () { sub = c; App.render(); }
-        }, collTitle(c) + ' (' + (data[c] ? data[c].length : 0) + ')');
+        }, collTitle(c) + ' (' + count + ')');
       })
     );
 
     root.appendChild(head);
     root.appendChild(tabs);
-    root.appendChild(buildTable());
+    if (isTeams) {
+      if (global.TeamsView && global.TeamsView.render) global.TeamsView.render(root);
+      else root.appendChild(U.el('div', { class: 'card empty' }, 'מסך הצוותים אינו זמין.'));
+    } else {
+      root.appendChild(buildTable());
+    }
   }
 
   function buildTable() {
