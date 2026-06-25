@@ -199,11 +199,15 @@
   function buildMonth() {
     var plan = Store.get().weeklyPlan;
     var first = monthAnchor;
-    var gridStart = U.addDays(first, -U.fromISO(first).getDay()); // אחורה ליום ראשון
+    var fd = U.fromISO(first);
+    var offset = fd.getDay(); // יום ראשון של השבוע הראשון
+    var daysInMonth = new Date(fd.getFullYear(), fd.getMonth() + 1, 0).getDate();
+    var cells = Math.ceil((offset + daysInMonth) / 7) * 7; // רק השבועות הדרושים לכיסוי החודש (בלי שבוע שלם של חודש אחר)
+    var gridStart = U.addDays(first, -offset); // אחורה ליום ראשון
     var curMonth = U.monthKey(first);
     var wrap = U.el('div', { class: 'month-grid' });
     U.WEEKDAYS.forEach(function (wd) { wrap.appendChild(U.el('div', { class: 'month-dow', text: wd })); });
-    for (var i = 0; i < 42; i++) {
+    for (var i = 0; i < cells; i++) {
       var iso = U.addDays(gridStart, i);
       var cell = buildDay(iso, plan[iso] || []);
       if (U.monthKey(iso) !== curMonth) cell.classList.add('other-month');
