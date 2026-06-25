@@ -23,6 +23,16 @@
     return set;
   }
 
+  // אנשי צוות שכבר משובצים באתרים אחרים של אותו יום (לחסימת שיבוץ כפול)
+  function assignedStaffIds(day, exceptCardId) {
+    var set = {};
+    day.cards.forEach(function (c) {
+      if (c.id === exceptCardId) return;
+      cardStaffIds(c).forEach(function (id) { if (id) set[id] = true; });
+    });
+    return set;
+  }
+
   function render(root) {
     bindAutoScroll();
     Sync.mergeDate(curDate); // ודא שאתרים מהתכנון השבועי מופיעים ביום זה
@@ -142,7 +152,7 @@
 
     // הסעה / איש צוות / ראש צוות
     body.appendChild(labeledSelect('הסעה', 'transports', card, 'transportId'));
-    body.appendChild(staffMultiControl(card));
+    body.appendChild(staffMultiControl(day, card));
 
     // שעות + נסיעות
     var hoursInp = U.el('input', { type: 'number', value: card.hours == null ? '' : card.hours, style: 'width:70px;', step: '0.5' });
@@ -276,7 +286,7 @@
   function cardStaffNames(card) {
     return cardStaffIds(card).map(function (id) { var p = Store.getById('staff', id); return p ? p.name : ''; }).filter(Boolean).join(', ');
   }
-  function staffMultiControl(card) {
+  function staffMultiControl(day, card) {
     if (!card.staffIds) card.staffIds = card.staffId ? [card.staffId] : [];
     var wrap = U.el('div', { class: 'field', style: 'margin:6px 0;' });
     wrap.appendChild(U.el('label', { text: 'אנשי צוות' }));
@@ -291,16 +301,29 @@
           U.el('button', { class: 'staff-chip-x no-print', title: 'הסר', onclick: function () {
             card.staffIds = card.staffIds.filter(function (x) { return x !== id; });
             card.staffId = card.staffIds[0] || null;
-            Store.save(); sync();
+            Store.save(); App.render();
           } }, '✕')
         ]));
       });
-      Array.prototype.forEach.call(sel.options, function (o) { if (o.value) o.disabled = card.staffIds.indexOf(o.value) !== -1; });
+      // חסימת איש צוות שכבר משובץ בכרטיס זה או באתר אחר באותו יום
+      var taken = assignedStaffIds(day, card.id);
+      Array.prototype.forEach.call(sel.options, function (o) {
+        if (!o.value) return;
+        var here = card.staffIds.indexOf(o.value) !== -1;
+        var elsewhere = !!taken[o.value];
+        o.disabled = here || elsewhere;
+        var base = o.getAttribute('data-name') || o.textContent.replace(/ \(.*\)$/, '');
+        o.setAttribute('data-name', base);
+        o.textContent = elsewhere ? base + ' (משובץ באתר אחר)' : base;
+      });
       sel.value = '';
     }
     sel.addEventListener('change', function () {
       var id = sel.value;
-      if (id && card.staffIds.indexOf(id) === -1) { card.staffIds.push(id); card.staffId = card.staffIds[0] || null; Store.save(); }
+      if (id && card.staffIds.indexOf(id) === -1 && !assignedStaffIds(day, card.id)[id]) {
+        card.staffIds.push(id); card.staffId = card.staffIds[0] || null; Store.save(); App.render();
+        return;
+      }
       sync();
     });
     sync();
