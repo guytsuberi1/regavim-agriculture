@@ -243,6 +243,14 @@
     notesInp.addEventListener('change', function () { card.notes = notesInp.value; Store.save(); });
     body.appendChild(notesInp);
 
+    // הערה שהשאיר איש הצוות בשטח (לקריאת הרכז)
+    if (card.fieldNote) {
+      body.appendChild(U.el('div', { class: 'card-fieldnote', style: 'margin-top:6px;background:#fff7e6;border:1px solid #f0d090;border-radius:6px;padding:6px 8px;font-size:13px;' }, [
+        U.el('span', { style: 'font-weight:600;', text: '📝 מהשטח: ' }),
+        U.el('span', { text: card.fieldNote })
+      ]));
+    }
+
     node.appendChild(head);
     node.appendChild(body);
 

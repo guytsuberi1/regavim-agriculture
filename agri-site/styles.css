@@ -265,6 +265,10 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
 .frbtn.on { background: var(--accent); color: #fff; border-color: var(--accent); }
 .fstu-note { width: 100%; margin-top: 7px; padding: 7px 10px; font-size: 13px; border: 1px solid var(--border); border-radius: 8px; }
 .fadd-btn { margin-top: 12px; width: 100%; }
+.frate-legend { font-size: 12px; margin: 2px 0 8px; }
+.ffield-note-wrap { margin-top: 14px; display: flex; flex-direction: column; gap: 4px; }
+.ffield-note-wrap label { font-size: 12px; }
+.ffield-note { width: 100%; padding: 8px 11px; font-size: 14px; border: 1px solid var(--border); border-radius: 8px; resize: vertical; font-family: inherit; }
 .fadd-search { width: 100%; padding: 9px 11px; font-size: 14px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; }
 .fadd-list { display: flex; flex-direction: column; gap: 6px; max-height: 52vh; overflow-y: auto; }
 .fadd-item { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px; font-size: 15px; border: 1px solid var(--border); border-radius: 8px; background: #fff; cursor: pointer; text-align: right; }

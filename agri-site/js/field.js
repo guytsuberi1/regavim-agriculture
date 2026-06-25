@@ -4,6 +4,8 @@
   var U = global.U;
   var fieldDate = U.todayISO();
   var fieldCardId = null;
+  var ALL = '__all__'; // זהות "רכז / הצג הכל"
+  var lastAutoKey = null; // מונע פתיחה-אוטומטית חוזרת כשחוזרים לרשימה ידנית
 
   function dayOf() {
     var d = Store.get();
@@ -11,18 +13,59 @@
     return d.days[fieldDate];
   }
 
+  // ---------- זהות איש הצוות במכשיר ----------
+  function myStaffId() { try { return localStorage.getItem('agri_field_staff') || null; } catch (e) { return null; } }
+  function setMyStaffId(id) { try { id ? localStorage.setItem('agri_field_staff', id) : localStorage.removeItem('agri_field_staff'); } catch (e) {} }
+
+  function myCards(day) {
+    var id = myStaffId();
+    if (!id || id === ALL) return [];
+    return day.cards.filter(function (c) {
+      var ids = (c.staffIds && c.staffIds.length) ? c.staffIds : (c.staffId ? [c.staffId] : []);
+      return ids.indexOf(id) !== -1;
+    });
+  }
+
+  function openIdentityPicker() {
+    var staff = (Store.get().staff || []).slice().sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'he'); });
+    var box = U.el('div', { class: 'fadd-list' });
+    staff.forEach(function (p) {
+      var b = U.el('button', { class: 'fadd-item' }, [U.el('span', { text: p.name + (p.role ? ' · ' + p.role : '') }), U.el('span', { class: 'fadd-plus', text: '👤' })]);
+      b.addEventListener('click', function () { setMyStaffId(p.id); lastAutoKey = null; fieldCardId = null; close(); App.render(); });
+      box.appendChild(b);
+    });
+    var allBtn = U.el('button', { class: 'fadd-item' }, [U.el('span', { text: 'אני הרכז — הצג את כל האתרים' }), U.el('span', { class: 'fadd-plus', text: '🗂️' })]);
+    allBtn.addEventListener('click', function () { setMyStaffId(ALL); lastAutoKey = null; fieldCardId = null; close(); App.render(); });
+    box.appendChild(allBtn);
+    var close = Modal.open('מי אתה?', U.el('div', null, [
+      U.el('p', { class: 'muted', style: 'margin:0 0 8px;', text: 'בחרו את שמכם — האתר שלכם ייפתח אוטומטית בכל כניסה.' }),
+      box
+    ]), [{ label: 'סגור', class: 'secondary' }]);
+  }
+
   function render(root) {
     if (global.Sync) Sync.mergeDate(fieldDate);
     var day = dayOf();
     var absN = ((Store.get().dailyAbsent || {})[fieldDate] || []).length;
+    var id = myStaffId();
 
+    // פתיחה אוטומטית של האתר המשובץ לאיש הצוות — פעם אחת לכל (זהות+תאריך)
+    var autoKey = (id || '-') + '|' + fieldDate;
+    if (!fieldCardId && id && id !== ALL && lastAutoKey !== autoKey) {
+      lastAutoKey = autoKey;
+      var mine = myCards(day);
+      if (mine.length === 1) fieldCardId = mine[0].id;
+    }
+
+    var who = id && id !== ALL ? (Store.getById('staff', id) || {}).name : (id === ALL ? 'רכז' : null);
     root.appendChild(U.el('div', { class: 'page-head' }, [
       U.el('h2', { text: '📋 מצב שטח' }),
       U.el('button', { class: 'btn secondary small', onclick: function () { fieldDate = U.addDays(fieldDate, -1); fieldCardId = null; App.render(); } }, '→ אתמול'),
       U.el('button', { class: 'btn secondary small', onclick: function () { fieldDate = U.todayISO(); fieldCardId = null; App.render(); } }, 'היום'),
       U.el('button', { class: 'btn secondary small', onclick: function () { fieldDate = U.addDays(fieldDate, 1); fieldCardId = null; App.render(); } }, 'מחר ←'),
       U.el('span', { class: 'tag', text: U.weekdayName(fieldDate) + ' · ' + U.gregLabel(fieldDate) }),
-      U.el('button', { class: 'btn', onclick: openAbsentField }, '🚫 נעדרים היום' + (absN ? ' (' + absN + ')' : ''))
+      U.el('button', { class: 'btn', onclick: openAbsentField }, '🚫 נעדרים היום' + (absN ? ' (' + absN + ')' : '')),
+      U.el('button', { class: 'btn secondary small', style: 'margin-inline-start:auto;', onclick: openIdentityPicker }, who ? ('👤 ' + who + ' · החלף') : '👤 מי אתה?')
     ]));
 
     var card = fieldCardId ? day.cards.filter(function (c) { return c.id === fieldCardId; })[0] : null;
@@ -79,6 +122,8 @@
 
     var ordered = (card.students || []).slice().sort(function (a, b) { return (b.teamLeader ? 1 : 0) - (a.teamLeader ? 1 : 0); });
 
+    root.appendChild(U.el('div', { class: 'frate-legend muted', text: 'ציון לכל תלמיד: 5 = גבוה · 1 = נמוך' }));
+
     var list = U.el('div', { class: 'field-students' });
     ordered.forEach(function (st) { list.appendChild(buildStudentRow(st)); });
     if (!ordered.length) {
@@ -87,6 +132,15 @@
     root.appendChild(list);
 
     root.appendChild(U.el('button', { class: 'btn fadd-btn', onclick: function () { openAddWorked(card, list); } }, '➕ הוסף תלמיד שעבד באתר'));
+
+    // הערה כללית לרכז החקלאות (לכל האתר/היום)
+    var noteBox = U.el('textarea', { class: 'ffield-note', rows: '2', placeholder: '📝 הערה כללית לרכז החקלאות (לא חובה)…' });
+    noteBox.value = card.fieldNote || '';
+    noteBox.addEventListener('change', function () { card.fieldNote = noteBox.value; Store.save(); });
+    root.appendChild(U.el('div', { class: 'ffield-note-wrap' }, [
+      U.el('label', { class: 'muted', text: 'הערה לרכז החקלאות' }),
+      noteBox
+    ]));
   }
 
   // הוספת תלמיד שעבד באתר אך לא תוכנן ע"י רכז החקלאות
