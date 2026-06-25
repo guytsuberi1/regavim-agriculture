@@ -20,7 +20,9 @@
       weeklyDuty: {},   // { 'weekStartISO': [studentId,...] }  תורנים שבועיים (יורדים מהמאגר כל השבוע)
       weeklySick: {},   // { 'weekStartISO': [studentId,...] }  חולים שבועיים
       dailyAbsent: {},  // { 'YYYY-MM-DD': [studentId,...] }     נעדרים ליום מסוים
-      billingAdjustments: {} // { 'YYYY-MM|siteId': { 'YYYY-MM-DD': { note, hoursOverride, workersOverride, travelOverride } } }
+      billingAdjustments: {}, // { 'YYYY-MM|siteId': { 'YYYY-MM-DD': { note, hoursOverride, workersOverride, travelOverride } } }
+      debtRecords: [],  // { id, siteId, openingDebt, debtYear, status, handledBy, notes, includeBilling }  כרטיס חוב לכל חקלאי
+      debtEntries: []   // { id, siteId, date:'YYYY-MM-DD', kind:'payment'|'charge'|'credit', amount, method, note }  תנועות
     };
   }
 

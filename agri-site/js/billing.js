@@ -262,5 +262,27 @@
     XLSX.writeFile(wb, 'דרישת-תשלום-' + curMonth + '.xlsx');
   }
 
+  // ---------- עזר ציבורי: חישוב חיוב-עבודה לשימוש חוזר (מודול החובות) ----------
+  // מחזיר את אותו חישוב של "דרישת תשלום" (כולל התאמות ידניות), מצטבר על כל החודשים.
+  function allMonths() {
+    var set = {};
+    Object.keys(Store.get().days || {}).forEach(function (iso) { set[U.monthKey(iso)] = true; });
+    return Object.keys(set).sort();
+  }
+  function billedBySite() { // { siteId: { total, byMonth: { 'YYYY-MM': total } } }
+    var out = {};
+    allMonths().forEach(function (mk) {
+      var bySite = computeMonth(mk);
+      Object.keys(bySite).forEach(function (id) {
+        var t = siteTotals(bySite[id], mk);
+        if (!out[id]) out[id] = { total: 0, byMonth: {} };
+        out[id].total += t.total;
+        out[id].byMonth[mk] = (out[id].byMonth[mk] || 0) + t.total;
+      });
+    });
+    return out;
+  }
+
+  global.BillingUtil = { allMonths: allMonths, billedBySite: billedBySite };
   global.BillingView = { render: render };
 })(window);

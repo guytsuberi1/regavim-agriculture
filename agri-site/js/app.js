@@ -8,6 +8,7 @@
     field: global.FieldView,
     weekly: global.WeeklyView,
     billing: global.BillingView,
+    debts: global.DebtsView,
     reports: global.ReportsView,
     teams: global.TeamsView,
     base: global.BaseView,
