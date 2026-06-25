@@ -14,18 +14,31 @@
   function render(root) {
     if (global.Sync) Sync.mergeDate(fieldDate);
     var day = dayOf();
+    var absN = ((Store.get().dailyAbsent || {})[fieldDate] || []).length;
 
     root.appendChild(U.el('div', { class: 'page-head' }, [
       U.el('h2', { text: '📋 מצב שטח' }),
       U.el('button', { class: 'btn secondary small', onclick: function () { fieldDate = U.addDays(fieldDate, -1); fieldCardId = null; App.render(); } }, '→ אתמול'),
       U.el('button', { class: 'btn secondary small', onclick: function () { fieldDate = U.todayISO(); fieldCardId = null; App.render(); } }, 'היום'),
       U.el('button', { class: 'btn secondary small', onclick: function () { fieldDate = U.addDays(fieldDate, 1); fieldCardId = null; App.render(); } }, 'מחר ←'),
-      U.el('span', { class: 'tag', text: U.weekdayName(fieldDate) + ' · ' + U.gregLabel(fieldDate) })
+      U.el('span', { class: 'tag', text: U.weekdayName(fieldDate) + ' · ' + U.gregLabel(fieldDate) }),
+      U.el('button', { class: 'btn', onclick: openAbsentField }, '🚫 נעדרים היום' + (absN ? ' (' + absN + ')' : ''))
     ]));
 
     var card = fieldCardId ? day.cards.filter(function (c) { return c.id === fieldCardId; })[0] : null;
     if (card) renderSite(root, card);
     else renderSiteList(root, day);
+  }
+
+  // נעדרים יומיים — הצוות/המחנך מסמן מי לא הגיע (אותה רשימה שהרכז רואה בסידור)
+  function openAbsentField() {
+    var d = Store.get();
+    if (!d.dailyAbsent) d.dailyAbsent = {};
+    if (!global.PickStudents) { alert('בורר התלמידים אינו זמין'); return; }
+    global.PickStudents('נעדרים ליום ' + U.gregLabel(fieldDate), d.dailyAbsent[fieldDate] || [], function (sel) {
+      if (sel.length) d.dailyAbsent[fieldDate] = sel; else delete d.dailyAbsent[fieldDate];
+      Store.save(); App.render();
+    });
   }
 
   function renderSiteList(root, day) {

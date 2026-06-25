@@ -104,7 +104,8 @@
       U.el('button', { class: 'btn secondary', onclick: function () { editWeekList('weeklyDuty', 'תורנים שבועיים'); } }, '🧹 תורנים' + countSuffix('weeklyDuty')),
       U.el('button', { class: 'btn secondary', onclick: function () { editWeekList('weeklySick', 'חולים השבוע'); } }, '🤒 חולים' + countSuffix('weeklySick')),
       U.el('button', { class: 'btn accent', onclick: exportImage }, '🖼 ייצוא תמונה'),
-      U.el('button', { class: 'btn accent', onclick: exportExcel }, '⬇ ייצוא אקסל')
+      U.el('button', { class: 'btn accent', onclick: exportExcel }, '⬇ ייצוא אקסל'),
+      U.el('button', { class: 'btn', onclick: sendHomeroomReminder }, '📩 תזכורת למחנכים')
     ]);
     root.appendChild(head);
 
@@ -126,6 +127,36 @@
       grid.appendChild(buildDay(iso, plan[iso] || []));
     }
     root.appendChild(grid);
+  }
+
+  // נרמול טלפון לפורמט 0XXXXXXXXX (כמו ב-daily.js)
+  function smsPhoneW(phone) {
+    var d = String(phone || '').replace(/\D/g, '');
+    if (d.indexOf('972') === 0) d = '0' + d.slice(3);
+    if (d.length === 9 && d.charAt(0) !== '0') d = '0' + d;
+    return d.length >= 9 ? d : null;
+  }
+  // שליחת תזכורת ידנית למחנכים למילוי הנעדרים היומיים (דרך 019)
+  function sendHomeroomReminder() {
+    var teachers = (Store.get().staff || []).filter(function (s) { return s.homeroom && s.active !== false; });
+    if (!teachers.length) { alert('לא הוגדרו מחנכים. סמנו "מחנך" לאיש צוות תחת "נתוני בסיס".'); return; }
+    var text = 'תזכורת: נא למלא את רשימת הנעדרים של היום.\nכניסה למערכת: https://chaklaut.rgvb.org.il\n("מצב שטח" ← "נעדרים היום")';
+    var messages = [], noPhone = [];
+    teachers.forEach(function (t) {
+      var ph = smsPhoneW(t.phone);
+      if (ph) messages.push({ phone: ph, text: text });
+      else noPhone.push(t.name);
+    });
+    if (!messages.length) { alert('אין למחנכים מספרי טלפון תקינים.'); return; }
+    if (!confirm('לשלוח תזכורת SMS ל-' + messages.length + ' מחנכים?' +
+      (noPhone.length ? '\n(' + noPhone.length + ' ללא טלפון יידלגו)' : '') +
+      '\n\n⚠️ שליחת SMS עולה כסף בחשבון 019.')) return;
+    Store.sendSms(messages).then(function (res) {
+      alert('✓ נשלחו: ' + (res.sent || 0) + ' · נכשלו: ' + (res.failed || 0) +
+        ((res.errors && res.errors.length) ? '\n\nשגיאה לדוגמה:\n' + res.errors[0] : ''));
+    }).catch(function (e) {
+      alert('✗ שגיאה בשליחה: ' + ((e && e.message) ? e.message : e));
+    });
   }
 
   function countSuffix(key) {
