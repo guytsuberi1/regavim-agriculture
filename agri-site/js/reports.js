@@ -271,7 +271,16 @@
         (info.reason || '') || (entry && entry.note) || ''
       ]);
     });
-    wrap.appendChild(U.el('div', { class: 'muted', style: 'margin-bottom:8px;', text: 'יצא: ' + work + ' · לא יצא: ' + notout + ' · ציון ממוצע: ' + (rCnt ? (rSum / rCnt).toFixed(1) : '—') }));
+    var total = work + notout;
+    var summary = U.el('div', { class: 'muted', style: 'margin-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;' }, [
+      U.el('span', { text: 'יצא: ' + work + ' · לא יצא: ' + notout + ' · ציון ממוצע: ' + (rCnt ? (rSum / rCnt).toFixed(1) : '—') })
+    ]);
+    if (total) {
+      var pct = Math.round(work / total * 100);
+      var col = pct >= 75 ? ['#15803d', '#dcfce7'] : (pct >= 50 ? ['#b45309', '#fef3c7'] : ['#b91c1c', '#fee2e2']);
+      summary.appendChild(U.el('span', { style: 'font-weight:700;padding:2px 10px;border-radius:999px;color:' + col[0] + ';background:' + col[1] + ';', text: 'אחוז יציאה: ' + pct + '%' }));
+    }
+    wrap.appendChild(summary);
     wrap.appendChild(renderTable(['תאריך', 'אתר', 'יצא?', 'ציון', 'אישור', 'סיבה/הערה'], rows));
     return wrap;
   }
