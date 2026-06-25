@@ -18,13 +18,13 @@
 
   var current = 'daily';
 
-  // הרשאות: אדמין רואה הכל; מנהל מטבח רואה רק "תורני מטבח"; כל השאר רק "מצב שטח"
+  // הרשאות: אדמין רואה הכל חוץ מ"תורני מטבח"; מנהל מטבח רואה רק "תורני מטבח"; כל השאר רק "מצב שטח"
   function applyRole() {
     var admin = Store.isAdmin();
     var kitchen = !admin && Store.isKitchen();
     U.$all('#tabs button').forEach(function (b) {
       var t = b.getAttribute('data-tab');
-      var vis = admin || (kitchen ? t === 'kitchen' : t === 'field');
+      var vis = admin ? (t !== 'kitchen') : (kitchen ? t === 'kitchen' : t === 'field');
       b.style.display = vis ? '' : 'none';
     });
     if (kitchen) current = 'kitchen';
