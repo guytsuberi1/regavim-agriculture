@@ -250,7 +250,7 @@
     wrap.appendChild(U.el('div', { class: 'field' }, [U.el('label', { text: 'תלמיד' }), sel]));
     if (!cardStudentId) { wrap.appendChild(U.el('div', { class: 'card empty' }, 'בחרו תלמיד לצפייה בכרטיס.')); return wrap; }
 
-    var days = Store.get().days, rows = [], work = 0, notout = 0, rSum = 0, rCnt = 0;
+    var days = Store.get().days, rows = [], work = 0, notout = 0, absApproved = 0, absUnapproved = 0, rSum = 0, rCnt = 0;
     Object.keys(days).filter(inRange).sort().forEach(function (iso) {
       var entry = null, site = '';
       (days[iso].cards || []).forEach(function (c) {
@@ -260,7 +260,7 @@
       if (!entry && !inAbsent) return;
       var didGo = !!(entry && entry.wentToWork);
       var info = getAbs(iso, cardStudentId);
-      if (didGo) work++; else notout++;
+      if (didGo) work++; else { notout++; if (info.approved) absApproved++; else absUnapproved++; }
       if (entry && entry.rating) { rSum += U.num(entry.rating); rCnt++; }
       rows.push([
         U.gregLabel(iso),
@@ -272,15 +272,21 @@
       ]);
     });
     var total = work + notout;
-    var summary = U.el('div', { class: 'muted', style: 'margin-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;' }, [
-      U.el('span', { text: 'יצא: ' + work + ' · לא יצא: ' + notout + ' · ציון ממוצע: ' + (rCnt ? (rSum / rCnt).toFixed(1) : '—') })
-    ]);
-    if (total) {
-      var pct = Math.round(work / total * 100);
-      var col = pct >= 75 ? ['#15803d', '#dcfce7'] : (pct >= 50 ? ['#b45309', '#fef3c7'] : ['#b91c1c', '#fee2e2']);
-      summary.appendChild(U.el('span', { style: 'font-weight:700;padding:2px 10px;border-radius:999px;color:' + col[0] + ';background:' + col[1] + ';', text: 'אחוז יציאה: ' + pct + '%' }));
+    var pct = total ? Math.round(work / total * 100) : null;
+    var pctCol = pct == null ? ['#475569', '#f1f5f9'] : (pct >= 75 ? ['#15803d', '#dcfce7'] : (pct >= 50 ? ['#b45309', '#fef3c7'] : ['#b91c1c', '#fee2e2']));
+    function statCard(value, label, fg, bg) {
+      return U.el('div', { style: 'flex:1;min-width:120px;background:' + (bg || '#fff') + ';border:1px solid var(--border,#e2e8f0);border-radius:12px;padding:12px;text-align:center;' }, [
+        U.el('div', { style: 'font-size:24px;font-weight:800;color:' + (fg || 'var(--green-dark,#1b5e20)') + ';', text: String(value) }),
+        U.el('div', { class: 'muted', style: 'font-size:12px;margin-top:3px;', text: label })
+      ]);
     }
-    wrap.appendChild(summary);
+    wrap.appendChild(U.el('div', { style: 'display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;' }, [
+      statCard(pct == null ? '—' : pct + '%', 'אחוז יציאה', pctCol[0], pctCol[1]),
+      statCard(work, 'ימים שיצא'),
+      statCard(absApproved, 'לא יצא — באישור'),
+      statCard(absUnapproved, 'לא יצא — בלי אישור'),
+      statCard(rCnt ? (rSum / rCnt).toFixed(1) : '—', 'ציון ממוצע')
+    ]));
     wrap.appendChild(renderTable(['תאריך', 'אתר', 'יצא?', 'ציון', 'אישור', 'סיבה/הערה'], rows));
     return wrap;
   }
