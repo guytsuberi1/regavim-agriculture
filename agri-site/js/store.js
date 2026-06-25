@@ -70,11 +70,16 @@
 
   // הרשאות: רק המיילים האלה רואים את כל הגיליונות; כל השאר רואים רק "מצב שטח"
   var ADMIN_EMAILS = ['guy@rgvb.org.il', 'misrad@rgvb.org.il', 'shlomohass34@gmail.com'];
+  // מנהלי מטבח: רואים רק את מסך "תורני מטבח" (לא מצב שטח)
+  var KITCHEN_EMAILS = ['kitchen@rgvb.org.il'];
   var sessionUser = null;
   function setSessionUser(u) { sessionUser = u || null; }
   function isAdmin() {
     if (!cloudMode) return true; // מצב מקומי (ללא ענן) — גישה מלאה
     return !!(sessionUser && sessionUser.email && ADMIN_EMAILS.indexOf(String(sessionUser.email).toLowerCase()) !== -1);
+  }
+  function isKitchen() {
+    return !!(sessionUser && sessionUser.email && KITCHEN_EMAILS.indexOf(String(sessionUser.email).toLowerCase()) !== -1);
   }
 
   var saveTimer = null;
@@ -478,6 +483,7 @@
     autoSeedIfEmpty: autoSeedIfEmpty,
     initPersistence: initPersistence,
     serverMode: serverMode,
-    isAdmin: isAdmin
+    isAdmin: isAdmin,
+    isKitchen: isKitchen
   };
 })(window);

@@ -228,6 +228,12 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
 .week-day .ev-line { margin-top: 5px; display: flex; flex-direction: column; gap: 3px; }
 .week-day .ev-item { font-size: 11.5px; background: #fff4e0; color: #8a5a00; border-radius: 6px; padding: 2px 6px; text-align: center; }
 
+/* ---------- תצוגה חודשית ---------- */
+.month-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.month-dow { text-align: center; font-weight: 600; color: var(--green-dark); font-size: 12px; padding: 2px 0; }
+.month-grid .week-day { min-height: 96px; }
+.week-day.other-month { opacity: .5; }
+
 /* ---------- סיכומים ---------- */
 .totbar { display: flex; gap: 16px; flex-wrap: wrap; margin: 8px 0 16px; }
 .totbar .t { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 8px 16px; }

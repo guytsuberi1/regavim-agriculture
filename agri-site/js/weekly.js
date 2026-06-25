@@ -3,6 +3,11 @@
   'use strict';
   var U = global.U;
   var weekStart = U.startOfWeek(U.todayISO());
+  // תצוגה: 'week' (ברירת מחדל) או 'month'
+  var viewMode = (localStorage.getItem('agri_plan_viewmode') === 'month') ? 'month' : 'week';
+  function setViewMode(m) { viewMode = m; localStorage.setItem('agri_plan_viewmode', m); App.render(); }
+  function monthStartOf(iso) { var d = U.fromISO(iso); return U.toISO(new Date(d.getFullYear(), d.getMonth(), 1)); }
+  var monthAnchor = monthStartOf(U.todayISO());
 
   // ---------- מזג אוויר (Open-Meteo, חינמי, ללא מפתח) ----------
   var DEF_LOC = { name: 'שילה', lat: 32.0556, lon: 35.2897 };
@@ -46,15 +51,53 @@
     { name: 'פסגות', lat: 31.8983, lon: 35.2289 },
     { name: 'ירושלים', lat: 31.7683, lon: 35.2137 }
   ];
+  // מטמון גיאוקודינג: שם מקום -> {lat,lon} (מאותחל מ-PRESETS לשמות נפוצים)
+  function geocodeCache() { try { return JSON.parse(localStorage.getItem('agri_geocode')) || {}; } catch (e) { return {}; } }
+  function geocodeSave(m) { localStorage.setItem('agri_geocode', JSON.stringify(m)); }
+  function seedGeocode() {
+    var m = geocodeCache(), changed = false;
+    PRESETS.forEach(function (p) { if (!m[p.name]) { m[p.name] = { lat: p.lat, lon: p.lon }; changed = true; } });
+    if (changed) geocodeSave(m);
+    return m;
+  }
+  function geocodeName(name) {
+    var m = geocodeCache();
+    if (m[name]) return Promise.resolve(m[name]);
+    var url = 'https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(name) + '&count=1&language=he&format=json';
+    return fetch(url).then(function (r) { return r.json(); }).then(function (j) {
+      var res = j && j.results && j.results[0];
+      if (!res) return null;
+      var c = { lat: res.latitude, lon: res.longitude };
+      m[name] = c; geocodeSave(m);
+      return c;
+    }).catch(function () { return null; });
+  }
+  // מיקומי האתרים הפעילים (ערכי location ייחודיים)
+  function siteLocations() {
+    var seen = {}, out = [];
+    (Store.get().sites || []).forEach(function (s) {
+      if (s.active === false) return;
+      var loc = (s.location || '').trim();
+      if (loc && !seen[loc]) { seen[loc] = true; out.push(loc); }
+    });
+    return out;
+  }
   function chooseLocation() {
-    var sel = U.el('select', { style: 'width:100%;' }, PRESETS.map(function (p) { return U.el('option', { value: p.name }, p.name); }));
-    sel.value = getLoc().name;
-    Modal.open('מיקום לתחזית מזג האוויר', U.el('div', { class: 'field' }, [U.el('label', { text: 'בחרו יישוב באזור:' }), sel]), [
+    seedGeocode();
+    var locs = siteLocations();
+    if (!locs.length) locs = PRESETS.map(function (p) { return p.name; });
+    var cur = getLoc().name;
+    if (cur && locs.indexOf(cur) === -1) locs.unshift(cur);
+    var sel = U.el('select', { style: 'width:100%;' }, locs.map(function (n) { return U.el('option', { value: n }, n); }));
+    sel.value = cur;
+    Modal.open('מיקום לתחזית מזג האוויר', U.el('div', { class: 'field' }, [U.el('label', { text: 'בחרו מיקום (לפי האתרים):' }), sel]), [
       { label: 'ביטול', class: 'secondary' },
       { label: 'שמירה', onClick: function (close) {
-        var p = PRESETS.filter(function (x) { return x.name === sel.value; })[0];
-        if (p) { setLoc({ name: p.name, lat: p.lat, lon: p.lon }); wxData = null; wxKey = null; }
-        close(); App.render();
+        var name = sel.value; close();
+        geocodeName(name).then(function (c) {
+          if (!c) { alert('לא נמצאו קואורדינטות עבור "' + name + '". המיקום לא שונה.'); return; }
+          setLoc({ name: name, lat: c.lat, lon: c.lon }); wxData = null; wxKey = null; App.render();
+        });
       } }
     ]);
   }
@@ -92,13 +135,34 @@
 
   function render(root) {
     ensureForecast();
-    ensureEvents();
+    if (viewMode === 'week') ensureEvents();
+
+    var modeToggle = U.el('div', { style: 'display:inline-flex;gap:4px;' }, [
+      U.el('button', { class: 'btn small ' + (viewMode === 'week' ? 'accent' : 'secondary'), onclick: function () { setViewMode('week'); } }, 'שבועי'),
+      U.el('button', { class: 'btn small ' + (viewMode === 'month' ? 'accent' : 'secondary'), onclick: function () { setViewMode('month'); } }, 'חודשי')
+    ]);
+
+    var nav;
+    if (viewMode === 'month') {
+      nav = [
+        U.el('button', { class: 'btn secondary small', onclick: function () { monthAnchor = monthStartOf(U.addDays(monthAnchor, -1)); App.render(); } }, '→ חודש קודם'),
+        U.el('button', { class: 'btn secondary small', onclick: function () { monthAnchor = monthStartOf(U.todayISO()); App.render(); } }, 'החודש'),
+        U.el('button', { class: 'btn secondary small', onclick: function () { monthAnchor = monthStartOf(U.addDays(monthAnchor, 32)); App.render(); } }, 'חודש הבא ←'),
+        U.el('span', { class: 'tag', text: U.monthLabel(U.monthKey(monthAnchor)) })
+      ];
+    } else {
+      nav = [
+        U.el('button', { class: 'btn secondary small', onclick: function () { weekStart = U.addDays(weekStart, -7); App.render(); } }, '→ שבוע קודם'),
+        U.el('button', { class: 'btn secondary small', onclick: function () { weekStart = U.startOfWeek(U.todayISO()); App.render(); } }, 'השבוע'),
+        U.el('button', { class: 'btn secondary small', onclick: function () { weekStart = U.addDays(weekStart, 7); App.render(); } }, 'שבוע הבא ←'),
+        U.el('span', { class: 'tag', text: U.gregLabel(weekStart) + ' – ' + U.gregLabel(U.addDays(weekStart, 6)) })
+      ];
+    }
+
     var head = U.el('div', { class: 'page-head' }, [
-      U.el('h2', { text: 'תכנון שבועי' }),
-      U.el('button', { class: 'btn secondary small', onclick: function () { weekStart = U.addDays(weekStart, -7); App.render(); } }, '→ שבוע קודם'),
-      U.el('button', { class: 'btn secondary small', onclick: function () { weekStart = U.startOfWeek(U.todayISO()); App.render(); } }, 'השבוע'),
-      U.el('button', { class: 'btn secondary small', onclick: function () { weekStart = U.addDays(weekStart, 7); App.render(); } }, 'שבוע הבא ←'),
-      U.el('span', { class: 'tag', text: U.gregLabel(weekStart) + ' – ' + U.gregLabel(U.addDays(weekStart, 6)) }),
+      U.el('h2', { text: viewMode === 'month' ? 'תכנון חודשי' : 'תכנון שבועי' }),
+      modeToggle
+    ].concat(nav).concat([
       U.el('button', { class: 'btn secondary small', title: 'שינוי מיקום לתחזית מזג האוויר', onclick: chooseLocation }, '📍 ' + getLoc().name),
       U.el('div', { class: 'spacer' }),
       U.el('button', { class: 'btn secondary', onclick: function () { editWeekList('weeklyDuty', 'תורנים שבועיים'); } }, '🧹 תורנים' + countSuffix('weeklyDuty')),
@@ -106,8 +170,10 @@
       U.el('button', { class: 'btn accent', onclick: exportImage }, '🖼 ייצוא תמונה'),
       U.el('button', { class: 'btn accent', onclick: exportExcel }, '⬇ ייצוא אקסל'),
       U.el('button', { class: 'btn', onclick: sendHomeroomReminder }, '📩 תזכורת למחנכים')
-    ]);
+    ]));
     root.appendChild(head);
+
+    if (viewMode === 'month') { root.appendChild(buildMonth()); return; }
 
     // הערה: תורנים/חולים שבועיים יורדים אוטומטית ממאגר התלמידים בסידור היומי לכל השבוע
     var duty = (Store.get().weeklyDuty[weekStart] || []).map(function (id) { var s = Store.getById('students', id); return s ? s.name : null; }).filter(Boolean);
@@ -127,6 +193,23 @@
       grid.appendChild(buildDay(iso, plan[iso] || []));
     }
     root.appendChild(grid);
+  }
+
+  // לוח חודשי (6 שבועות × 7 ימים), שימוש חוזר ב-buildDay לכל תא
+  function buildMonth() {
+    var plan = Store.get().weeklyPlan;
+    var first = monthAnchor;
+    var gridStart = U.addDays(first, -U.fromISO(first).getDay()); // אחורה ליום ראשון
+    var curMonth = U.monthKey(first);
+    var wrap = U.el('div', { class: 'month-grid' });
+    U.WEEKDAYS.forEach(function (wd) { wrap.appendChild(U.el('div', { class: 'month-dow', text: wd })); });
+    for (var i = 0; i < 42; i++) {
+      var iso = U.addDays(gridStart, i);
+      var cell = buildDay(iso, plan[iso] || []);
+      if (U.monthKey(iso) !== curMonth) cell.classList.add('other-month');
+      wrap.appendChild(cell);
+    }
+    return wrap;
   }
 
   // נרמול טלפון לפורמט 0XXXXXXXXX (כמו ב-daily.js)
@@ -220,6 +303,13 @@
     return cell;
   }
 
+  function rangeDates(from, to) {
+    if (from > to) { var t = from; from = to; to = t; }
+    var out = [], d = from, guard = 0;
+    while (d <= to && guard < 400) { out.push(d); d = U.addDays(d, 1); guard++; }
+    return out;
+  }
+
   function openItem(iso, existing, idx) {
     var model = existing ? Object.assign({}, existing) : { siteId: '', workers: '', group: '', transportId: '', note: '' };
 
@@ -230,23 +320,65 @@
     var transSel = optSelect('transports', model.transportId, '(ללא הסעה)');
     var noteInp = U.el('input', { type: 'text', value: model.note || '', placeholder: 'הערה (בגרות / חג / וכו\')', style: 'width:100%;' });
 
-    var body = U.el('div', null, [
+    var bodyChildren = [
       field('אתר', siteSel), field('כמות עובדים', workersInp), field('קבוצה', groupSel),
       field('הסעה', transSel), field('הערה', noteInp)
-    ]);
+    ];
+
+    // בחירת תאריכי יעד — רק בהוספה חדשה
+    var datesMode = null, rangeFrom = null, rangeTo = null, multiBox = null;
+    if (!existing) {
+      datesMode = U.el('select', { style: 'width:100%;' }, [
+        U.el('option', { value: 'single' }, 'יום זה בלבד'),
+        U.el('option', { value: 'range' }, 'טווח תאריכים'),
+        U.el('option', { value: 'multi' }, 'ימים נבחרים')
+      ]);
+      rangeFrom = U.el('input', { type: 'date', value: iso, style: 'width:100%;' });
+      rangeTo = U.el('input', { type: 'date', value: iso, style: 'width:100%;' });
+      var rangeRow = field('מ- / עד', U.el('div', { style: 'display:flex;gap:6px;' }, [rangeFrom, rangeTo]));
+      rangeRow.style.display = 'none';
+      multiBox = U.el('div', { style: 'display:flex;flex-wrap:wrap;gap:8px;' });
+      var wkStart = U.startOfWeek(iso);
+      for (var i = 0; i < 7; i++) {
+        var di = U.addDays(wkStart, i);
+        var cb = U.el('input', { type: 'checkbox', value: di });
+        if (di === iso) cb.checked = true;
+        multiBox.appendChild(U.el('label', { style: 'display:inline-flex;gap:3px;align-items:center;font-size:13px;font-weight:400;' }, [cb, U.weekdayName(di) + ' ' + U.gregLabel(di)]));
+      }
+      var multiRow = field('ימים', multiBox);
+      multiRow.style.display = 'none';
+      datesMode.addEventListener('change', function () {
+        rangeRow.style.display = datesMode.value === 'range' ? '' : 'none';
+        multiRow.style.display = datesMode.value === 'multi' ? '' : 'none';
+      });
+      bodyChildren.push(field('החל על', datesMode), rangeRow, multiRow);
+    }
+
+    var body = U.el('div', null, bodyChildren);
 
     var buttons = [{ label: 'ביטול', class: 'secondary' }];
     if (existing) buttons.push({ label: 'מחיקה', class: 'danger', onClick: function (close) { removeItem(iso, idx); close(); } });
     buttons.push({ label: 'שמירה', onClick: function (close) {
       var out = { siteId: siteSel.value || '', workers: workersInp.value === '' ? '' : U.num(workersInp.value), group: groupSel.value, transportId: transSel.value || '', note: noteInp.value };
       var data = Store.get();
-      if (!data.weeklyPlan[iso]) data.weeklyPlan[iso] = [];
-      if (idx >= 0) data.weeklyPlan[iso][idx] = out; else data.weeklyPlan[iso].push(out);
-      Sync.planChanged(iso); // עדכון הסידור היומי בהתאם
+      var targets = [iso];
+      if (!existing && datesMode) {
+        if (datesMode.value === 'range') targets = rangeDates(rangeFrom.value || iso, rangeTo.value || iso);
+        else if (datesMode.value === 'multi') {
+          targets = Array.prototype.slice.call(multiBox.querySelectorAll('input:checked')).map(function (c) { return c.value; });
+          if (!targets.length) targets = [iso];
+        }
+      }
+      targets.forEach(function (d) {
+        if (!data.weeklyPlan[d]) data.weeklyPlan[d] = [];
+        if (existing && idx >= 0 && d === iso) data.weeklyPlan[d][idx] = out;
+        else data.weeklyPlan[d].push(out);
+        Sync.planChanged(d); // עדכון הסידור היומי בהתאם
+      });
       Store.save(); close(); App.render();
     } });
 
-    Modal.open('תכנון ל' + U.weekdayName(iso) + ' ' + U.hebrewDate(iso), body, buttons);
+    Modal.open((existing ? 'עריכת תכנון ל' : 'תכנון ל') + U.weekdayName(iso) + ' ' + U.hebrewDate(iso), body, buttons);
   }
 
   function removeItem(iso, idx) {

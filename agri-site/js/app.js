@@ -12,19 +12,23 @@
     reports: global.ReportsView,
     teams: global.TeamsView,
     base: global.BaseView,
+    kitchen: global.KitchenView,
     settings: global.SettingsView
   };
 
   var current = 'daily';
 
-  // הרשאות: לא-מנהל רואה רק את "מצב שטח"
+  // הרשאות: אדמין רואה הכל; מנהל מטבח רואה רק "תורני מטבח"; כל השאר רק "מצב שטח"
   function applyRole() {
     var admin = Store.isAdmin();
+    var kitchen = !admin && Store.isKitchen();
     U.$all('#tabs button').forEach(function (b) {
       var t = b.getAttribute('data-tab');
-      b.style.display = (admin || t === 'field') ? '' : 'none';
+      var vis = admin || (kitchen ? t === 'kitchen' : t === 'field');
+      b.style.display = vis ? '' : 'none';
     });
-    if (!admin) current = 'field';
+    if (kitchen) current = 'kitchen';
+    else if (!admin) current = 'field';
   }
 
   function render() {
@@ -39,7 +43,10 @@
   }
 
   function setTab(tab) {
-    if (!Store.isAdmin() && tab !== 'field') tab = 'field'; // הגנה: לא-מנהל רק מצב שטח
+    if (!Store.isAdmin()) { // הגנה: לא-מנהל מוגבל למסך היחיד שלו
+      var allowed = Store.isKitchen() ? 'kitchen' : 'field';
+      if (tab !== allowed) tab = allowed;
+    }
     current = tab;
     U.$all('#tabs button').forEach(function (b) {
       b.classList.toggle('active', b.getAttribute('data-tab') === tab);
