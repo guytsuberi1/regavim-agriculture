@@ -71,7 +71,7 @@
   // הרשאות: רק המיילים האלה רואים את כל הגיליונות; כל השאר רואים רק "מצב שטח"
   var ADMIN_EMAILS = ['guy@rgvb.org.il', 'misrad@rgvb.org.il', 'shlomohass34@gmail.com'];
   // מנהלי מטבח: רואים רק את מסך "תורני מטבח" (לא מצב שטח)
-  var KITCHEN_EMAILS = ['kitchen@rgvb.org.il'];
+  var KITCHEN_EMAILS = ['elivne4@gmail.com'];
   var sessionUser = null;
   function setSessionUser(u) { sessionUser = u || null; }
   function isAdmin() {
