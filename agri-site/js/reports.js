@@ -250,17 +250,17 @@
     wrap.appendChild(U.el('div', { class: 'field' }, [U.el('label', { text: 'תלמיד' }), sel]));
     if (!cardStudentId) { wrap.appendChild(U.el('div', { class: 'card empty' }, 'בחרו תלמיד לצפייה בכרטיס.')); return wrap; }
 
-    var days = Store.get().days, rows = [], work = 0, notout = 0, absApproved = 0, absUnapproved = 0, rSum = 0, rCnt = 0;
+    var days = Store.get().days, rows = [], work = 0, notout = 0, absApproved = 0, absUnapproved = 0, rSum = 0, rCnt = 0, hoursSum = 0;
     Object.keys(days).filter(inRange).sort().forEach(function (iso) {
-      var entry = null, site = '';
+      var entry = null, site = '', cardHours = 0;
       (days[iso].cards || []).forEach(function (c) {
-        (c.students || []).forEach(function (s) { if (s.studentId === cardStudentId) { entry = s; site = c.siteId ? ((Store.getById('sites', c.siteId) || {}).name || '(אתר)') : '(אתר)'; } });
+        (c.students || []).forEach(function (s) { if (s.studentId === cardStudentId) { entry = s; cardHours = c.hours; site = c.siteId ? ((Store.getById('sites', c.siteId) || {}).name || '(אתר)') : '(אתר)'; } });
       });
       var inAbsent = ((Store.get().dailyAbsent || {})[iso] || []).indexOf(cardStudentId) !== -1;
       if (!entry && !inAbsent) return;
       var didGo = !!(entry && entry.wentToWork);
       var info = getAbs(iso, cardStudentId);
-      if (didGo) work++; else { notout++; if (info.approved) absApproved++; else absUnapproved++; }
+      if (didGo) { work++; hoursSum += U.num(cardHours); } else { notout++; if (info.approved) absApproved++; else absUnapproved++; }
       if (entry && entry.rating) { rSum += U.num(entry.rating); rCnt++; }
       rows.push([
         U.gregLabel(iso),
@@ -283,6 +283,7 @@
     wrap.appendChild(U.el('div', { style: 'display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;' }, [
       statCard(pct == null ? '—' : pct + '%', 'אחוז יציאה', pctCol[0], pctCol[1]),
       statCard(work, 'ימים שיצא'),
+      statCard(hoursSum, 'סה"כ שעות'),
       statCard(absApproved, 'לא יצא — באישור'),
       statCard(absUnapproved, 'לא יצא — בלי אישור'),
       statCard(rCnt ? (rSum / rCnt).toFixed(1) : '—', 'ציון ממוצע')
