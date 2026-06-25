@@ -1,16 +1,16 @@
 /* debts.js — ניהול חובות חקלאים
-   כל שורה = כרטיס חוב לעסק (אתר). אפשר כמה חובות לאותו עסק (כמו בגיליון).
-   יתרה = חוב פתיחה ידני + חיובים ידניים − תשלומים − זיכויים.
-   בנוסף מוצגות שורות "חיוב שוטף" אוטומטיות מדרישת התשלום (billing.js) לכל אתר שעבד. */
+   מבנה: למעלה טבלה מסכמת (שורה לכל חקלאי + יתרה כוללת), למטה בורר חקלאי
+   שפותח כרטיס עם פירוט חודשי (חיוב מערכת / ידני / תשלומים / זיכויים + יתרה מצטברת).
+   יתרה = חוב פתיחה ידני + חיובים ידניים − תשלומים − זיכויים + חיוב שוטף מדרישת התשלום. */
 (function (global) {
   'use strict';
   var U = global.U;
 
   // מצב תצוגה (נשמר בין רינדורים)
-  var expanded = {};        // rowKey -> bool
-  var filterStatus = '';    // '' = הכול
+  var filterStatus = '';
   var onlyWithBalance = false;
   var search = '';
+  var selectedSiteId = null;
 
   // ---------- סטטוסים (תואם לצ'יפים בגיליון) ----------
   var STATUSES = [
@@ -39,7 +39,9 @@
   // ---------- גישה לנתונים ----------
   function records() { return Store.get().debtRecords || []; }
   function entries() { return Store.get().debtEntries || []; }
+  function recordsForSite(siteId) { return records().filter(function (r) { return r.siteId === siteId; }); }
   function entriesForRecord(rid) { return entries().filter(function (e) { return e.recordId === rid; }); }
+  function entriesForSite(siteId) { return entries().filter(function (e) { return e.siteId === siteId; }); }
   function sumKind(arr, kind) {
     return arr.filter(function (e) { return e.kind === kind; })
       .reduce(function (a, e) { return a + U.num(e.amount); }, 0);
@@ -47,41 +49,46 @@
   function billedMap() { return (global.BillingUtil ? global.BillingUtil.billedBySite() : {}); }
   function siteOf(id) { return Store.getById('sites', id) || { name: '(אתר נמחק)' }; }
 
-  // יתרת כרטיס ידני
   function recordBalance(rec) {
     var es = entriesForRecord(rec.id);
     return U.num(rec.openingDebt) + sumKind(es, 'charge') - sumKind(es, 'payment') - sumKind(es, 'credit');
   }
-  // יתרת שורת "חיוב שוטף" (לפי אתר)
   function billingBalance(siteId, billedTotal) {
     var es = entriesForRecord('bill:' + siteId);
     return U.num(billedTotal) - sumKind(es, 'payment') - sumKind(es, 'credit');
   }
 
-  // בניית רשימת השורות המאוחדת (ידני + חיוב שוטף)
-  function buildRows() {
-    var rows = [];
-    records().forEach(function (rec) {
-      rows.push({ key: 'm:' + rec.id, rid: rec.id, type: 'manual', rec: rec, siteId: rec.siteId, balance: recordBalance(rec) });
-    });
+  // אגרגציה לכל חקלאי (אתר)
+  function farmerAgg() {
     var billed = billedMap();
+    var map = {}; // siteId -> agg
+    function ensure(siteId) {
+      if (!map[siteId]) map[siteId] = { siteId: siteId, recs: [], billed: null, balance: 0, statuses: {}, handlers: {}, years: {} };
+      return map[siteId];
+    }
+    records().forEach(function (rec) {
+      var a = ensure(rec.siteId);
+      a.recs.push(rec);
+      a.balance += recordBalance(rec);
+      if (rec.status) a.statuses[rec.status] = true;
+      if (rec.handledBy) a.handlers[rec.handledBy] = true;
+      if (rec.debtYear) a.years[rec.debtYear] = true;
+    });
     Object.keys(billed).forEach(function (siteId) {
       if (U.num(billed[siteId].total) <= 0) return;
-      rows.push({ key: 'b:' + siteId, rid: 'bill:' + siteId, type: 'billing', siteId: siteId, billed: billed[siteId], balance: billingBalance(siteId, billed[siteId].total) });
+      var a = ensure(siteId);
+      a.billed = billed[siteId];
+      a.balance += billingBalance(siteId, billed[siteId].total);
     });
-    return rows;
+    return map;
   }
 
-  function passesFilter(row) {
-    if (onlyWithBalance && Math.abs(row.balance) < 0.005) return false;
-    if (filterStatus) {
-      if (row.type !== 'manual') return false;
-      if ((row.rec.status || '') !== filterStatus) return false;
-    }
+  function aggPassesFilter(a) {
+    if (onlyWithBalance && Math.abs(a.balance) < 0.005) return false;
+    if (filterStatus) { if (!a.statuses[filterStatus]) return false; }
     if (search) {
-      var s = siteOf(row.siteId);
-      var hay = [s.name, s.contactName, s.phone, row.type === 'manual' ? row.rec.handledBy : '', row.type === 'manual' ? row.rec.notes : '']
-        .filter(Boolean).join(' ').toLowerCase();
+      var s = siteOf(a.siteId);
+      var hay = [s.name, s.contactName, s.phone].concat(Object.keys(a.handlers)).filter(Boolean).join(' ').toLowerCase();
       if (hay.indexOf(search.toLowerCase()) === -1) return false;
     }
     return true;
@@ -89,22 +96,22 @@
 
   // ---------- רינדור ראשי ----------
   function render(root) {
-    var allRows = buildRows();
-    var grandAll = allRows.reduce(function (a, r) { return a + r.balance; }, 0);
-    var rows = allRows.filter(passesFilter).sort(function (a, b) { return b.balance - a.balance; });
+    var map = farmerAgg();
+    var allAggs = Object.keys(map).map(function (k) { return map[k]; });
+    var grandAll = allAggs.reduce(function (a, x) { return a + x.balance; }, 0);
 
     var head = U.el('div', { class: 'page-head' }, [
       U.el('h2', { text: '💰 ניהול חובות חקלאים' }),
       U.el('span', { class: 'tag', html: 'סה"כ חוב: <b>' + money(grandAll) + '</b>' }),
       U.el('div', { class: 'spacer' }),
-      U.el('button', { class: 'btn', onclick: function () { openRecord(null, ''); } }, '+ חוב חדש'),
+      U.el('button', { class: 'btn', onclick: function () { openRecord(null, selectedSiteId || ''); } }, '+ חוב חדש'),
       U.el('button', { class: 'btn accent', onclick: exportExcel }, '⬇ ייצוא לאקסל'),
       U.el('button', { class: 'btn secondary', onclick: function () { window.print(); } }, '🖨️ הדפסה'),
       U.el('button', { class: 'btn secondary no-print', onclick: importOpening }, '⬇ ייבוא נתוני פתיחה')
     ]);
     root.appendChild(head);
 
-    // סרגל סינון
+    // ----- סינון -----
     var searchInp = U.el('input', { type: 'search', placeholder: 'חיפוש עסק / איש קשר…', value: search, style: 'min-width:200px;' });
     searchInp.addEventListener('input', function () { search = searchInp.value; rerenderKeepFocus(); });
     var statusSel = U.el('select', null, [U.el('option', { value: '' }, 'כל הסטטוסים')].concat(
@@ -113,127 +120,218 @@
     statusSel.addEventListener('change', function () { filterStatus = statusSel.value; App.render(); });
     var balChk = U.el('input', { type: 'checkbox', checked: onlyWithBalance });
     balChk.addEventListener('change', function () { onlyWithBalance = balChk.checked; App.render(); });
-    var filters = U.el('div', { class: 'no-print', style: 'display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;' }, [
+    root.appendChild(U.el('div', { class: 'no-print', style: 'display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;' }, [
       searchInp, statusSel,
-      U.el('label', { style: 'display:inline-flex;gap:5px;align-items:center;cursor:pointer;', text: '' }, [balChk, U.el('span', { text: 'רק עם יתרה' })])
-    ]);
-    root.appendChild(filters);
-
-    if (!rows.length) {
-      root.appendChild(U.el('div', { class: 'card empty' }, 'אין חובות להצגה. הוסיפו "חוב חדש" או ייבאו נתוני פתיחה.'));
-      return;
-    }
-
-    // ---------- טבלה ----------
-    var shownTotal = 0;
-    var tbody = U.el('tbody');
-    rows.forEach(function (row) {
-      shownTotal += row.balance;
-      tbody.appendChild(buildRow(row));
-      if (expanded[row.key]) tbody.appendChild(buildDetailRow(row));
-    });
-    tbody.appendChild(U.el('tr', null, [
-      U.el('td', { html: '<b>סה"כ מוצג</b>' }), U.el('td'), U.el('td'),
-      U.el('td', { class: 'center', html: '<b>' + money(shownTotal) + '</b>' }),
-      U.el('td'), U.el('td'), U.el('td'), U.el('td'), U.el('td')
+      U.el('label', { style: 'display:inline-flex;gap:5px;align-items:center;cursor:pointer;' }, [balChk, U.el('span', { text: 'רק עם יתרה' })])
     ]));
 
-    var table = U.el('table', { class: 'grid' }, [
-      U.el('thead', null, [U.el('tr', null,
-        ['שם עסק', 'איש קשר', 'טלפון', 'יתרת חוב', 'סטטוס', 'מטופל ע"י', 'שנת חוב', 'הערות', 'פעולות']
-          .map(function (h) { return U.el('th', { text: h }); }))]),
-      tbody
-    ]);
-    root.appendChild(table);
+    // ----- טבלה מסכמת (חלק עליון) -----
+    root.appendChild(U.el('h3', { style: 'color:var(--green-dark);margin:6px 0;', text: 'טבלה מסכמת' }));
+    var aggs = allAggs.filter(aggPassesFilter).sort(function (a, b) { return b.balance - a.balance; });
+    if (!aggs.length) {
+      root.appendChild(U.el('div', { class: 'card empty' }, 'אין חובות להצגה. הוסיפו "חוב חדש" או ייבאו נתוני פתיחה.'));
+    } else {
+      var shownTotal = 0;
+      var tbody = U.el('tbody');
+      aggs.forEach(function (a) { shownTotal += a.balance; tbody.appendChild(buildSummaryRow(a)); });
+      tbody.appendChild(U.el('tr', null, [
+        U.el('td', { html: '<b>סה"כ מוצג</b>' }), U.el('td'), U.el('td'),
+        U.el('td', { class: 'center', html: '<b>' + money(shownTotal) + '</b>' }),
+        U.el('td'), U.el('td'), U.el('td'), U.el('td')
+      ]));
+      root.appendChild(U.el('table', { class: 'grid' }, [
+        U.el('thead', null, [U.el('tr', null,
+          ['שם עסק', 'איש קשר', 'טלפון', 'יתרת חוב', 'סטטוס', 'מטופל ע"י', 'שנת חוב', 'הערות']
+            .map(function (h) { return U.el('th', { text: h }); }))]),
+        tbody
+      ]));
+    }
+
+    // ----- פירוט לפי חקלאי (חלק תחתון) -----
+    root.appendChild(buildDetailPanel(allAggs));
   }
 
   function rerenderKeepFocus() {
-    // עדכון קל ללא איבוד פוקוס בשדה החיפוש: רינדור מלא ומיקוד מחדש
-    var pos = document.activeElement === U.$('input[type=search]') ? (U.$('input[type=search]').selectionStart) : null;
+    var active = document.activeElement;
+    var wasSearch = active && active.getAttribute && active.getAttribute('type') === 'search';
+    var pos = wasSearch ? active.selectionStart : null;
     App.render();
-    var inp = U.$('input[type=search]');
-    if (inp && pos != null) { inp.focus(); try { inp.setSelectionRange(pos, pos); } catch (e) {} }
+    if (wasSearch) {
+      var inp = U.$('input[type=search]');
+      if (inp) { inp.focus(); try { inp.setSelectionRange(pos, pos); } catch (e) {} }
+    }
   }
 
-  function buildRow(row) {
-    var s = siteOf(row.siteId);
-    var caret = U.el('button', { class: 'btn small secondary', title: 'פירוט', onclick: function () { expanded[row.key] = !expanded[row.key]; App.render(); } }, expanded[row.key] ? '▾' : '▸');
+  function buildSummaryRow(a) {
+    var s = siteOf(a.siteId);
+    var statuses = Object.keys(a.statuses);
+    var statusCell;
+    if (a.recs.length > 1) statusCell = U.el('span', { class: 'tag', text: a.recs.length + ' חובות' });
+    else if (statuses.length) statusCell = statusChip(statuses[0]);
+    else if (a.billed && !a.recs.length) statusCell = U.el('span', { class: 'tag', style: 'background:#E0F2FE;color:#075985;', text: 'חיוב שוטף' });
+    else statusCell = statusChip('');
 
-    var nameCell;
-    if (row.type === 'billing') {
-      nameCell = U.el('td', null, [U.el('span', { text: s.name + ' ' }), U.el('span', { class: 'tag', style: 'background:#E0F2FE;color:#075985;', text: 'חיוב שוטף' })]);
-    } else {
-      nameCell = U.el('td', { text: s.name });
-    }
+    var nameBtn = U.el('button', {
+      class: 'btn small secondary', style: 'font-weight:600;',
+      onclick: function () { selectFarmer(a.siteId); }
+    }, s.name);
 
-    var actions;
-    if (row.type === 'billing') {
-      actions = U.el('td', null, [caret,
-        U.el('button', { class: 'btn small', style: 'margin-inline-start:4px;', onclick: function () { openEntry('bill:' + row.siteId, row.siteId, 'payment'); } }, '💰')]);
-    } else {
-      actions = U.el('td', null, [caret,
-        U.el('button', { class: 'btn small', style: 'margin-inline-start:4px;', title: 'רישום תשלום', onclick: function () { openEntry(row.rid, row.siteId, 'payment'); } }, '💰'),
-        U.el('button', { class: 'btn small secondary', style: 'margin-inline-start:4px;', title: 'עריכה', onclick: function () { openRecord(row.rec, row.rec.siteId); } }, '✎')]);
-    }
-
-    return U.el('tr', null, [
-      nameCell,
+    return U.el('tr', { style: (selectedSiteId === a.siteId ? 'background:var(--green-light);' : '') }, [
+      U.el('td', null, [nameBtn]),
       U.el('td', { text: s.contactName || '' }),
       U.el('td', { text: s.phone || '' }),
-      U.el('td', { class: 'center', html: '<b>' + money(row.balance) + '</b>' }),
-      U.el('td', null, row.type === 'manual' ? [statusChip(row.rec.status)] : [U.el('span', { class: 'tag', style: 'background:#eee;color:#666;', text: 'מערכת' })]),
-      U.el('td', { text: row.type === 'manual' ? (row.rec.handledBy || '') : '' }),
-      U.el('td', { text: row.type === 'manual' ? (row.rec.debtYear || '') : '' }),
-      U.el('td', { text: row.type === 'manual' ? (row.rec.notes || '') : '' }),
-      actions
+      U.el('td', { class: 'center', html: '<b>' + money(a.balance) + '</b>' }),
+      U.el('td', null, [statusCell]),
+      U.el('td', { text: Object.keys(a.handlers).join(', ') }),
+      U.el('td', { text: Object.keys(a.years).join(', ') }),
+      U.el('td', { text: a.recs.map(function (r) { return r.notes; }).filter(Boolean).join(' · ') })
     ]);
   }
 
-  function buildDetailRow(row) {
-    var box = U.el('div', { style: 'padding:6px 4px;' });
-    var lines = [];
+  function selectFarmer(siteId) {
+    selectedSiteId = siteId;
+    App.render();
+    var anchor = U.$('#debt-detail');
+    if (anchor && anchor.scrollIntoView) anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
-    function entryLine(label, e, sign) {
-      return U.el('div', { style: 'display:flex;gap:8px;align-items:center;padding:2px 0;' }, [
-        U.el('span', { style: 'min-width:150px;', text: label + (e.date ? ' · ' + e.date : '') + (e.method ? ' · ' + e.method : '') + (e.note ? ' · ' + e.note : '') }),
-        U.el('b', { text: sign + money(e.amount) }),
-        U.el('button', { class: 'btn small danger', onclick: function () { if (confirm('למחוק תנועה זו?')) { Store.remove('debtEntries', e.id); App.render(); } } }, '🗑')
-      ]);
+  // ---------- פאנל פירוט חקלאי ----------
+  function buildDetailPanel(allAggs) {
+    var wrap = U.el('div', { id: 'debt-detail', style: 'margin-top:26px;' });
+    wrap.appendChild(U.el('h3', { style: 'color:var(--green-dark);margin:6px 0;', text: 'פירוט לפי חקלאי' }));
+
+    var farmers = allAggs.slice().sort(function (a, b) {
+      return (siteOf(a.siteId).name || '').localeCompare(siteOf(b.siteId).name || '', 'he');
+    });
+    if (!farmers.length) { wrap.appendChild(U.el('div', { class: 'muted', text: 'אין נתונים.' })); return wrap; }
+
+    var ids = farmers.map(function (a) { return a.siteId; });
+    if (ids.indexOf(selectedSiteId) === -1) selectedSiteId = ids[0];
+
+    var sel = U.el('select', { class: 'no-print', style: 'min-width:260px;margin-bottom:12px;' }, farmers.map(function (a) {
+      return U.el('option', { value: a.siteId }, siteOf(a.siteId).name + ' — ' + money(a.balance));
+    }));
+    sel.value = selectedSiteId;
+    sel.addEventListener('change', function () { selectedSiteId = sel.value; App.render(); });
+    wrap.appendChild(U.el('div', { class: 'no-print' }, [U.el('label', { style: 'font-weight:600;color:var(--green-dark);margin-inline-end:8px;', text: 'בחר חקלאי:' }), sel]));
+
+    var agg = null;
+    for (var i = 0; i < farmers.length; i++) if (farmers[i].siteId === selectedSiteId) { agg = farmers[i]; break; }
+    if (agg) wrap.appendChild(buildFarmerCard(agg));
+    return wrap;
+  }
+
+  function buildFarmerCard(agg) {
+    var siteId = agg.siteId;
+    var s = siteOf(siteId);
+    var card = U.el('div', { class: 'card' });
+
+    // כותרת
+    card.appendChild(U.el('div', { style: 'display:flex;align-items:center;flex-wrap:wrap;gap:10px;' }, [
+      U.el('h3', { style: 'margin:0;color:var(--green-dark);', text: s.name }),
+      U.el('span', { class: 'muted', text: [s.contactName, s.phone].filter(Boolean).join(' · ') }),
+      U.el('div', { class: 'spacer' }),
+      U.el('span', { class: 'tag', html: 'יתרה: <b>' + money(agg.balance) + '</b>' })
+    ]));
+
+    // כרטיסי חוב ידניים
+    agg.recs.forEach(function (rec) {
+      var bal = recordBalance(rec);
+      card.appendChild(U.el('div', { style: 'border:1px solid var(--border);border-radius:10px;padding:10px;margin-top:10px;' }, [
+        U.el('div', { style: 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;' }, [
+          statusChip(rec.status),
+          U.el('span', { text: 'חוב פתיחה: ' }), U.el('b', { text: money(rec.openingDebt) }),
+          rec.debtYear ? U.el('span', { class: 'muted', text: '· שנה ' + rec.debtYear }) : null,
+          rec.handledBy ? U.el('span', { class: 'muted', text: '· מטפל: ' + rec.handledBy }) : null,
+          U.el('div', { class: 'spacer' }),
+          U.el('span', { html: 'יתרה: <b>' + money(bal) + '</b>' })
+        ]),
+        rec.notes ? U.el('div', { class: 'muted', style: 'margin-top:4px;', text: rec.notes }) : null,
+        U.el('div', { class: 'no-print', style: 'display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;' }, [
+          U.el('button', { class: 'btn small', onclick: function () { openEntry(rec.id, siteId, 'payment'); } }, '+ תשלום'),
+          U.el('button', { class: 'btn small secondary', onclick: function () { openEntry(rec.id, siteId, 'charge'); } }, '+ חיוב'),
+          U.el('button', { class: 'btn small secondary', onclick: function () { openEntry(rec.id, siteId, 'credit'); } }, '+ זיכוי'),
+          U.el('button', { class: 'btn small secondary', onclick: function () { openRecord(rec, siteId); } }, '✎ עריכה'),
+          U.el('button', { class: 'btn small danger', onclick: function () { deleteRecord(rec); } }, '🗑 מחיקה')
+        ])
+      ]));
+    });
+
+    // חיוב שוטף מהמערכת
+    if (agg.billed) {
+      card.appendChild(U.el('div', { style: 'border:1px solid var(--border);border-radius:10px;padding:10px;margin-top:10px;background:#f7fbfd;' }, [
+        U.el('div', { style: 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;' }, [
+          U.el('span', { class: 'tag', style: 'background:#E0F2FE;color:#075985;', text: 'חיוב שוטף' }),
+          U.el('span', { html: 'מדרישת התשלום: <b>' + money(agg.billed.total) + '</b>' }),
+          U.el('div', { class: 'spacer' }),
+          U.el('span', { html: 'יתרה: <b>' + money(billingBalance(siteId, agg.billed.total)) + '</b>' })
+        ]),
+        U.el('div', { class: 'no-print', style: 'display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;' }, [
+          U.el('button', { class: 'btn small', onclick: function () { openEntry('bill:' + siteId, siteId, 'payment'); } }, '+ תשלום'),
+          U.el('button', { class: 'btn small secondary', onclick: function () { openEntry('bill:' + siteId, siteId, 'credit'); } }, '+ זיכוי')
+        ])
+      ]));
     }
 
-    if (row.type === 'manual') {
-      lines.push(U.el('div', { style: 'padding:2px 0;', html: 'חוב פתיחה: <b>' + money(row.rec.openingDebt) + '</b>' }));
-    } else {
-      lines.push(U.el('div', { style: 'padding:2px 0;', html: 'חיוב שוטף מדרישת התשלום: <b>' + money(row.billed.total) + '</b>' }));
-      var bm = row.billed.byMonth || {};
-      Object.keys(bm).sort().forEach(function (mk) {
-        lines.push(U.el('div', { class: 'muted', style: 'padding-inline-start:14px;font-size:13px;', text: U.monthLabel(mk) + ': ' + money(bm[mk]) }));
-      });
+    // ----- פירוט חודשי -----
+    card.appendChild(U.el('h4', { style: 'color:var(--green-dark);margin:16px 0 6px;', text: 'פירוט חודשי' }));
+    card.appendChild(buildMonthlyTable(agg));
+    return card;
+  }
+
+  function buildMonthlyTable(agg) {
+    var siteId = agg.siteId;
+    var byMonth = (agg.billed && agg.billed.byMonth) || {};
+    var es = entriesForSite(siteId);
+
+    // איסוף כל החודשים (מחיוב שוטף + מתאריכי תנועות)
+    var monthsSet = {};
+    Object.keys(byMonth).forEach(function (mk) { monthsSet[mk] = true; });
+    es.forEach(function (e) { if (e.date) monthsSet[U.monthKey(e.date)] = true; });
+    var months = Object.keys(monthsSet).sort();
+
+    var opening = agg.recs.reduce(function (a, r) { return a + U.num(r.openingDebt); }, 0);
+    var running = opening;
+    var rows = [];
+
+    if (opening !== 0) {
+      rows.push(U.el('tr', null, [
+        U.el('td', { text: 'חוב פתיחה' }),
+        U.el('td', { class: 'center', text: money(opening) }),
+        U.el('td', { class: 'center', text: '' }),
+        U.el('td', { class: 'center', text: '' }),
+        U.el('td', { class: 'center', text: '' }),
+        U.el('td', { class: 'center', html: '<b>' + money(running) + '</b>' })
+      ]));
     }
 
-    var es = entriesForRecord(row.rid);
-    es.filter(function (e) { return e.kind === 'charge'; }).forEach(function (e) { lines.push(entryLine('חיוב ידני', e, '+')); });
-    es.filter(function (e) { return e.kind === 'payment'; }).forEach(function (e) { lines.push(entryLine('תשלום', e, '−')); });
-    es.filter(function (e) { return e.kind === 'credit'; }).forEach(function (e) { lines.push(entryLine('זיכוי', e, '−')); });
+    months.forEach(function (mk) {
+      var bCharge = U.num(byMonth[mk]);
+      var mEs = es.filter(function (e) { return e.date && U.monthKey(e.date) === mk; });
+      var mCharge = sumKind(mEs, 'charge');
+      var pay = sumKind(mEs, 'payment');
+      var cred = sumKind(mEs, 'credit');
+      running += bCharge + mCharge - pay - cred;
+      rows.push(U.el('tr', null, [
+        U.el('td', { text: U.monthLabel(mk) }),
+        U.el('td', { class: 'center', text: bCharge ? money(bCharge) : '' }),
+        U.el('td', { class: 'center', text: mCharge ? money(mCharge) : '' }),
+        U.el('td', { class: 'center', text: pay ? money(pay) : '' }),
+        U.el('td', { class: 'center', text: cred ? money(cred) : '' }),
+        U.el('td', { class: 'center', html: '<b>' + money(running) + '</b>' })
+      ]));
+    });
 
-    lines.push(U.el('div', { style: 'border-top:1px solid var(--border);margin-top:6px;padding-top:6px;', html: 'יתרת חוב: <b>' + money(row.balance) + '</b>' }));
-
-    // כפתורי פעולה
-    var btns = [
-      U.el('button', { class: 'btn small', onclick: function () { openEntry(row.rid, row.siteId, 'payment'); } }, '+ תשלום'),
-      U.el('button', { class: 'btn small secondary', onclick: function () { openEntry(row.rid, row.siteId, 'credit'); } }, '+ זיכוי')
-    ];
-    if (row.type === 'manual') {
-      btns.push(U.el('button', { class: 'btn small secondary', onclick: function () { openEntry(row.rid, row.siteId, 'charge'); } }, '+ חיוב'));
-      btns.push(U.el('button', { class: 'btn small secondary', onclick: function () { openRecord(row.rec, row.rec.siteId); } }, '✎ עריכת כרטיס'));
-      btns.push(U.el('button', { class: 'btn small danger', onclick: function () { deleteRecord(row.rec); } }, '🗑 מחיקה'));
+    if (!rows.length) {
+      return U.el('div', { class: 'muted', text: 'אין תנועות חודשיות. היתרה כולה מחוב הפתיחה.' });
     }
-    box.appendChild(U.el('div', null, lines));
-    box.appendChild(U.el('div', { class: 'no-print', style: 'display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;' }, btns));
 
-    var td = U.el('td', { style: 'background:#fafdfb;' }, [box]);
-    td.setAttribute('colspan', '9');
-    return U.el('tr', null, [td]);
+    return U.el('table', { class: 'grid' }, [
+      U.el('thead', null, [U.el('tr', null,
+        ['חודש', 'חיוב מערכת', 'חיוב ידני', 'תשלום', 'זיכוי', 'יתרה מצטברת']
+          .map(function (h) { return U.el('th', { text: h }); }))]),
+      U.el('tbody', null, rows)
+    ]);
   }
 
   // ---------- מודאל כרטיס חוב (הוספה/עריכה) ----------
@@ -280,7 +378,8 @@
           notes: notesInp.value.trim()
         };
         if (rec && rec.imported) out.imported = true;
-        Store.upsert('debtRecords', out);
+        var saved = Store.upsert('debtRecords', out);
+        if (!isEdit) selectedSiteId = saved.siteId;
         close(); App.render();
       } }
     ]);
@@ -297,14 +396,14 @@
   // ---------- מודאל תנועה (תשלום/חיוב/זיכוי) ----------
   function openEntry(recordId, siteId, presetKind) {
     var s = siteOf(siteId);
+    var isBilling = String(recordId).indexOf('bill:') === 0;
     var kindSel = U.el('select', { style: 'width:100%;' }, [
       U.el('option', { value: 'payment' }, 'תשלום (מקטין חוב)'),
       U.el('option', { value: 'charge' }, 'חיוב (מגדיל חוב)'),
       U.el('option', { value: 'credit' }, 'זיכוי (מקטין חוב)')
     ]);
     kindSel.value = presetKind || 'payment';
-    // לשורת "חיוב שוטף" אין חיוב ידני
-    if (String(recordId).indexOf('bill:') === 0) {
+    if (isBilling) {
       kindSel.querySelector('option[value=charge]').disabled = true;
       if (kindSel.value === 'charge') kindSel.value = 'payment';
     }
@@ -333,12 +432,13 @@
           amount: amt, date: dateInp.value || U.todayISO(),
           method: methodInp.value.trim(), note: noteInp.value.trim()
         });
+        selectedSiteId = siteId;
         close(); App.render();
       } }
     ]);
   }
 
-  // ---------- ייצוא אקסל (RTL, מעוצב — בסגנון דרישת תשלום) ----------
+  // ---------- ייצוא אקסל (RTL, מעוצב) ----------
   var THIN = { style: 'thin', color: { rgb: 'CBD5C0' } };
   var BORDER = { top: THIN, bottom: THIN, left: THIN, right: THIN };
   var ST = {
@@ -356,33 +456,33 @@
   }
 
   function exportExcel() {
-    var rows = buildRows().sort(function (a, b) { return b.balance - a.balance; });
-    if (!rows.length) { alert('אין נתונים לייצוא.'); return; }
+    var map = farmerAgg();
+    var aggs = Object.keys(map).map(function (k) { return map[k]; }).sort(function (a, b) { return b.balance - a.balance; });
+    if (!aggs.length) { alert('אין נתונים לייצוא.'); return; }
     var wb = XLSX.utils.book_new();
     wb.Workbook = { Views: [{ RTL: true }] };
 
-    var headers = ['שם עסק', 'איש קשר', 'טלפון', 'יתרת חוב', 'סוג', 'סטטוס', 'מטופל ע"י', 'שנת חוב', 'הערות'];
+    var headers = ['שם עסק', 'איש קשר', 'טלפון', 'יתרת חוב', 'סטטוס', 'מטופל ע"י', 'שנת חוב', 'הערות'];
     var aoa = [['דוח חובות חקלאים — רגבים בנימין'], [], headers];
     var grand = 0;
-    rows.forEach(function (row) {
-      var s = siteOf(row.siteId);
-      grand += row.balance;
+    aggs.forEach(function (a) {
+      var s = siteOf(a.siteId);
+      grand += a.balance;
       aoa.push([
         s.name || '', s.contactName || '', s.phone || '',
-        Math.round(row.balance * 100) / 100,
-        row.type === 'manual' ? 'ידני' : 'חיוב שוטף',
-        row.type === 'manual' ? (row.rec.status || '') : 'מערכת',
-        row.type === 'manual' ? (row.rec.handledBy || '') : '',
-        row.type === 'manual' ? (row.rec.debtYear || '') : '',
-        row.type === 'manual' ? (row.rec.notes || '') : ''
+        Math.round(a.balance * 100) / 100,
+        Object.keys(a.statuses).join(', ') || (a.billed && !a.recs.length ? 'חיוב שוטף' : ''),
+        Object.keys(a.handlers).join(', '),
+        Object.keys(a.years).join(', '),
+        a.recs.map(function (r) { return r.notes; }).filter(Boolean).join(' · ')
       ]);
     });
-    aoa.push(['סה"כ חוב', '', '', Math.round(grand * 100) / 100, '', '', '', '', '']);
+    aoa.push(['סה"כ חוב', '', '', Math.round(grand * 100) / 100, '', '', '', '']);
 
     var ws = XLSX.utils.aoa_to_sheet(aoa);
     var ncol = headers.length;
     ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: ncol - 1 } }];
-    ws['!cols'] = [{ wch: 24 }, { wch: 14 }, { wch: 14 }, { wch: 13 }, { wch: 10 }, { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 30 }];
+    ws['!cols'] = [{ wch: 24 }, { wch: 14 }, { wch: 14 }, { wch: 13 }, { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 30 }];
     setStyle(ws, 0, 0, ST.title);
     for (var c = 0; c < ncol; c++) setStyle(ws, 2, c, ST.head);
     var lastRow = aoa.length - 1;
@@ -444,7 +544,6 @@
     var sites = Store.get().sites || [];
     var created = 0, addedRecords = 0;
     MIGRATION.forEach(function (row) {
-      // התאמה לאתר קיים לפי שם מנורמל
       var site = null;
       for (var i = 0; i < sites.length; i++) {
         if (normName(sites[i].name) === normName(row.name)) { site = sites[i]; break; }
@@ -454,7 +553,7 @@
           name: row.name, contactName: row.contact || '', phone: row.phone || '',
           active: false, notes: 'נוצר מייבוא חובות'
         });
-        sites = Store.get().sites; // רענון הרשימה
+        sites = Store.get().sites;
         created++;
       }
       Store.upsert('debtRecords', {
