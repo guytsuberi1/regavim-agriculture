@@ -271,7 +271,7 @@
         (info.reason || '') || (entry && entry.note) || ''
       ]);
     });
-    var total = work + notout;
+    var total = work + absUnapproved; // היעדרות באישור לא נספרת באחוז היציאה
     var pct = total ? Math.round(work / total * 100) : null;
     var pctCol = pct == null ? ['#475569', '#f1f5f9'] : (pct >= 75 ? ['#15803d', '#dcfce7'] : (pct >= 50 ? ['#b45309', '#fef3c7'] : ['#b91c1c', '#fee2e2']));
     function statCard(value, label, fg, bg) {
