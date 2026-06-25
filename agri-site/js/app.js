@@ -70,7 +70,13 @@
       var foot = U.el('div', { class: 'modal-foot' }, footChildren);
       var modal = U.el('div', { class: 'modal' }, [head, body, foot]);
       bg.appendChild(modal);
-      bg.addEventListener('click', function (e) { if (e.target === bg) close(); });
+      // סגירה בלחיצה על הרקע — רק אם גם הלחיצה *התחילה* על הרקע.
+      // מונע סגירה בטעות כשבוחרים טקסט בשדה ומשחררים מחוץ לו, או בגלילה/מגע (נייד) —
+      // מה שגרם ל"יוצא לי מהעריכה" באמצע עריכה.
+      var downOnBg = false;
+      var downEvt = ('onpointerdown' in window) ? 'pointerdown' : 'mousedown';
+      bg.addEventListener(downEvt, function (e) { downOnBg = (e.target === bg); });
+      bg.addEventListener('click', function (e) { if (e.target === bg && downOnBg) close(); downOnBg = false; });
       document.body.appendChild(bg);
       function close() {
         if (bg.parentNode) bg.parentNode.removeChild(bg);
