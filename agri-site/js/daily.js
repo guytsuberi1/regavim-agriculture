@@ -392,10 +392,32 @@
     Store.save(); App.render();
   }
 
+  // ---------- שיבוץ/הסרה של כיתה שלמה (תצוגת "לפי כיתות") ----------
+  function gradeStudentIds(grade) {
+    var ex = excludedSet();
+    return (Store.get().students || []).filter(function (s) {
+      return s.active !== false && (s.grade || '') === grade && !ex[s.id];
+    }).map(function (s) { return s.id; });
+  }
+  function assignGradeToCard(day, card, grade) {
+    gradeStudentIds(grade).forEach(function (id) { placeStudent(day, card, id, false); });
+    Store.save(); App.render();
+  }
+  function unassignGrade(day, grade) {
+    day.cards.forEach(function (c) {
+      c.students = (c.students || []).filter(function (s) {
+        var stu = Store.getById('students', s.studentId);
+        return !(stu && (stu.grade || '') === grade);
+      });
+    });
+    Store.save(); App.render();
+  }
+
   // טיפול בגרירה לתוך כרטיס אתר
   function handleDrop(day, card, payload) {
     if (!payload) return;
     if (payload.indexOf('team:') === 0) assignTeamToCard(day, card, payload.slice(5));
+    else if (payload.indexOf('grade:') === 0) assignGradeToCard(day, card, payload.slice(6));
     else if (payload.indexOf('student:') === 0) { placeStudent(day, card, payload.slice(8), false); Store.save(); App.render(); }
   }
 
@@ -506,6 +528,7 @@
       e.preventDefault(); pool.classList.remove('drag-over');
       var p = e.dataTransfer.getData('text/plain');
       if (p.indexOf('team:') === 0) unassignTeam(day, p.slice(5));
+      else if (p.indexOf('grade:') === 0) unassignGrade(day, p.slice(6));
       else if (p.indexOf('student:') === 0) unassignStudent(day, p.slice(8));
     });
 
@@ -655,10 +678,16 @@
 
   // קבוצת מאגר לפי כיתה (מצב "לפי כיתות")
   function buildGradeGroup(grade, students, assigned) {
-    var header = U.el('div', { class: 'pg-head' }, [
-      U.el('span', { class: 'pg-title', text: grade ? 'כיתה ' + grade : 'ללא כיתה' }),
-      U.el('span', { class: 'muted', style: 'font-size:11px;', text: '(' + students.length + ')' })
-    ]);
+    var headChildren = [];
+    if (grade) {
+      var grip = U.el('span', { class: 'grip', draggable: 'true', title: 'גרור כיתה שלמה', text: '⠿' });
+      grip.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text/plain', 'grade:' + grade); e.dataTransfer.effectAllowed = 'move'; });
+      headChildren.push(grip);
+    }
+    headChildren.push(U.el('span', { class: 'pg-title', text: grade ? 'כיתה ' + grade : 'ללא כיתה' }));
+    headChildren.push(U.el('span', { class: 'muted', style: 'font-size:11px;', text: '(' + students.length + ')' }));
+    var allAssigned = students.every(function (s) { return assigned[s.id]; });
+    var header = U.el('div', { class: 'pg-head' + (allAssigned ? ' all-assigned' : '') }, headChildren);
     var chips = U.el('div', { class: 'pg-chips' });
     students.forEach(function (s) { var c = studentChip(s.id, assigned); if (c) chips.appendChild(c); });
     return U.el('div', { class: 'pool-group' }, [header, chips]);
@@ -810,14 +839,14 @@
     if (trans) lines.push('🚌 ' + trans.name);
     if (staffNames) lines.push('👤 אנשי צוות: ' + staffNames);
 
-    var metaNodes = lines.map(function (t) { return U.el('div', { style: 'font-size:12px;color:#555;line-height:1.6;', text: t }); });
+    var metaNodes = lines.map(function (t) { return U.el('div', { style: 'font-size:12px;color:#5b4636;line-height:1.7;', text: t }); });
 
     // קיבוץ התלמידים לפי צוות (כמו בתצוגת המסך), עם כותרת לכל צוות
     function studentLi(st) {
       var stu = Store.getById('students', st.studentId);
       var nm = stu ? stu.name + (stu.grade ? ' (' + stu.grade + ')' : '') : '⚠';
       var bg = (stu && chipGradeColors[stu.grade]) ? chipGradeColors[stu.grade] : '#fff';
-      return U.el('li', { style: 'padding:3px 8px;font-size:12.5px;background:' + bg + ';border-radius:4px;margin:2px 0;' + (st.teamLeader ? 'font-weight:700;' : ''), text: (st.teamLeader ? '⭐ ' : '') + nm });
+      return U.el('li', { style: 'padding:3px 9px;font-size:12.5px;background:' + bg + ';border:1px solid rgba(80,60,30,.12);border-radius:6px;margin:3px 0;color:#3a2e22;' + (st.teamLeader ? 'font-weight:700;' : ''), text: (st.teamLeader ? '⭐ ' : '') + nm });
     }
     var byTeam = {}, order = [], loose = [];
     (card.students || []).forEach(function (st) {
@@ -828,24 +857,25 @@
     var groups = [];
     order.forEach(function (tid) {
       var g = byTeam[tid];
-      groups.push(U.el('div', { style: 'margin:5px 0;' }, [
-        U.el('div', { style: 'font-size:12px;font-weight:700;color:#1b5e20;background:#f1f8e9;padding:3px 8px;border-radius:5px;', text: '⭐ ' + global.TeamUtil.teamLabel(g.team) }),
-        U.el('ul', { style: 'list-style:none;margin:0;padding:2px 2px 0;' }, g.items.map(studentLi))
+      groups.push(U.el('div', { style: 'margin:6px 0;' }, [
+        U.el('div', { style: 'font-size:12px;font-weight:700;color:#1f5130;background:#eef3e6;padding:3px 9px;border-radius:6px;', text: '⭐ ' + global.TeamUtil.teamLabel(g.team) }),
+        U.el('ul', { style: 'list-style:none;margin:0;padding:3px 2px 0;' }, g.items.map(studentLi))
       ]));
     });
     if (loose.length) {
-      groups.push(U.el('div', { style: 'margin:5px 0;' }, [
-        U.el('div', { style: 'font-size:11px;font-weight:600;color:#888;padding:3px 8px;', text: 'ללא צוות' }),
-        U.el('ul', { style: 'list-style:none;margin:0;padding:2px 2px 0;' }, loose.map(studentLi))
+      groups.push(U.el('div', { style: 'margin:6px 0;' }, [
+        U.el('div', { style: 'font-size:11px;font-weight:600;color:#8a7a63;padding:3px 9px;', text: 'ללא צוות' }),
+        U.el('ul', { style: 'list-style:none;margin:0;padding:3px 2px 0;' }, loose.map(studentLi))
       ]));
     }
-    if (!groups.length) groups.push(U.el('div', { style: 'font-size:12px;color:#999;padding:6px;', text: 'אין תלמידים' }));
+    if (!groups.length) groups.push(U.el('div', { style: 'font-size:12px;color:#a99;padding:6px;', text: 'אין תלמידים' }));
 
-    return U.el('div', { style: 'border:1px solid #c5e1c5;border-top:5px solid #2e7d32;border-radius:10px;background:#fff;overflow:hidden;break-inside:avoid;box-shadow:0 1px 4px rgba(0,0,0,.12);' }, [
-      U.el('div', { style: 'background:#e8f5e9;padding:8px 10px;' }, [
-        U.el('div', { style: 'font-weight:800;font-size:16px;color:#1b5e20;', text: site ? site.name : '(אתר)' })
-      ].concat(metaNodes)),
-      U.el('div', { style: 'padding:5px 8px 8px;' }, groups)
+    return U.el('div', { style: 'border:1.5px solid #cdbf9e;border-radius:12px;background:#fffdf8;overflow:hidden;break-inside:avoid;box-shadow:0 2px 5px rgba(80,60,30,.13);' }, [
+      U.el('div', { style: 'background:linear-gradient(135deg,#2f6b3d,#1f5130);color:#fff;padding:8px 11px;' }, [
+        U.el('div', { style: 'font-weight:800;font-size:16px;', text: '🌿 ' + (site ? site.name : '(אתר)') })
+      ]),
+      metaNodes.length ? U.el('div', { style: 'padding:7px 11px 0;' }, metaNodes) : null,
+      U.el('div', { style: 'padding:5px 9px 9px;' }, groups)
     ]);
   }
 
@@ -854,18 +884,29 @@
     if (!day.cards.length) { alert('אין אתרים להצגה ביום זה.'); return; }
     if (typeof global.html2canvas === 'undefined') { alert('רכיב הייצוא עדיין נטען — נסו שוב בעוד רגע.'); return; }
 
-    // רוחב A4 לאורך (794px @96dpi); הכרטיסים נערמים ל-3 עמודות
-    var temp = U.el('div', { style: 'position:fixed;top:0;right:-12000px;width:794px;box-sizing:border-box;background:#f7faf6;padding:18px;direction:rtl;font-family:Arial,sans-serif;' });
-    temp.appendChild(U.el('div', { style: 'background:linear-gradient(135deg,#2e7d32,#1b5e20);color:#fff;border-radius:12px;padding:14px 18px;margin-bottom:14px;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,.18);' }, [
-      U.el('div', { style: 'font-weight:800;font-size:23px;letter-spacing:.5px;', text: '🌱 סידור עבודה חקלאית — רגבים בנימין' }),
-      U.el('div', { style: 'font-size:14px;opacity:.95;margin-top:3px;', text: U.weekdayName(curDate) + ' · ' + U.hebrewDate(curDate) + ' · ' + U.gregLabel(curDate) })
+    // רוחב A4 לאורך (794px @96dpi) — בסגנון פלייר רגבים בנימין
+    var temp = U.el('div', { style: 'position:fixed;top:0;right:-12000px;width:794px;box-sizing:border-box;background:#f4ecdd;padding:20px;direction:rtl;font-family:"Segoe UI",Arial,sans-serif;' });
+    var frame = U.el('div', { style: 'border:2px solid #cdbf9e;border-radius:16px;background:#f8f1e4;padding:18px 18px 14px;' });
+    // מיתוג
+    frame.appendChild(U.el('div', { style: 'text-align:center;margin-bottom:4px;' }, [
+      U.el('div', { style: 'font-size:40px;line-height:1;', text: '🌱' }),
+      U.el('div', { style: 'font-weight:800;font-size:30px;color:#5b4636;margin-top:2px;', text: 'רגבים בנימין' }),
+      U.el('div', { style: 'font-size:13.5px;color:#2f6b3d;font-weight:600;', text: 'ישיבה חינוכית חקלאית · מבית רוח הגולן' })
     ]));
-    var board = U.el('div', { style: 'display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;align-items:start;direction:rtl;' });
+    frame.appendChild(U.el('div', { style: 'text-align:center;margin:9px 0;color:#2f6b3d;font-weight:700;font-size:15px;letter-spacing:1px;', text: '✦  סידור עבודה יומי  ✦' }));
+    // פס תאריך ירוק
+    frame.appendChild(U.el('div', { style: 'background:linear-gradient(135deg,#2f6b3d,#1f5130);color:#fff;border-radius:12px;padding:11px 16px;margin-bottom:14px;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,.18);' }, [
+      U.el('div', { style: 'font-weight:800;font-size:20px;', text: '📅 יום ' + U.weekdayName(curDate) }),
+      U.el('div', { style: 'font-size:14px;opacity:.95;margin-top:2px;', text: U.hebrewDate(curDate) + ' · ' + U.gregLabel(curDate) })
+    ]));
+    var board = U.el('div', { style: 'display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:11px;align-items:start;direction:rtl;' });
     day.cards.forEach(function (c) { board.appendChild(buildExportCard(c)); });
-    temp.appendChild(board);
+    frame.appendChild(board);
+    frame.appendChild(U.el('div', { style: 'text-align:center;margin-top:16px;color:#2f6b3d;font-weight:700;font-size:16px;', text: 'בהצלחה לכולם!  🌿  רגבים בנימין' }));
+    temp.appendChild(frame);
     document.body.appendChild(temp);
 
-    global.html2canvas(temp, { scale: 2, backgroundColor: '#ffffff' }).then(function (canvas) {
+    global.html2canvas(temp, { scale: 2, backgroundColor: '#f4ecdd' }).then(function (canvas) {
       document.body.removeChild(temp);
       canvas.toBlob(function (blob) {
         var url = URL.createObjectURL(blob);
