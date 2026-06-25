@@ -68,6 +68,7 @@
   var sb = (global.supabase && global.supabase.createClient) ? global.supabase.createClient(SB_URL, SB_KEY) : null;
   var cloudMode = !!sb;
   var applyingRemote = false;
+  var pendingRemote = null; // עדכון מהענן שממתין כל עוד חלון עריכה (מודאל) פתוח
 
   // הרשאות: רק המיילים האלה רואים את כל הגיליונות; כל השאר רואים רק "מצב שטח"
   var ADMIN_EMAILS = ['guy@rgvb.org.il', 'misrad@rgvb.org.il', 'shlomohass34@gmail.com'];
@@ -136,14 +137,36 @@
         // מונע גם את "הסימון שנעלם" וגם את הקפיצה למעלה אחרי כל שמירה.
         if (incoming.meta && incoming.meta.savedBy === CLIENT_ID) return;
         if (JSON.stringify(incoming) === JSON.stringify(data)) return;
-        applyingRemote = true;
-        var _sy = (global.scrollY || 0);
-        replaceAll(incoming);
-        if (global.App && App.render) App.render();
-        global.scrollTo(0, _sy);
-        applyingRemote = false;
-        setStatus('עודכן בזמן אמת ' + new Date().toLocaleTimeString('he-IL'));
+        // אל תחיל עדכון מרחוק בזמן שהמשתמש עורך בטופס — שמור והחל עם סגירת החלון.
+        // מונע מצב שבו שמירה של משתמש אחר מאפסת את טופס העריכה הפתוח ("יוצא מהעריכה").
+        if (typeof document !== 'undefined' && document.querySelector('.modal-bg')) {
+          pendingRemote = incoming;
+          return;
+        }
+        applyRemote(incoming);
       }).subscribe();
+  }
+
+  // החלת מצב מהענן על המסך — מבלי לדרוס עריכה מקומית חדשה יותר
+  function applyRemote(incoming) {
+    var inT = (incoming.meta && Date.parse(incoming.meta.lastModified)) || 0;
+    var locT = (data && data.meta && Date.parse(data.meta.lastModified)) || 0;
+    if (inT && locT && inT < locT) return; // המידע המקומי חדש יותר — לא מאבדים אותו
+    applyingRemote = true;
+    var _sy = (global.scrollY || 0);
+    replaceAll(incoming);
+    if (global.App && App.render) App.render();
+    global.scrollTo(0, _sy);
+    applyingRemote = false;
+    setStatus('עודכן בזמן אמת ' + new Date().toLocaleTimeString('he-IL'));
+  }
+
+  // נקרא עם סגירת מודאל — מחיל עדכון מהענן שהמתין בזמן העריכה
+  function flushPendingRemote() {
+    if (!pendingRemote) return;
+    if (typeof document !== 'undefined' && document.querySelector('.modal-bg')) return;
+    var inc = pendingRemote; pendingRemote = null;
+    applyRemote(inc);
   }
 
   // POST של כל הנתונים לשרת, שכותב אותם ל-data.json בתיקיית OneDrive
@@ -485,6 +508,7 @@
     initPersistence: initPersistence,
     serverMode: serverMode,
     isAdmin: isAdmin,
-    isKitchen: isKitchen
+    isKitchen: isKitchen,
+    flushPendingRemote: flushPendingRemote
   };
 })(window);

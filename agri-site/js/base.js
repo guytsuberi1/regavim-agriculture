@@ -153,7 +153,9 @@
     Modal.open((editing ? 'עריכת' : 'הוספת') + ' ' + collTitle(sub), body, [
       { label: 'ביטול', class: 'secondary' },
       { label: 'שמירה', class: '', onClick: function (close) {
-        var out = editing ? { id: model.id } : {};
+        // בעריכה — שומרים על שדות קיימים שאינם בטופס (כמו defaultTransportId) כדי לא לאבד אותם
+        var out = {};
+        if (editing) { for (var key in item) { if (Object.prototype.hasOwnProperty.call(item, key)) out[key] = item[key]; } out.id = model.id; }
         var ok = true;
         defs.forEach(function (d) {
           var inp = inputs[d.key];

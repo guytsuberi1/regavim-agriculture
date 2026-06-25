@@ -72,7 +72,10 @@
       bg.appendChild(modal);
       bg.addEventListener('click', function (e) { if (e.target === bg) close(); });
       document.body.appendChild(bg);
-      function close() { if (bg.parentNode) bg.parentNode.removeChild(bg); }
+      function close() {
+        if (bg.parentNode) bg.parentNode.removeChild(bg);
+        if (global.Store && Store.flushPendingRemote) Store.flushPendingRemote();
+      }
       return close;
     }
   };
