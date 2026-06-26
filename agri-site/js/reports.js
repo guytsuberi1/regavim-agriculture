@@ -161,13 +161,12 @@
     root.appendChild(head);
 
     root.appendChild(U.el('div', { class: 'subtabs' }, [
-      ['daily', 'סיכום יומי'], ['students', 'תלמידים'], ['card', 'כרטיס תלמיד'], ['sites', 'אתרים'], ['staff', 'צוות'], ['transports', 'הסעה']
+      ['students', 'תלמידים'], ['card', 'כרטיס תלמיד'], ['sites', 'אתרים'], ['staff', 'צוות'], ['transports', 'הסעה']
     ].map(function (p) {
       return U.el('button', { class: sub === p[0] ? 'active' : '', onclick: function () { sub = p[0]; App.render(); } }, p[1]);
     })));
 
-    if (sub === 'daily') root.appendChild(renderDailySummary());
-    else if (sub === 'students') root.appendChild(renderStudents());
+    if (sub === 'students') root.appendChild(renderStudents());
     else if (sub === 'card') root.appendChild(renderStudentCard());
     else if (sub === 'sites') root.appendChild(renderTable(['אתר', 'ימי פעילות', 'סה"כ עובדים', 'סה"כ שעות'], siteReport().map(function (r) { return [r.name, r.days, r.workers, r.hours]; })));
     else if (sub === 'staff') root.appendChild(renderTable(['שם', 'ימי פעילות'], staffReport().map(function (r) { return [r.name, r.days]; })));
@@ -321,5 +320,11 @@
     XLSX.writeFile(wb, 'דוחות-' + fromDate + '_' + toDate + '.xlsx');
   }
 
+  global.ReportsUtil = {
+    renderDailySummary: renderDailySummary,
+    nonAttendanceOn: nonAttendanceOn,
+    wentOn: wentOn,
+    getAbs: getAbs
+  };
   global.ReportsView = { render: render };
 })(window);

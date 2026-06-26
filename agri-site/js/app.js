@@ -4,6 +4,7 @@
   var U = global.U;
 
   var TABS = {
+    dashboard: global.DashboardView,
     daily: global.DailyView,
     field: global.FieldView,
     weekly: global.WeeklyView,
@@ -17,7 +18,7 @@
     settings: global.SettingsView
   };
 
-  var current = 'daily';
+  var current = 'dashboard';
 
   // הרשאות: אדמין רואה הכל חוץ מ"תורני מטבח"; מנהל מטבח רואה רק "תורני מטבח"; כל השאר רק "מצב שטח"
   function applyRole() {

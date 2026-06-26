@@ -566,5 +566,17 @@
     alert('הייבוא הושלם: ' + addedRecords + ' חובות' + (created ? ', ' + created + ' אתרים חדשים נוצרו' : '') + '.');
   }
 
+  global.DebtUtil = {
+    farmerAgg: farmerAgg,
+    totalOutstanding: function () {
+      var m = farmerAgg();
+      return Object.keys(m).reduce(function (a, k) { return a + m[k].balance; }, 0);
+    },
+    totalCollected: function () {
+      return (Store.get().debtEntries || [])
+        .filter(function (e) { return e.kind === 'payment'; })
+        .reduce(function (a, e) { return a + U.num(e.amount); }, 0);
+    }
+  };
   global.DebtsView = { render: render };
 })(window);
