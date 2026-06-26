@@ -31,6 +31,7 @@
       { key: 'role', label: 'תפקיד', type: 'select', options: ['איש צוות', 'ראש צוות'],
         values: ['staff', 'leader'], col: true, def: 'staff' },
       { key: 'phone', label: 'טלפון', type: 'text', col: true },
+      { key: 'email', label: 'אימייל להתחברות', type: 'text', col: true },
       { key: 'homeroom', label: 'מחנך', type: 'bool', col: true, def: false },
       { key: 'active', label: 'פעיל', type: 'bool', col: true, def: true }
     ];

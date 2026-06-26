@@ -509,6 +509,7 @@
     serverMode: serverMode,
     isAdmin: isAdmin,
     isKitchen: isKitchen,
+    currentEmail: function () { return sessionUser && sessionUser.email ? String(sessionUser.email).toLowerCase() : null; },
     flushPendingRemote: flushPendingRemote
   };
 })(window);

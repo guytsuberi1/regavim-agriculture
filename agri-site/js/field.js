@@ -13,8 +13,21 @@
     return d.days[fieldDate];
   }
 
-  // ---------- זהות איש הצוות במכשיר ----------
-  function myStaffId() { try { return localStorage.getItem('agri_field_staff') || null; } catch (e) { return null; } }
+  // ---------- זהות איש הצוות ----------
+  // זיהוי ראשי: המשתמש המחובר (אימייל ההתחברות) -> רשומת איש הצוות עם אותו אימייל.
+  function loggedInStaffId() {
+    var em = (global.Store && Store.currentEmail) ? Store.currentEmail() : null;
+    if (!em) return null;
+    var m = (Store.get().staff || []).filter(function (s) { return (s.email || '').toLowerCase() === em && s.active !== false; })[0];
+    return m ? m.id : null;
+  }
+  function isLoggedInIdentity() { return !!loggedInStaffId(); }
+  // זיהוי משני (גיבוי): בחירה ידנית במכשיר, כשלמשתמש המחובר אין רשומת צוות מקושרת.
+  function myStaffId() {
+    var byLogin = loggedInStaffId();
+    if (byLogin) return byLogin;
+    try { return localStorage.getItem('agri_field_staff') || null; } catch (e) { return null; }
+  }
   function setMyStaffId(id) { try { id ? localStorage.setItem('agri_field_staff', id) : localStorage.removeItem('agri_field_staff'); } catch (e) {} }
 
   function myCards(day) {
@@ -58,6 +71,10 @@
     }
 
     var who = id && id !== ALL ? (Store.getById('staff', id) || {}).name : (id === ALL ? 'רכז' : null);
+    var locked = isLoggedInIdentity(); // זוהה לפי המשתמש המחובר — אין החלפה ידנית
+    var identityChip = locked
+      ? U.el('span', { class: 'tag', style: 'margin-inline-start:auto;', text: '👤 ' + who })
+      : U.el('button', { class: 'btn secondary small', style: 'margin-inline-start:auto;', onclick: openIdentityPicker }, who ? ('👤 ' + who + ' · החלף') : '👤 מי אתה?');
     root.appendChild(U.el('div', { class: 'page-head' }, [
       U.el('h2', { text: '📋 מצב שטח' }),
       U.el('button', { class: 'btn secondary small', onclick: function () { fieldDate = U.addDays(fieldDate, -1); fieldCardId = null; App.render(); } }, '→ אתמול'),
@@ -65,7 +82,7 @@
       U.el('button', { class: 'btn secondary small', onclick: function () { fieldDate = U.addDays(fieldDate, 1); fieldCardId = null; App.render(); } }, 'מחר ←'),
       U.el('span', { class: 'tag', text: U.weekdayName(fieldDate) + ' · ' + U.gregLabel(fieldDate) }),
       U.el('button', { class: 'btn', onclick: openAbsentField }, '🚫 נעדרים היום' + (absN ? ' (' + absN + ')' : '')),
-      U.el('button', { class: 'btn secondary small', style: 'margin-inline-start:auto;', onclick: openIdentityPicker }, who ? ('👤 ' + who + ' · החלף') : '👤 מי אתה?')
+      identityChip
     ]));
 
     var card = fieldCardId ? day.cards.filter(function (c) { return c.id === fieldCardId; })[0] : null;
