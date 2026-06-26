@@ -19,7 +19,8 @@
       U.el('h2', { text: '👥 ניהול משתמשים' }),
       U.el('button', { class: 'btn secondary small', onclick: function () { App.render(); } }, '↻ רענן')
     ]));
-    root.appendChild(U.el('p', { class: 'muted', text: 'יצירת חשבון התחברות (אימייל + סיסמה) לכל איש צוות. לאחר חיבור החשבון, איש הצוות מתחבר ורואה אוטומטית את האתר ששובץ לו במצב שטח. האימייל נקבע בנתוני בסיס → אנשי צוות.' }));
+    root.appendChild(U.el('p', { class: 'muted', text: 'יצירת חשבון התחברות (אימייל + סיסמה) לכל איש צוות, וקביעת ההרשאה שלו. לאחר חיבור החשבון, איש הצוות מתחבר ורואה אוטומטית את האתר ששובץ לו במצב שטח. האימייל נקבע בנתוני בסיס → אנשי צוות.' }));
+    root.appendChild(U.el('p', { class: 'muted', style: 'font-size:12px;margin-top:-6px;', text: 'הרשאות: "מצב שטח" — איש צוות רגיל (סימון יציאה וציון בלבד) · "תורני מטבח" — מסך תורנות מטבח · "מנהל" — גישה מלאה לכל המסכים.' }));
 
     var staff = (Store.get().staff || []).filter(function (s) { return s.active !== false; })
       .sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'he'); });
@@ -53,6 +54,26 @@
       else if (hasAccount) status = U.el('span', { class: 'tag', style: 'background:#e8f5e9;color:#1b5e20;', text: '✓ יש חשבון' });
       else status = U.el('span', { class: 'tag', style: 'background:#fff3e0;color:#b07a3f;', text: 'אין חשבון' });
 
+      // הרשאה — נשמרת לפי אימייל ההתחברות
+      var roleCell = U.el('td');
+      if (hasEmail) {
+        var cur = Store.roleOf(email);
+        var roleSel = U.el('select', null, [
+          U.el('option', { value: 'field' }, 'מצב שטח'),
+          U.el('option', { value: 'kitchen' }, 'תורני מטבח'),
+          U.el('option', { value: 'admin' }, 'מנהל (גישה מלאה)')
+        ]);
+        roleSel.value = cur;
+        roleSel.addEventListener('change', function () {
+          Store.setUserRole(email, roleSel.value);
+          if (email === Store.currentEmail()) { alert('שינית את ההרשאה של עצמך. המסך ייטען מחדש.'); location.reload(); return; }
+          App.render();
+        });
+        roleCell.appendChild(roleSel);
+      } else {
+        roleCell.appendChild(U.el('span', { class: 'muted', text: '—' }));
+      }
+
       var actions = U.el('td', { class: 'actions' });
       if (!hasEmail) {
         actions.appendChild(U.el('span', { class: 'muted', style: 'font-size:12px;', text: 'הוסיפו אימייל בנתוני בסיס' }));
@@ -67,6 +88,7 @@
         U.el('td', { text: s.name + (s.role === 'leader' ? ' · ראש צוות' : '') }),
         U.el('td', { text: email || '—', style: 'direction:ltr;text-align:right;' }),
         U.el('td', null, [status]),
+        roleCell,
         actions
       ]);
     });
@@ -76,9 +98,10 @@
         U.el('th', { text: 'איש צוות' }),
         U.el('th', { text: 'אימייל התחברות' }),
         U.el('th', { text: 'סטטוס' }),
+        U.el('th', { text: 'הרשאה' }),
         U.el('th', { text: 'פעולות' })
       ])]),
-      U.el('tbody', null, rows.length ? rows : [U.el('tr', null, [U.el('td', { colspan: '4', class: 'center muted', text: 'אין אנשי צוות פעילים.' })])])
+      U.el('tbody', null, rows.length ? rows : [U.el('tr', null, [U.el('td', { colspan: '5', class: 'center muted', text: 'אין אנשי צוות פעילים.' })])])
     ]);
     return table;
   }

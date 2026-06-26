@@ -23,7 +23,8 @@
       absenceInfo: {},  // { 'YYYY-MM-DD': { studentId: { approved:bool, reason:str } } }  סיבת/אישור היעדרות
       billingAdjustments: {}, // { 'YYYY-MM|siteId': { 'YYYY-MM-DD': { note, hoursOverride, workersOverride, travelOverride } } }
       debtRecords: [],  // { id, siteId, openingDebt, debtYear, status, handledBy, notes, includeBilling }  כרטיס חוב לכל חקלאי
-      debtEntries: []   // { id, siteId, date:'YYYY-MM-DD', kind:'payment'|'charge'|'credit', amount, method, note }  תנועות
+      debtEntries: [],  // { id, siteId, date:'YYYY-MM-DD', kind:'payment'|'charge'|'credit', amount, method, note }  תנועות
+      userRoles: {}     // { 'email@x.com': 'admin'|'kitchen'|'field' }  הרשאה לכל משתמש מחובר
     };
   }
 
@@ -76,12 +77,32 @@
   var KITCHEN_EMAILS = ['elivne4@gmail.com'];
   var sessionUser = null;
   function setSessionUser(u) { sessionUser = u || null; }
+
+  // הרשאה אפקטיבית למייל: הגדרה מפורשת ב-userRoles גוברת; אחרת נופלים לרשימות הקשיחות; ברירת מחדל — שטח.
+  function roleOf(email) {
+    email = String(email || '').toLowerCase();
+    if (!email) return 'field';
+    var roles = (data && data.userRoles) || {};
+    if (roles[email] === 'admin' || roles[email] === 'kitchen' || roles[email] === 'field') return roles[email];
+    if (ADMIN_EMAILS.indexOf(email) !== -1) return 'admin';
+    if (KITCHEN_EMAILS.indexOf(email) !== -1) return 'kitchen';
+    return 'field';
+  }
   function isAdmin() {
     if (!cloudMode) return true; // מצב מקומי (ללא ענן) — גישה מלאה
-    return !!(sessionUser && sessionUser.email && ADMIN_EMAILS.indexOf(String(sessionUser.email).toLowerCase()) !== -1);
+    return !!(sessionUser && roleOf(sessionUser.email) === 'admin');
   }
   function isKitchen() {
-    return !!(sessionUser && sessionUser.email && KITCHEN_EMAILS.indexOf(String(sessionUser.email).toLowerCase()) !== -1);
+    return !!(sessionUser && roleOf(sessionUser.email) === 'kitchen');
+  }
+  // קביעת הרשאה למשתמש (לפי מייל). role: 'admin'|'kitchen'|'field'.
+  function setUserRole(email, role) {
+    email = String(email || '').toLowerCase();
+    if (!email || !data) return;
+    if (!data.userRoles) data.userRoles = {};
+    if (role === 'field') delete data.userRoles[email]; // שטח = ברירת מחדל, אין צורך לאחסן
+    else data.userRoles[email] = role;
+    save();
   }
 
   var saveTimer = null;
@@ -529,6 +550,8 @@
     serverMode: serverMode,
     isAdmin: isAdmin,
     isKitchen: isKitchen,
+    roleOf: roleOf,
+    setUserRole: setUserRole,
     currentEmail: function () { return sessionUser && sessionUser.email ? String(sessionUser.email).toLowerCase() : null; },
     flushPendingRemote: flushPendingRemote
   };
