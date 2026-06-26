@@ -9,13 +9,16 @@
   function computeKPIs() {
     var d = Store.get();
     var days = d.days || {};
-    var manDays = 0, opDays = 0, absUnap = 0, absAp = 0, hoursSum = 0, ratingSum = 0, ratingCnt = 0;
+    var manDays = 0, workDays = 0, absUnap = 0, absAp = 0, hoursSum = 0, ratingSum = 0, ratingCnt = 0;
 
     Object.keys(days).forEach(function (iso) {
+      var cards = days[iso].cards || [];
+      // יום עבודה = יום שבו שובצו אתר/תלמידים (יום ללא שיבוץ אינו נספר)
+      var scheduled = cards.some(function (c) { return c.siteId || (c.students && c.students.length); });
+      if (scheduled) workDays++;
       var went = (global.ReportsUtil ? ReportsUtil.wentOn(iso) : {});
       var wc = Object.keys(went).length;
       manDays += wc;
-      if (wc > 0) opDays++;
       if (global.ReportsUtil) {
         ReportsUtil.nonAttendanceOn(iso).forEach(function (r) {
           if (ReportsUtil.getAbs(iso, r.studentId).approved) absAp++; else absUnap++;
@@ -40,7 +43,7 @@
     var collected = (global.DebtUtil ? DebtUtil.totalCollected() : 0);
 
     return {
-      attPct: attPct, manDays: manDays, opDays: opDays, absUnap: absUnap, absAp: absAp,
+      attPct: attPct, manDays: manDays, workDays: workDays, absUnap: absUnap, absAp: absAp,
       hoursSum: hoursSum, ratingAvg: ratingCnt ? (ratingSum / ratingCnt) : null,
       totalIncome: totalIncome, totalDebt: totalDebt, collected: collected,
       billed: billed,
@@ -111,7 +114,7 @@
     var grid = U.el('div', { class: 'kpi-grid' }, [
       kpi('🚜', k.attPct == null ? '—' : k.attPct + '%', 'אחוז יציאה לעבודה', attTone,
         k.attPct == null ? null : (k.manDays + ' יצאו · ' + k.absUnap + ' ללא אישור')),
-      kpi('🗓️', k.manDays.toLocaleString('he-IL'), 'סה"כ ימי עבודה', 'info', k.opDays + ' ימי פעילות'),
+      kpi('🗓️', k.workDays.toLocaleString('he-IL'), 'סה"כ ימי עבודה', 'info', k.manDays.toLocaleString('he-IL') + ' ימי-עובד מצטברים'),
       kpi('⏱️', Math.round(k.hoursSum).toLocaleString('he-IL'), 'סה"כ שעות עבודה', 'neutral'),
       kpi('⭐', k.ratingAvg == null ? '—' : k.ratingAvg.toFixed(1), 'ציון ממוצע', 'purple', 'מתוך 5'),
       kpi('💵', money(k.totalIncome), 'סה"כ הכנסות (חיוב)', 'good'),
