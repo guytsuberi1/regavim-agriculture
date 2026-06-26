@@ -46,7 +46,6 @@
       U.el('span', { class: 'tag', text: U.weekdayName(curDate) + ' · ' + U.hebrewDate(curDate) }),
       U.el('div', { class: 'spacer' }),
       U.el('button', { class: 'btn secondary', onclick: openAbsentDialog }, '🚫 נעדרים היום' + (Store.get().dailyAbsent[curDate] && Store.get().dailyAbsent[curDate].length ? ' (' + Store.get().dailyAbsent[curDate].length + ')' : '')),
-      U.el('button', { class: 'btn secondary', onclick: dupPrev }, '⧉ שכפל מיום קודם'),
       U.el('button', { class: 'btn accent', onclick: exportImage }, '🖼 ייצוא תמונה'),
       U.el('button', { class: 'btn secondary', onclick: openWhatsApp }, '📲 וואטסאפ'),
       U.el('button', { class: 'btn secondary', onclick: sendAllSms }, '📩 SMS לכולם'),
@@ -62,7 +61,7 @@
     root.appendChild(buildTotals(day));
 
     if (!day.cards.length) {
-      root.appendChild(U.el('div', { class: 'card empty no-print' }, 'אין אתרים ליום זה. לחצו "הוסף אתר", "שכפל מיום קודם" או "טען מתכנון".'));
+      root.appendChild(U.el('div', { class: 'card empty no-print' }, 'אין אתרים ליום זה. לחצו "הוסף אתר".'));
     } else {
       var board = U.el('div', { class: 'day-board' });
       day.cards.forEach(function (card) { board.appendChild(buildCard(day, card)); });
@@ -157,7 +156,7 @@
     // שעות + נסיעות
     var hoursInp = U.el('input', { type: 'number', value: card.hours == null ? '' : card.hours, style: 'width:70px;', step: '0.5' });
     hoursInp.addEventListener('change', function () { card.hours = hoursInp.value === '' ? '' : U.num(hoursInp.value); Store.save(); });
-    var travelChk = U.el('input', { type: 'checkbox', checked: card.travel !== false });
+    var travelChk = U.el('input', { type: 'checkbox', checked: card.travel !== false, title: 'האם מגיע תשלום נסיעות עבור האתר ביום זה — משפיע על דרישת התשלום' });
     travelChk.addEventListener('change', function () { card.travel = travelChk.checked; Store.save(); });
     var targetInp = U.el('input', { type: 'number', value: (card.targetWorkers === '' || card.targetWorkers == null) ? '' : card.targetWorkers, style: 'width:70px;', min: '0', title: 'כמות עובדים רצויה (מהתכנון השבועי)' });
     targetInp.addEventListener('change', function () {
@@ -176,14 +175,6 @@
       var stu = Store.getById('students', st.studentId);
       var name = stu ? stu.name + (stu.grade ? ' (' + stu.grade + ')' : '') : '⚠ נמחק';
 
-      var wentChk = U.el('input', { type: 'checkbox', checked: !!st.wentToWork, title: 'יצא לעבודה' });
-      wentChk.addEventListener('change', function () { st.wentToWork = wentChk.checked; Store.save(); App.render(); });
-      // ציון 1-5
-      var ratingSel = U.el('select', { class: 'rating-sel', title: 'ציון 1-5' },
-        [U.el('option', { value: '' }, '–')].concat([1, 2, 3, 4, 5].map(function (n) { return U.el('option', { value: n }, n); })));
-      ratingSel.value = st.rating == null ? '' : st.rating;
-      ratingSel.addEventListener('change', function () { st.rating = ratingSel.value === '' ? null : U.num(ratingSel.value); Store.save(); });
-
       var gradeColors = { 'ט': '#fff3cd', 'י': '#d1ecf1', 'יא': '#d4edda', 'יב': '#f8d7da' };
       var nameCell = U.el('div', { style: 'flex:1;' }, [
         U.el('div', { text: (st.teamLeader ? '⭐ ' : '') + name }),
@@ -191,8 +182,6 @@
       ]);
       var li = U.el('li', { class: (st.teamLeader ? 'leader ' : ''), draggable: 'true' }, [
         nameCell,
-        U.el('span', { class: 'chk', title: 'יצא לעבודה' }, [wentChk, U.el('span', { text: 'יצא', class: 'muted' })]),
-        U.el('span', { class: 'chk no-print', title: 'ציון' }, [ratingSel]),
         U.el('button', { class: 'btn small danger no-print', onclick: function () { removeStudent(card, st.studentId); } }, '✕')
       ]);
       if (stu && stu.grade && gradeColors[stu.grade]) li.style.setProperty('background', gradeColors[stu.grade], 'important');
@@ -203,40 +192,68 @@
       return arr.slice().sort(function (a, b) { return (b.teamLeader ? 1 : 0) - (a.teamLeader ? 1 : 0); });
     }
 
-    // תלמידים — מקובצים לפי הצוות המקורי (כמו במאגר); כל צוות ניתן לגרירה בנפרד
-    var byTeam = {}, teamOrder = [], looseItems = [];
-    (card.students || []).forEach(function (st) {
-      var t = global.TeamUtil.teamOfStudent(st.studentId);
-      if (t) {
-        if (!byTeam[t.id]) { byTeam[t.id] = { team: t, items: [] }; teamOrder.push(t.id); }
-        byTeam[t.id].items.push(st);
-      } else { looseItems.push(st); }
-    });
+    // תלמידים — מקובצים לפי מצב המאגר: "לפי כיתות" → קיבוץ לפי כיתה; אחרת לפי צוות.
+    // כל קבוצה ניתנת לגרירה בנפרד (לאתר אחר או חזרה למאגר).
+    if (getPoolGroupMode() === 'grades') {
+      var byGrade = {};
+      (card.students || []).forEach(function (st) {
+        var stu = Store.getById('students', st.studentId);
+        var g = (stu && stu.grade) ? stu.grade : '';
+        (byGrade[g] = byGrade[g] || []).push(st);
+      });
+      U.GRADES.concat(['']).forEach(function (g) {
+        var items = byGrade[g];
+        if (!items || !items.length) return;
+        var ghChildren = [];
+        if (g) {
+          var ggrip = U.el('span', { class: 'grip no-print', draggable: 'true', title: 'גרירת הכיתה חזרה למאגר או לאתר אחר', text: '⠿' });
+          ggrip.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text/plain', 'grade:' + g); e.dataTransfer.effectAllowed = 'move'; });
+          ghChildren.push(ggrip);
+        }
+        ghChildren.push(U.el('span', { class: 'sc-team-title' + (g ? '' : ' muted'), text: g ? 'כיתה ' + g : 'ללא כיתה' }));
+        ghChildren.push(U.el('span', { class: 'muted', style: 'font-size:11px;', text: '(' + items.length + ')' }));
+        var ulG = U.el('ul', { class: 'sc-students' });
+        sortLeadersFirst(items).forEach(function (st) { ulG.appendChild(buildStudentLi(st)); });
+        body.appendChild(U.el('div', { class: 'sc-team' }, [U.el('div', { class: 'sc-team-head' }, ghChildren), ulG]));
+      });
+    } else {
+      var byTeam = {}, teamOrder = [], looseItems = [];
+      (card.students || []).forEach(function (st) {
+        var t = global.TeamUtil.teamOfStudent(st.studentId);
+        if (t) {
+          if (!byTeam[t.id]) { byTeam[t.id] = { team: t, items: [] }; teamOrder.push(t.id); }
+          byTeam[t.id].items.push(st);
+        } else { looseItems.push(st); }
+      });
 
-    teamOrder.forEach(function (tid) {
-      var g = byTeam[tid];
-      var grip = U.el('span', { class: 'grip no-print', draggable: 'true', title: 'גרירת הצוות לאתר אחר או חזרה למאגר', text: '⠿' });
-      grip.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text/plain', 'team:' + g.team.id); e.dataTransfer.effectAllowed = 'move'; });
-      var gh = U.el('div', { class: 'sc-team-head' }, [
-        grip,
-        U.el('span', { class: 'sc-team-title', text: '⭐ ' + global.TeamUtil.teamLabel(g.team) }),
-        U.el('span', { class: 'muted', style: 'font-size:11px;', text: '(' + g.items.length + ')' })
-      ]);
-      var ulT = U.el('ul', { class: 'sc-students' });
-      sortLeadersFirst(g.items).forEach(function (st) { ulT.appendChild(buildStudentLi(st)); });
-      body.appendChild(U.el('div', { class: 'sc-team' }, [gh, ulT]));
-    });
+      teamOrder.forEach(function (tid) {
+        var g = byTeam[tid];
+        var grip = U.el('span', { class: 'grip no-print', draggable: 'true', title: 'גרירת הצוות לאתר אחר או חזרה למאגר', text: '⠿' });
+        grip.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text/plain', 'team:' + g.team.id); e.dataTransfer.effectAllowed = 'move'; });
+        var gh = U.el('div', { class: 'sc-team-head' }, [
+          grip,
+          U.el('span', { class: 'sc-team-title', text: '⭐ ' + global.TeamUtil.teamLabel(g.team) }),
+          U.el('span', { class: 'muted', style: 'font-size:11px;', text: '(' + g.items.length + ')' })
+        ]);
+        var ulT = U.el('ul', { class: 'sc-students' });
+        sortLeadersFirst(g.items).forEach(function (st) { ulT.appendChild(buildStudentLi(st)); });
+        body.appendChild(U.el('div', { class: 'sc-team' }, [gh, ulT]));
+      });
 
-    if (looseItems.length) {
-      var ulL = U.el('ul', { class: 'sc-students' });
-      sortLeadersFirst(looseItems).forEach(function (st) { ulL.appendChild(buildStudentLi(st)); });
-      body.appendChild(U.el('div', { class: 'sc-team loose' }, [
-        U.el('div', { class: 'sc-team-head' }, [U.el('span', { class: 'sc-team-title muted', text: 'ללא צוות' })]),
-        ulL
-      ]));
+      if (looseItems.length) {
+        var ulL = U.el('ul', { class: 'sc-students' });
+        sortLeadersFirst(looseItems).forEach(function (st) { ulL.appendChild(buildStudentLi(st)); });
+        body.appendChild(U.el('div', { class: 'sc-team loose' }, [
+          U.el('div', { class: 'sc-team-head' }, [U.el('span', { class: 'sc-team-title muted', text: 'ללא צוות' })]),
+          ulL
+        ]));
+      }
     }
 
-    body.appendChild(U.el('button', { class: 'btn small secondary no-print', onclick: function () { openAddStudents(day, card); } }, '+ הוסף תלמידים'));
+    body.appendChild(U.el('div', { class: 'no-print', style: 'display:flex;gap:6px;flex-wrap:wrap;' }, [
+      U.el('button', { class: 'btn small secondary', onclick: function () { openAddStudents(day, card); } }, '+ הוסף תלמידים'),
+      (card.students || []).length ? U.el('button', { class: 'btn small danger', title: 'החזרת כל התלמידים המשובצים באתר זה למאגר', onclick: function () { clearCardStudents(day, card); } }, '↩ בטל שיבוץ') : null
+    ]));
 
     // הערות
     var notesInp = U.el('input', { type: 'text', value: card.notes || '', placeholder: 'הערות…', style: 'width:100%;margin-top:6px;' });
@@ -356,6 +373,15 @@
 
   function removeStudent(card, studentId) {
     card.students = card.students.filter(function (s) { return s.studentId !== studentId; });
+    Store.save(); App.render();
+  }
+
+  // ביטול שיבוץ — החזרת כל התלמידים של האתר למאגר
+  function clearCardStudents(day, card) {
+    var n = (card.students || []).length;
+    if (!n) return;
+    if (!confirm('להחזיר את כל ' + n + ' התלמידים המשובצים באתר זה למאגר?')) return;
+    card.students = [];
     Store.save(); App.render();
   }
 
@@ -1022,23 +1048,23 @@
   }
   function sendAllSms() {
     var day = getDay(curDate);
-    var messages = [], noPhone = [];
+    var messages = [], noPhone = [], nStu = 0, nStaff = 0;
     day.cards.forEach(function (card) {
       var people = [];
-      cardStaffIds(card).forEach(function (id) { var p = Store.getById('staff', id); if (p) people.push({ name: p.name, phone: p.phone, team: '' }); });
+      cardStaffIds(card).forEach(function (id) { var p = Store.getById('staff', id); if (p) people.push({ name: p.name, phone: p.phone, team: '', role: 'צוות' }); });
       (card.students || []).forEach(function (s) {
         var st = Store.getById('students', s.studentId);
-        if (st) { var tm = global.TeamUtil ? global.TeamUtil.teamOfStudent(st.id) : null; people.push({ name: st.name, phone: st.phone, team: tm ? global.TeamUtil.teamLabel(tm) : '' }); }
+        if (st) { var tm = global.TeamUtil ? global.TeamUtil.teamOfStudent(st.id) : null; people.push({ name: st.name, phone: st.phone, team: tm ? global.TeamUtil.teamLabel(tm) : '', role: 'תלמיד' }); }
       });
       people.forEach(function (p) {
         var ph = smsPhone(p.phone);
-        if (ph) messages.push({ phone: ph, text: cardSmsMessage(card, p.name, p.team) });
-        else noPhone.push(p.name);
+        if (ph) { messages.push({ phone: ph, text: cardSmsMessage(card, p.name, p.team) }); if (p.role === 'צוות') nStaff++; else nStu++; }
+        else noPhone.push(p.name + ' (' + p.role + ')');
       });
     });
     if (!messages.length) { alert('אין נמענים עם מספר טלפון ליום זה.'); return; }
-    if (!confirm('לשלוח SMS ל-' + messages.length + ' נמענים?' +
-      (noPhone.length ? '\n(' + noPhone.length + ' ללא טלפון יידלגו)' : '') +
+    if (!confirm('לשלוח SMS ל-' + messages.length + ' נמענים (' + nStu + ' תלמידים · ' + nStaff + ' אנשי צוות)?' +
+      (noPhone.length ? '\n\n' + noPhone.length + ' ללא מספר טלפון יידלגו:\n' + noPhone.slice(0, 12).join(', ') + (noPhone.length > 12 ? '…' : '') : '') +
       '\n\n⚠️ שליחת SMS עולה כסף בחשבון 019.')) return;
     Store.sendSms(messages).then(function (res) {
       alert('✓ נשלחו: ' + (res.sent || 0) + ' · נכשלו: ' + (res.failed || 0) +
