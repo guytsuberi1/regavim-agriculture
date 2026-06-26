@@ -156,8 +156,6 @@
     // שעות + נסיעות
     var hoursInp = U.el('input', { type: 'number', value: card.hours == null ? '' : card.hours, style: 'width:70px;', step: '0.5' });
     hoursInp.addEventListener('change', function () { card.hours = hoursInp.value === '' ? '' : U.num(hoursInp.value); Store.save(); });
-    var travelChk = U.el('input', { type: 'checkbox', checked: card.travel !== false, title: 'האם מגיע תשלום נסיעות עבור האתר ביום זה — משפיע על דרישת התשלום' });
-    travelChk.addEventListener('change', function () { card.travel = travelChk.checked; Store.save(); });
     var targetInp = U.el('input', { type: 'number', value: (card.targetWorkers === '' || card.targetWorkers == null) ? '' : card.targetWorkers, style: 'width:70px;', min: '0', title: 'כמות עובדים רצויה (מהתכנון השבועי)' });
     targetInp.addEventListener('change', function () {
       card.targetWorkers = targetInp.value === '' ? '' : U.num(targetInp.value);
@@ -166,8 +164,7 @@
     });
     body.appendChild(U.el('div', { class: 'row', style: 'margin:6px 0;' }, [
       U.el('div', null, [U.el('label', { text: 'שעות' }), hoursInp]),
-      U.el('div', null, [U.el('label', { text: 'רצוי' }), targetInp]),
-      U.el('div', null, [U.el('label', { text: 'נסיעות' }), U.el('div', null, [travelChk])])
+      U.el('div', null, [U.el('label', { text: 'רצוי' }), targetInp])
     ]));
 
     // בניית שורת תלמיד בודד

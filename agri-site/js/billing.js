@@ -36,8 +36,8 @@
   function effective(dayData, adj) {
     var workers = (adj && adj.workersOverride !== undefined && adj.workersOverride !== '') ? U.num(adj.workersOverride) : dayData.workers;
     var hours = (adj && adj.hoursOverride !== undefined && adj.hoursOverride !== '') ? U.num(adj.hoursOverride) : dayData.hours;
-    var travel = (adj && adj.travelOverride !== undefined && adj.travelOverride !== '') ? (adj.travelOverride === 'yes') : dayData.travel;
-    return { workers: workers, hours: hours, travel: travel };
+    // תשלום נסיעות ניתן תמיד לפי הגדרת האתר בנתוני הבסיס (travelPay)
+    return { workers: workers, hours: hours, travel: true };
   }
 
   function siteTotals(siteEntry, mk) {
