@@ -114,7 +114,7 @@
     var grid = U.el('div', { class: 'kpi-grid' }, [
       kpi('🚜', k.attPct == null ? '—' : k.attPct + '%', 'אחוז יציאה לעבודה', attTone,
         k.attPct == null ? null : (k.manDays + ' יצאו · ' + k.absUnap + ' ללא אישור')),
-      kpi('🗓️', k.workDays.toLocaleString('he-IL'), 'סה"כ ימי עבודה', 'info', k.manDays.toLocaleString('he-IL') + ' ימי-עובד מצטברים'),
+      kpi('🗓️', k.workDays.toLocaleString('he-IL'), 'סה"כ ימי עבודה', 'info'),
       kpi('⏱️', Math.round(k.hoursSum).toLocaleString('he-IL'), 'סה"כ שעות עבודה', 'neutral'),
       kpi('⭐', k.ratingAvg == null ? '—' : k.ratingAvg.toFixed(1), 'ציון ממוצע', 'purple', 'מתוך 5'),
       kpi('💵', money(k.totalIncome), 'סה"כ הכנסות (חיוב)', 'good'),
