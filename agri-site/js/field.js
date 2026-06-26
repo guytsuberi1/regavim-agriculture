@@ -4,8 +4,7 @@
   var U = global.U;
   var fieldDate = U.todayISO();
   var fieldCardId = null;
-  var ALL = '__all__'; // זהות "רכז / הצג הכל"
-  var lastAutoKey = null; // מונע פתיחה-אוטומטית חוזרת כשחוזרים לרשימה ידנית
+  var lastAutoKey = null; // מונע פתיחה-אוטומטית חוזרת לאחר חזרה לרשימה
 
   function dayOf() {
     var d = Store.get();
@@ -14,46 +13,22 @@
   }
 
   // ---------- זהות איש הצוות ----------
-  // זיהוי ראשי: המשתמש המחובר (אימייל ההתחברות) -> רשומת איש הצוות עם אותו אימייל.
+  // זיהוי אוטומטי בלבד: המשתמש המחובר (אימייל ההתחברות) -> רשומת איש הצוות עם אותו אימייל.
   function loggedInStaffId() {
     var em = (global.Store && Store.currentEmail) ? Store.currentEmail() : null;
     if (!em) return null;
     var m = (Store.get().staff || []).filter(function (s) { return (s.email || '').toLowerCase() === em && s.active !== false; })[0];
     return m ? m.id : null;
   }
-  function isLoggedInIdentity() { return !!loggedInStaffId(); }
-  // זיהוי משני (גיבוי): בחירה ידנית במכשיר, כשלמשתמש המחובר אין רשומת צוות מקושרת.
-  function myStaffId() {
-    var byLogin = loggedInStaffId();
-    if (byLogin) return byLogin;
-    try { return localStorage.getItem('agri_field_staff') || null; } catch (e) { return null; }
-  }
-  function setMyStaffId(id) { try { id ? localStorage.setItem('agri_field_staff', id) : localStorage.removeItem('agri_field_staff'); } catch (e) {} }
+  function myStaffId() { return loggedInStaffId(); }
 
   function myCards(day) {
     var id = myStaffId();
-    if (!id || id === ALL) return [];
+    if (!id) return [];
     return day.cards.filter(function (c) {
       var ids = (c.staffIds && c.staffIds.length) ? c.staffIds : (c.staffId ? [c.staffId] : []);
       return ids.indexOf(id) !== -1;
     });
-  }
-
-  function openIdentityPicker() {
-    var staff = (Store.get().staff || []).slice().sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'he'); });
-    var box = U.el('div', { class: 'fadd-list' });
-    staff.forEach(function (p) {
-      var b = U.el('button', { class: 'fadd-item' }, [U.el('span', { text: p.name + (p.role ? ' · ' + p.role : '') }), U.el('span', { class: 'fadd-plus', text: '👤' })]);
-      b.addEventListener('click', function () { setMyStaffId(p.id); lastAutoKey = null; fieldCardId = null; close(); App.render(); });
-      box.appendChild(b);
-    });
-    var allBtn = U.el('button', { class: 'fadd-item' }, [U.el('span', { text: 'אני הרכז — הצג את כל האתרים' }), U.el('span', { class: 'fadd-plus', text: '🗂️' })]);
-    allBtn.addEventListener('click', function () { setMyStaffId(ALL); lastAutoKey = null; fieldCardId = null; close(); App.render(); });
-    box.appendChild(allBtn);
-    var close = Modal.open('מי אתה?', U.el('div', null, [
-      U.el('p', { class: 'muted', style: 'margin:0 0 8px;', text: 'בחרו את שמכם — האתר שלכם ייפתח אוטומטית בכל כניסה.' }),
-      box
-    ]), [{ label: 'סגור', class: 'secondary' }]);
   }
 
   function render(root) {
@@ -61,20 +36,18 @@
     var day = dayOf();
     var absN = ((Store.get().dailyAbsent || {})[fieldDate] || []).length;
     var id = myStaffId();
+    var isMgr = !id && Store.isAdmin(); // רכז/מנהל ללא קישור לאיש צוות — רואה את כל האתרים
 
     // פתיחה אוטומטית של האתר המשובץ לאיש הצוות — פעם אחת לכל (זהות+תאריך)
-    var autoKey = (id || '-') + '|' + fieldDate;
-    if (!fieldCardId && id && id !== ALL && lastAutoKey !== autoKey) {
+    var autoKey = (id || (isMgr ? 'mgr' : '-')) + '|' + fieldDate;
+    if (!fieldCardId && id && lastAutoKey !== autoKey) {
       lastAutoKey = autoKey;
       var mine = myCards(day);
       if (mine.length === 1) fieldCardId = mine[0].id;
     }
 
-    var who = id && id !== ALL ? (Store.getById('staff', id) || {}).name : (id === ALL ? 'רכז' : null);
-    var locked = isLoggedInIdentity(); // זוהה לפי המשתמש המחובר — אין החלפה ידנית
-    var identityChip = locked
-      ? U.el('span', { class: 'tag', style: 'margin-inline-start:auto;', text: '👤 ' + who })
-      : U.el('button', { class: 'btn secondary small', style: 'margin-inline-start:auto;', onclick: openIdentityPicker }, who ? ('👤 ' + who + ' · החלף') : '👤 מי אתה?');
+    var who = id ? (Store.getById('staff', id) || {}).name : (isMgr ? 'רכז' : null);
+    var identityChip = who ? U.el('span', { class: 'tag', style: 'margin-inline-start:auto;', text: '👤 ' + who }) : null;
     root.appendChild(U.el('div', { class: 'page-head' }, [
       U.el('h2', { text: '📋 מצב שטח' }),
       U.el('button', { class: 'btn secondary small', onclick: function () { fieldDate = U.addDays(fieldDate, -1); fieldCardId = null; App.render(); } }, '→ אתמול'),
@@ -84,6 +57,12 @@
       U.el('button', { class: 'btn', onclick: openAbsentField }, '🚫 נעדרים היום' + (absN ? ' (' + absN + ')' : '')),
       identityChip
     ]));
+
+    // ללא קישור לאיש צוות (ואינו מנהל) — אין זהות אוטומטית
+    if (!id && !isMgr) {
+      root.appendChild(U.el('div', { class: 'card empty' }, 'החשבון שלך אינו מקושר לאיש צוות. פנו לרכז כדי לקשר את האימייל שלכם תחת "אנשי צוות".'));
+      return;
+    }
 
     var card = fieldCardId ? day.cards.filter(function (c) { return c.id === fieldCardId; })[0] : null;
     if (card) renderSite(root, card);
