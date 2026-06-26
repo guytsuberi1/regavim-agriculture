@@ -33,17 +33,19 @@
       var accounts = {};
       (res.users || []).forEach(function (u) { if (u.email) accounts[u.email.toLowerCase()] = true; });
       U.clear(tableWrap);
-      tableWrap.appendChild(buildTable(staff, accounts));
+      tableWrap.appendChild(buildTable(staff, accounts, false));
     }).catch(function (e) {
+      // הפונקציה אינה פרוסה — עדיין מציגים את הטבלה כדי שקביעת ההרשאות (שאינה תלויה בשרת) תעבוד
       U.clear(tableWrap);
-      tableWrap.appendChild(U.el('div', { class: 'card' }, [
-        U.el('div', { class: 'muted', text: 'לא ניתן לטעון את רשימת החשבונות: ' + (e.message || e) }),
-        U.el('div', { class: 'muted', style: 'margin-top:6px;font-size:12px;', text: 'ודאו שפונקציית השרת manage-users פרוסה ושאתם מחוברים כאדמין.' })
+      tableWrap.appendChild(U.el('div', { class: 'card', style: 'border:1px solid #f0c000;background:#fffbe6;margin-bottom:10px;' }, [
+        U.el('div', { style: 'font-weight:600;', text: '⚠️ יצירת/איפוס חשבונות אינה זמינה — פונקציית השרת manage-users אינה פרוסה.' }),
+        U.el('div', { class: 'muted', style: 'margin-top:4px;font-size:12px;', text: 'קביעת ההרשאות למטה עובדת כרגיל. לפריסה: Supabase → Edge Functions → Deploy a new function בשם manage-users.' })
       ]));
+      tableWrap.appendChild(buildTable(staff, {}, true));
     });
   }
 
-  function buildTable(staff, accounts) {
+  function buildTable(staff, accounts, accountsUnknown) {
     var rows = staff.map(function (s) {
       var email = (s.email || '').trim();
       var hasEmail = !!email;
@@ -51,6 +53,7 @@
 
       var status;
       if (!hasEmail) status = U.el('span', { class: 'muted', text: '— ללא אימייל' });
+      else if (accountsUnknown) status = U.el('span', { class: 'muted', text: '—' });
       else if (hasAccount) status = U.el('span', { class: 'tag', style: 'background:#e8f5e9;color:#1b5e20;', text: '✓ יש חשבון' });
       else status = U.el('span', { class: 'tag', style: 'background:#fff3e0;color:#b07a3f;', text: 'אין חשבון' });
 
@@ -77,6 +80,8 @@
       var actions = U.el('td', { class: 'actions' });
       if (!hasEmail) {
         actions.appendChild(U.el('span', { class: 'muted', style: 'font-size:12px;', text: 'הוסיפו אימייל בנתוני בסיס' }));
+      } else if (accountsUnknown) {
+        actions.appendChild(U.el('span', { class: 'muted', style: 'font-size:12px;', text: 'דרושה פריסת manage-users' }));
       } else if (hasAccount) {
         actions.appendChild(U.el('button', { class: 'btn small secondary', onclick: function () { openPwdDialog('resetPassword', s, email); } }, '🔑 אפס סיסמה'));
         actions.appendChild(U.el('button', { class: 'btn small danger', style: 'margin-inline-start:6px;', onclick: function () { delAccount(s, email); } }, '✕ מחק חשבון'));
