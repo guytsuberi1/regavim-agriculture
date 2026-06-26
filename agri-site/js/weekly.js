@@ -88,18 +88,25 @@
     if (!locs.length) locs = PRESETS.map(function (p) { return p.name; });
     var cur = getLoc().name;
     if (cur && locs.indexOf(cur) === -1) locs.unshift(cur);
-    var sel = U.el('select', { style: 'width:100%;' }, locs.map(function (n) { return U.el('option', { value: n }, n); }));
-    sel.value = cur;
-    Modal.open('מיקום לתחזית מזג האוויר', U.el('div', { class: 'field' }, [U.el('label', { text: 'בחרו מיקום (לפי האתרים):' }), sel]), [
-      { label: 'ביטול', class: 'secondary' },
-      { label: 'שמירה', onClick: function (close) {
-        var name = sel.value; close();
-        geocodeName(name).then(function (c) {
-          if (!c) { alert('לא נמצאו קואורדינטות עבור "' + name + '". המיקום לא שונה.'); return; }
-          setLoc({ name: name, lat: c.lat, lon: c.lon }); wxData = null; wxKey = null; App.render();
-        });
-      } }
-    ]);
+    // כוללים רק מיקומים שיש להם קואורדינטות (מיקום ללא קואורדינטות לא נוסף לרשימה)
+    Promise.all(locs.map(function (n) {
+      return geocodeName(n).then(function (c) { return c ? n : null; });
+    })).then(function (resolved) {
+      var withCoords = resolved.filter(Boolean);
+      if (!withCoords.length) { alert('אין מיקומים עם קואורדינטות זמינות לתחזית.'); return; }
+      var sel = U.el('select', { style: 'width:100%;' }, withCoords.map(function (n) { return U.el('option', { value: n }, n); }));
+      if (withCoords.indexOf(cur) !== -1) sel.value = cur;
+      Modal.open('מיקום לתחזית מזג האוויר', U.el('div', { class: 'field' }, [U.el('label', { text: 'בחרו מיקום (לפי האתרים):' }), sel]), [
+        { label: 'ביטול', class: 'secondary' },
+        { label: 'שמירה', onClick: function (close) {
+          var name = sel.value; close();
+          geocodeName(name).then(function (c) {
+            if (!c) { alert('לא נמצאו קואורדינטות עבור "' + name + '". המיקום לא שונה.'); return; }
+            setLoc({ name: name, lat: c.lat, lon: c.lon }); wxData = null; wxKey = null; App.render();
+          });
+        } }
+      ]);
+    });
   }
 
   // ---------- אירועי בית הספר (Google Calendar API · מפתח מוגבל לדומיין, קריאה בלבד) ----------
