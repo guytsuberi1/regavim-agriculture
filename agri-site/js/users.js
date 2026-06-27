@@ -21,6 +21,15 @@
     return d.length >= 9 ? d : null;
   }
 
+  function waNumber(phone) {
+    var d = String(phone || '').replace(/\D/g, '');
+    if (!d) return null;
+    if (d.indexOf('972') === 0) return d;
+    if (d.charAt(0) === '0') return '972' + d.slice(1);
+    if (d.length === 9) return '972' + d;
+    return d;
+  }
+
   function credsMessage(name, email, password) {
     return 'שלום ' + name + ',\n' +
       'פרטי הכניסה למערכת רגבים בנימין:\n' +
@@ -42,6 +51,19 @@
       else alert('הסיסמה עודכנה אך שליחת ה-SMS נכשלה' + ((res.errors && res.errors[0]) ? ':\n' + res.errors[0] : '.'));
       App.render();
     }).catch(function (e) { alert('שגיאה: ' + (e.message || e)); });
+  }
+
+  // יוצר/מאפס סיסמה ופותח וואטסאפ עם פרטי ההתחברות מוכנים לשליחה (חינם)
+  function sendCredentialsWhatsApp(staff, email, hasAccount) {
+    if (!confirm('פעולה זו תייצר סיסמה חדשה ל"' + staff.name + '" ותפתח וואטסאפ עם האימייל, הסיסמה והקישור מוכנים לשליחה. להמשיך?')) return;
+    var win = window.open('', '_blank'); // נפתח מיד (מחווה של המשתמש) כדי לעקוף חוסם חלונות קופצים
+    var wn = waNumber(staff.phone);
+    var password = genPassword();
+    Store.manageUsers({ action: hasAccount ? 'resetPassword' : 'create', email: email, password: password }).then(function () {
+      var url = (wn ? 'https://wa.me/' + wn : 'https://wa.me/') + '?text=' + encodeURIComponent(credsMessage(staff.name, email, password));
+      if (win) win.location = url; else window.open(url, '_blank');
+      App.render();
+    }).catch(function (e) { if (win) win.close(); alert('שגיאה: ' + (e.message || e)); });
   }
 
   function render(root) {
@@ -117,10 +139,12 @@
       } else if (hasAccount) {
         actions.appendChild(U.el('button', { class: 'btn small secondary', onclick: function () { openPwdDialog('resetPassword', s, email); } }, '🔑 אפס סיסמה'));
         if (smsPhone(s.phone)) actions.appendChild(U.el('button', { class: 'btn small', style: 'margin-inline-start:6px;background:#0a7d2c;', title: 'יצירת סיסמה חדשה ושליחת פרטי התחברות ב-SMS', onclick: function () { sendCredentialsSms(s, email, true); } }, '📩 שלח SMS'));
+        if (waNumber(s.phone)) actions.appendChild(U.el('button', { class: 'btn small', style: 'margin-inline-start:6px;background:#25D366;', title: 'יצירת סיסמה חדשה ופתיחת וואטסאפ עם פרטי ההתחברות', onclick: function () { sendCredentialsWhatsApp(s, email, true); } }, '📲 וואטסאפ'));
         actions.appendChild(U.el('button', { class: 'btn small danger', style: 'margin-inline-start:6px;', onclick: function () { delAccount(s, email); } }, '✕ מחק חשבון'));
       } else {
         actions.appendChild(U.el('button', { class: 'btn small', onclick: function () { openPwdDialog('create', s, email); } }, '➕ צור חשבון'));
         if (smsPhone(s.phone)) actions.appendChild(U.el('button', { class: 'btn small', style: 'margin-inline-start:6px;background:#0a7d2c;', title: 'יצירת חשבון ושליחת פרטי התחברות ב-SMS', onclick: function () { sendCredentialsSms(s, email, false); } }, '📩 שלח SMS'));
+        if (waNumber(s.phone)) actions.appendChild(U.el('button', { class: 'btn small', style: 'margin-inline-start:6px;background:#25D366;', title: 'יצירת חשבון ופתיחת וואטסאפ עם פרטי ההתחברות', onclick: function () { sendCredentialsWhatsApp(s, email, false); } }, '📲 וואטסאפ'));
       }
 
       return U.el('tr', null, [
