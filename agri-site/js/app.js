@@ -13,7 +13,6 @@
     reports: global.ReportsView,
     teams: global.TeamsView,
     base: global.BaseView,
-    users: global.UsersView,
     kitchen: global.KitchenView,
     settings: global.SettingsView
   };

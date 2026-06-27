@@ -7,6 +7,13 @@
     var data = Store.get();
     root.appendChild(U.el('div', { class: 'page-head' }, [U.el('h2', { text: 'הגדרות וגיבוי' })]));
 
+    // ---- ניהול משתמשים (אדמין) ----
+    if (global.UsersView && Store.isAdmin()) {
+      var umBox = U.el('div', { class: 'card', style: 'margin-bottom:16px;' });
+      global.UsersView.render(umBox);
+      root.appendChild(umBox);
+    }
+
     // ---- הגדרות כלליות ----
     var nameInp = U.el('input', { type: 'text', value: data.settings.schoolName || '', style: 'width:100%;' });
     nameInp.addEventListener('change', function () { data.settings.schoolName = nameInp.value; Store.save(); });
