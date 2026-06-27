@@ -3,6 +3,8 @@
   'use strict';
   var U = global.U;
 
+  var SITE_URL = 'https://chaklaut.rgvb.org.il';
+
   function genPassword() {
     var a = 'abcdefghjkmnpqrstuvwxyz';
     var n = '23456789';
@@ -10,6 +12,36 @@
     for (var i = 0; i < 4; i++) s += a[Math.floor(Math.random() * a.length)];
     for (var j = 0; j < 4; j++) s += n[Math.floor(Math.random() * n.length)];
     return s;
+  }
+
+  function smsPhone(phone) {
+    var d = String(phone || '').replace(/\D/g, '');
+    if (d.indexOf('972') === 0) d = '0' + d.slice(3);
+    if (d.length === 9 && d.charAt(0) !== '0') d = '0' + d;
+    return d.length >= 9 ? d : null;
+  }
+
+  function credsMessage(name, email, password) {
+    return 'שלום ' + name + ',\n' +
+      'פרטי הכניסה למערכת רגבים בנימין:\n' +
+      'קישור: ' + SITE_URL + '\n' +
+      'אימייל: ' + email + '\n' +
+      'סיסמה: ' + password;
+  }
+
+  // יוצר/מאפס סיסמה ושולח את פרטי ההתחברות ב-SMS
+  function sendCredentialsSms(staff, email, hasAccount) {
+    var phone = smsPhone(staff.phone);
+    if (!phone) { alert('לאיש צוות זה אין מספר טלפון תקין בנתוני בסיס.'); return; }
+    if (!confirm('פעולה זו תייצר סיסמה חדשה ל"' + staff.name + '" ותשלח לו ב-SMS את האימייל, הסיסמה והקישור לאתר.\n\n⚠️ שליחת SMS עולה כסף בחשבון 019. להמשיך?')) return;
+    var password = genPassword();
+    Store.manageUsers({ action: hasAccount ? 'resetPassword' : 'create', email: email, password: password }).then(function () {
+      return Store.sendSms([{ phone: phone, text: credsMessage(staff.name, email, password) }]);
+    }).then(function (res) {
+      if ((res.sent || 0) > 0) alert('✓ נשלח SMS עם פרטי ההתחברות ל' + staff.name + '.');
+      else alert('הסיסמה עודכנה אך שליחת ה-SMS נכשלה' + ((res.errors && res.errors[0]) ? ':\n' + res.errors[0] : '.'));
+      App.render();
+    }).catch(function (e) { alert('שגיאה: ' + (e.message || e)); });
   }
 
   function render(root) {
@@ -84,9 +116,11 @@
         actions.appendChild(U.el('span', { class: 'muted', style: 'font-size:12px;', text: 'דרושה פריסת manage-users' }));
       } else if (hasAccount) {
         actions.appendChild(U.el('button', { class: 'btn small secondary', onclick: function () { openPwdDialog('resetPassword', s, email); } }, '🔑 אפס סיסמה'));
+        if (smsPhone(s.phone)) actions.appendChild(U.el('button', { class: 'btn small', style: 'margin-inline-start:6px;background:#0a7d2c;', title: 'יצירת סיסמה חדשה ושליחת פרטי התחברות ב-SMS', onclick: function () { sendCredentialsSms(s, email, true); } }, '📩 שלח SMS'));
         actions.appendChild(U.el('button', { class: 'btn small danger', style: 'margin-inline-start:6px;', onclick: function () { delAccount(s, email); } }, '✕ מחק חשבון'));
       } else {
         actions.appendChild(U.el('button', { class: 'btn small', onclick: function () { openPwdDialog('create', s, email); } }, '➕ צור חשבון'));
+        if (smsPhone(s.phone)) actions.appendChild(U.el('button', { class: 'btn small', style: 'margin-inline-start:6px;background:#0a7d2c;', title: 'יצירת חשבון ושליחת פרטי התחברות ב-SMS', onclick: function () { sendCredentialsSms(s, email, false); } }, '📩 שלח SMS'));
       }
 
       return U.el('tr', null, [
