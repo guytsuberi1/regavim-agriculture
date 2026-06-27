@@ -1,9 +1,42 @@
-/* settings.js — הגדרות וגיבוי */
+/* settings.js — הגדרות וגיבוי (מוגן בסיסמה אופציונלית) */
 (function (global) {
   'use strict';
   var U = global.U;
+  var unlocked = false; // נפתח פעם אחת לכל טעינת דף
+
+  function settingsPassword() {
+    var d = Store.get();
+    return (d.settings && d.settings.settingsPassword) ? String(d.settings.settingsPassword) : '';
+  }
 
   function render(root) {
+    var pwd = settingsPassword();
+    if (pwd && !unlocked) { renderLock(root); return; }
+    renderSettings(root);
+  }
+
+  // ---------- מסך נעילה ----------
+  function renderLock(root) {
+    root.appendChild(U.el('div', { class: 'page-head' }, [U.el('h2', { text: 'הגדרות וגיבוי' })]));
+    var inp = U.el('input', { type: 'password', placeholder: 'סיסמה', autocomplete: 'off', style: 'width:100%;' });
+    var err = U.el('div', { class: 'login-err', style: 'min-height:18px;' });
+    function tryUnlock() {
+      if (inp.value === settingsPassword()) { unlocked = true; App.render(); }
+      else { err.textContent = 'סיסמה שגויה'; inp.value = ''; inp.focus(); }
+    }
+    inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') tryUnlock(); });
+    root.appendChild(U.el('div', { class: 'card', style: 'max-width:360px;margin-top:10px;' }, [
+      U.el('h3', { style: 'margin-top:0;', text: '🔒 הגדרות מוגנות בסיסמה' }),
+      U.el('p', { class: 'muted', text: 'הזינו את סיסמת ההגדרות כדי להמשיך.' }),
+      U.el('div', { class: 'field' }, [inp]),
+      err,
+      U.el('button', { class: 'btn', style: 'width:100%;justify-content:center;', onclick: tryUnlock }, 'כניסה')
+    ]));
+    setTimeout(function () { inp.focus(); }, 50);
+  }
+
+  // ---------- תוכן ההגדרות ----------
+  function renderSettings(root) {
     var data = Store.get();
     root.appendChild(U.el('div', { class: 'page-head' }, [U.el('h2', { text: 'הגדרות וגיבוי' })]));
 
@@ -25,6 +58,9 @@
       U.el('div', { class: 'field' }, [U.el('label', { text: 'שם המוסד' }), nameInp]),
       U.el('div', { class: 'field' }, [U.el('label', { text: 'שעות ברירת מחדל ליום עבודה' }), hoursInp])
     ]));
+
+    // ---- סיסמת כניסה להגדרות ----
+    root.appendChild(buildPasswordCard(data));
 
     // ---- גיבוי ל-OneDrive ----
     var fsBox = U.el('div', { class: 'card', style: 'margin-bottom:16px;max-width:520px;' });
@@ -76,6 +112,23 @@
       Store.save(); App.render();
     } }, 'מחק את כל הנתונים'));
     root.appendChild(danger);
+  }
+
+  function buildPasswordCard(data) {
+    var cur = (data.settings.settingsPassword || '');
+    var box = U.el('div', { class: 'card', style: 'margin-bottom:16px;max-width:520px;' });
+    box.appendChild(U.el('h3', { style: 'margin-top:0;', text: '🔒 סיסמת כניסה להגדרות' }));
+    box.appendChild(U.el('p', { class: 'muted', text: cur
+      ? 'מוגדרת סיסמה — כל כניסה למסך ההגדרות תדרוש אותה. השאירו ריק ושמרו כדי לבטל.'
+      : 'לא מוגדרת סיסמה. הגדירו סיסמה כדי לחסום כניסה למסך ההגדרות (וניהול המשתמשים).' }));
+    var inp = U.el('input', { type: 'text', value: cur, placeholder: 'סיסמה (ריק = ללא סיסמה)', style: 'width:100%;' });
+    box.appendChild(U.el('div', { class: 'field' }, [U.el('label', { text: 'סיסמה' }), inp]));
+    box.appendChild(U.el('button', { class: 'btn', onclick: function () {
+      data.settings.settingsPassword = (inp.value || '').trim();
+      Store.save();
+      alert(data.settings.settingsPassword ? 'הסיסמה נשמרה.' : 'הסיסמה הוסרה.');
+    } }, 'שמור סיסמה'));
+    return box;
   }
 
   global.SettingsView = { render: render };
