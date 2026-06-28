@@ -185,6 +185,16 @@
     var total = work + absU;
     var pct = total ? Math.round(work / total * 100) : null;
     var pctCol = pct == null ? ['#475569', '#f1f5f9'] : (pct >= 75 ? ['#15803d', '#dcfce7'] : (pct >= 50 ? ['#b45309', '#fef3c7'] : ['#b91c1c', '#fee2e2']));
+    // הדגשות למחנך
+    var worst = null, bestRow = null, bestPct = -1;
+    rows.forEach(function (r) {
+      if (r.absUnapproved > 0 && (!worst || r.absUnapproved > worst.absUnapproved)) worst = r;
+      var t = r.work + r.absUnapproved; if (t) { var p = r.work / t; if (p > bestPct) { bestPct = p; bestRow = r; } }
+    });
+    var hi = U.el('div', { style: 'margin-bottom:14px;font-size:13.5px;line-height:1.9;' });
+    if (bestRow) hi.appendChild(U.el('div', { text: '✓ אחוז היציאה הגבוה ביותר: ' + bestRow.name + ' (' + Math.round(bestPct * 100) + '%)' }));
+    if (worst) hi.appendChild(U.el('div', { style: 'color:#b91c1c;', text: '⚠ הכי הרבה היעדרויות בלי אישור: ' + worst.name + ' (' + worst.absUnapproved + ')' }));
+
     return U.el('div', null, [
       U.el('h3', { style: 'color:var(--green-dark);margin:0 0 8px;', text: 'סיכום כיתה ' + grade }),
       U.el('div', { style: 'display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;' }, [
@@ -193,7 +203,8 @@
         statCardR(rows.length, 'תלמידים פעילים'),
         statCardR(work, 'סה"כ ימי עבודה'),
         statCardR(absU, 'היעדרויות בלי אישור')
-      ])
+      ]),
+      hi
     ]);
   }
   function renderStudents() {
