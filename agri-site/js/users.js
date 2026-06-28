@@ -131,20 +131,18 @@
         roleCell.appendChild(U.el('span', { class: 'muted', text: '—' }));
       }
 
-      var actions = U.el('td', { class: 'actions' });
+      var actions = U.el('td', { class: 'actions', style: 'display:flex;flex-wrap:wrap;gap:6px;' });
       if (!hasEmail) {
         actions.appendChild(U.el('span', { class: 'muted', style: 'font-size:12px;', text: 'הוסיפו אימייל בנתוני בסיס' }));
       } else if (accountsUnknown) {
         actions.appendChild(U.el('span', { class: 'muted', style: 'font-size:12px;', text: 'דרושה פריסת manage-users' }));
-      } else if (hasAccount) {
-        actions.appendChild(U.el('button', { class: 'btn small secondary', onclick: function () { openPwdDialog('resetPassword', s, email); } }, '🔑 אפס סיסמה'));
-        if (smsPhone(s.phone)) actions.appendChild(U.el('button', { class: 'btn small', style: 'margin-inline-start:6px;background:#0a7d2c;', title: 'יצירת סיסמה חדשה ושליחת פרטי התחברות ב-SMS', onclick: function () { sendCredentialsSms(s, email, true); } }, '📩 שלח SMS'));
-        if (waNumber(s.phone)) actions.appendChild(U.el('button', { class: 'btn small', style: 'margin-inline-start:6px;background:#25D366;', title: 'יצירת סיסמה חדשה ופתיחת וואטסאפ עם פרטי ההתחברות', onclick: function () { sendCredentialsWhatsApp(s, email, true); } }, '📲 וואטסאפ'));
-        actions.appendChild(U.el('button', { class: 'btn small danger', style: 'margin-inline-start:6px;', onclick: function () { delAccount(s, email); } }, '✕ מחק חשבון'));
       } else {
-        actions.appendChild(U.el('button', { class: 'btn small', onclick: function () { openPwdDialog('create', s, email); } }, '➕ צור חשבון'));
-        if (smsPhone(s.phone)) actions.appendChild(U.el('button', { class: 'btn small', style: 'margin-inline-start:6px;background:#0a7d2c;', title: 'יצירת חשבון ושליחת פרטי התחברות ב-SMS', onclick: function () { sendCredentialsSms(s, email, false); } }, '📩 שלח SMS'));
-        if (waNumber(s.phone)) actions.appendChild(U.el('button', { class: 'btn small', style: 'margin-inline-start:6px;background:#25D366;', title: 'יצירת חשבון ופתיחת וואטסאפ עם פרטי ההתחברות', onclick: function () { sendCredentialsWhatsApp(s, email, false); } }, '📲 וואטסאפ'));
+        if (hasAccount) actions.appendChild(U.el('button', { class: 'btn small secondary', onclick: function () { openPwdDialog('resetPassword', s, email); } }, '🔑 אפס סיסמה'));
+        else actions.appendChild(U.el('button', { class: 'btn small', onclick: function () { openPwdDialog('create', s, email); } }, '➕ צור חשבון'));
+        // שליחת פרטי התחברות — מוצגים תמיד (אם אין טלפון, תוצג הודעה בלחיצה)
+        actions.appendChild(U.el('button', { class: 'btn small', style: 'background:#0a7d2c;', title: 'יצירת סיסמה ושליחת פרטי התחברות ב-SMS', onclick: function () { sendCredentialsSms(s, email, hasAccount); } }, '📩 שלח SMS'));
+        actions.appendChild(U.el('button', { class: 'btn small', style: 'background:#25D366;', title: 'יצירת סיסמה ופתיחת וואטסאפ עם פרטי ההתחברות', onclick: function () { sendCredentialsWhatsApp(s, email, hasAccount); } }, '📲 וואטסאפ'));
+        if (hasAccount) actions.appendChild(U.el('button', { class: 'btn small danger', onclick: function () { delAccount(s, email); } }, '✕ מחק חשבון'));
       }
 
       return U.el('tr', null, [
@@ -166,7 +164,7 @@
       ])]),
       U.el('tbody', null, rows.length ? rows : [U.el('tr', null, [U.el('td', { colspan: '5', class: 'center muted', text: 'אין אנשי צוות פעילים.' })])])
     ]);
-    return table;
+    return U.el('div', { style: 'overflow-x:auto;' }, [table]);
   }
 
   function openPwdDialog(action, staff, email) {
