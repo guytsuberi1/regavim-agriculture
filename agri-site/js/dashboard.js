@@ -60,7 +60,7 @@
       (days[iso].cards || []).forEach(function (c) {
         if (c.fieldNote && String(c.fieldNote).trim()) {
           var site = c.siteId ? ((Store.getById('sites', c.siteId) || {}).name || '(אתר)') : '(אתר)';
-          out.push({ date: iso, site: site, note: c.fieldNote });
+          out.push({ date: iso, site: site, note: c.fieldNote, by: c.fieldNoteBy || '' });
         }
       });
     });
@@ -134,7 +134,7 @@
       notes.slice(0, 30).forEach(function (n) {
         notesBox.appendChild(U.el('div', { class: 'fieldnote' }, [
           U.el('div', { class: 'fn-top' }, [
-            U.el('span', { class: 'fn-site', text: n.site }),
+            U.el('span', { class: 'fn-site', text: n.site + (n.by ? ' · ' + n.by : '') }),
             U.el('span', { class: 'fn-date', text: U.gregLabel(n.date) })
           ]),
           U.el('div', { class: 'fn-text', text: n.note })

@@ -132,7 +132,13 @@
     // הערה כללית לרכז החקלאות (לכל האתר/היום)
     var noteBox = U.el('textarea', { class: 'ffield-note', rows: '2', placeholder: '📝 הערה כללית לרכז החקלאות (לא חובה)…' });
     noteBox.value = card.fieldNote || '';
-    noteBox.addEventListener('change', function () { card.fieldNote = noteBox.value; Store.save(); });
+    noteBox.addEventListener('change', function () {
+      card.fieldNote = noteBox.value;
+      var meId = myStaffId();
+      var meName = meId ? ((Store.getById('staff', meId) || {}).name || '') : (Store.isAdmin && Store.isAdmin() ? 'רכז' : (Store.currentEmail ? (Store.currentEmail() || '') : ''));
+      card.fieldNoteBy = noteBox.value.trim() ? meName : '';
+      Store.save();
+    });
     root.appendChild(U.el('div', { class: 'ffield-note-wrap' }, [
       U.el('label', { class: 'muted', text: 'הערה לרכז החקלאות' }),
       noteBox
