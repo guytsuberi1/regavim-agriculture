@@ -192,7 +192,7 @@
     function targetFields() {
       if (coll === 'students') return [['name', 'שם *'], ['grade', 'כיתה'], ['phone', 'טלפון'], ['notes', 'הערות']];
       if (coll === 'sites') return [['name', 'שם העסק *'], ['location', 'מיקום'], ['contactName', 'איש קשר'], ['phone', 'טלפון'], ['email', 'אימייל'], ['hourlyRate', 'תשלום שעתי'], ['travelPay', 'תשלום נסיעות']];
-      if (coll === 'staff') return [['name', 'שם *'], ['phone', 'טלפון']];
+      if (coll === 'staff') return [['name', 'שם *'], ['role', 'תפקיד'], ['phone', 'טלפון'], ['email', 'אימייל להתחברות'], ['homeroom', 'מחנך']];
       return [['name', 'שם *'], ['capacity', 'קיבולת']];
     }
 
@@ -259,6 +259,9 @@
         if (key === 'hourlyRate' || key === 'travelPay' || key === 'capacity') val = U.num(val);
         else if (key === 'grade' && coll === 'students') val = baseGrade(val);
         else if (key === 'phone') val = String(val).trim();
+        else if (key === 'role') val = (String(val).indexOf('ראש') !== -1 ? 'leader' : 'staff');
+        else if (key === 'homeroom') val = /^(כן|yes|true|1|✓|v)$/i.test(String(val).trim());
+        else if (key === 'email') val = String(val).trim().toLowerCase();
         rec[key] = val;
       }
       if (coll === 'staff' && !rec.role) rec.role = 'staff';
@@ -286,6 +289,8 @@
     header = header.toLowerCase();
     var map = {
       name: ['שם', 'תלמיד', 'עסק'],
+      role: ['תפקיד'],
+      homeroom: ['מחנך'],
       grade: ['כיתה'],
       location: ['מיקום'],
       contactName: ['איש קשר', 'קשר'],
@@ -305,7 +310,7 @@
     var spec = {
       students: { headers: ['שם', 'כיתה', 'טלפון', 'הערות'], example: ['ישראל ישראלי', 'יב', '0501234567', ''] },
       sites: { headers: ['שם העסק', 'מיקום', 'איש קשר', 'טלפון', 'אימייל', 'תשלום שעתי', 'תשלום נסיעות'], example: ['משק לדוגמה', 'גיתית', 'יוסי כהן', '0521234567', 'demo@example.com', 35, 50] },
-      staff: { headers: ['שם', 'טלפון'], example: ['דוד לוי', '0531234567'] },
+      staff: { headers: ['שם', 'תפקיד', 'טלפון', 'אימייל להתחברות', 'מחנך'], example: ['דוד לוי', 'איש צוות', '0531234567', 'david@example.com', 'לא'] },
       transports: { headers: ['שם הסעה', 'קיבולת'], example: ['הסעה 1', 50] }
     }[coll] || { headers: ['שם'], example: ['דוגמה'] };
     var ws = XLSX.utils.aoa_to_sheet([spec.headers, spec.example]);
