@@ -68,6 +68,43 @@
   .scroll{overflow-x:auto}
   .right{text-align:left}
   @media print{nav,header .sub,.noprint{display:none}.card{box-shadow:none}}
+  /* ===== תקציב מול ביצוע — העמקה ===== */
+  .alert{border-radius:8px;padding:10px 12px;font-size:13px;font-weight:600;margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .alert.red{background:var(--red-bg);color:var(--red)}
+  .alert.orange{background:var(--orange-bg);color:var(--orange)}
+  .alert.okk{background:var(--green-bg);color:var(--green)}
+  .pb{position:relative;height:22px;background:#eef2f6;border-radius:6px;min-width:110px;overflow:hidden}
+  .pb-fill{position:absolute;inset-block:0;inset-inline-start:0;border-radius:6px;transition:width .3s}
+  .pb-green .pb-fill{background:#22c55e}
+  .pb-orange .pb-fill{background:#f59e0b}
+  .pb-red .pb-fill{background:#ef4444}
+  .pb-marker{position:absolute;inset-block:0;width:2px;background:#1f2933;opacity:.55}
+  .pb-label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#1f2933}
+  tr.row-exc td{background:#fff6f6}
+  td.neg,.val.neg,.neg{color:var(--red)}
+  .dash-controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .dash-controls select{width:auto}
+  .dash-chart{display:flex;flex-direction:column;gap:9px}
+  .chart-row{display:grid;grid-template-columns:140px 1fr 165px;align-items:center;gap:10px;font-size:13px}
+  .chart-lbl{font-weight:600;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .chart-track{position:relative;height:20px;background:#f1f5f9;border-radius:6px;overflow:hidden}
+  .chart-annual{position:absolute;inset-block:0;inset-inline-start:0;background:#dbe3ee}
+  .chart-actual{position:absolute;inset-block:0;inset-inline-start:0;border-radius:6px}
+  .chart-actual.pb-green{background:#22c55e}.chart-actual.pb-orange{background:#f59e0b}.chart-actual.pb-red{background:#ef4444}
+  .chart-marker{position:absolute;inset-block:-1px;width:2px;background:#1f2933;opacity:.6}
+  .chart-val{font-size:12px;color:#475569;text-align:left;direction:ltr;font-variant-numeric:tabular-nums}
+  .mbar-row{display:grid;grid-template-columns:92px 1fr 120px;align-items:center;gap:10px;font-size:13px;margin-bottom:6px}
+  .mbar-lbl{color:#334155;font-weight:600}
+  .mbar-track{position:relative;height:18px;background:#f1f5f9;border-radius:6px;overflow:hidden}
+  .mbar-fill{position:absolute;inset-block:0;inset-inline-start:0;background:#1d4e89;border-radius:6px}
+  .mbar-fill.over{background:#ef4444}
+  .mbar-marker{position:absolute;inset-block:0;width:2px;background:#1f2933;opacity:.5}
+  .mbar-val{font-size:12px;color:#475569;text-align:left;direction:ltr;font-variant-numeric:tabular-nums}
+  @media (max-width:640px){
+    .chart-row{grid-template-columns:96px 1fr 96px}
+    .chart-val,.mbar-val{font-size:11px}
+    .mbar-row{grid-template-columns:64px 1fr 86px}
+  }
 </style>
 </head>
 <body>
@@ -163,16 +200,47 @@
     <div class="card">
       <div class="stat" id="dashStats"></div>
       <p class="hint" id="paceHint"></p>
+      <div id="dashAlerts"></div>
     </div>
+
     <div class="card">
-      <h2>תקציב מול ביצוע</h2>
-      <p class="hint">"תקציב יחסי" = כמה היית אמור להוציא עד היום לפי קצב השנה. הצבע מציין חריגה מהקצב: 🟢 בקצב · 🟠 קרוב · 🔴 חורג.</p>
+      <h2>ניצול לפי קטגוריה ראשית</h2>
+      <p class="hint">הפס הצבעוני = ביצוע · הרקע הבהיר = התקציב השנתי · הקו האנכי = הקצב הראוי עד היום.</p>
+      <div id="dashChart" class="dash-chart"></div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:6px">
+        <h2 style="margin:0">תקציב מול ביצוע</h2>
+        <div class="dash-controls">
+          <label style="margin:0;display:flex;gap:6px;align-items:center">מיון:
+            <select id="dashSort" onchange="renderDashboard()">
+              <option value="default">לפי קטגוריה</option>
+              <option value="pace">חריגה מהקצב</option>
+              <option value="remaining">יתרה נמוכה</option>
+              <option value="actual">ביצוע גבוה</option>
+            </select>
+          </label>
+          <label class="seg" style="padding:8px 14px"><input type="checkbox" id="dashOnlyExc" onchange="renderDashboard()"> רק חריגות</label>
+        </div>
+      </div>
+      <p class="hint">"תחזית סוף שנה" = הערכה לפי קצב ההוצאה עד כה · "קצב" = ביצוע מול התקציב היחסי (🟢 בקצב · 🟠 קרוב · 🔴 חורג).</p>
       <div class="scroll">
         <table id="dashTable">
-          <thead><tr><th>קטגוריה</th><th>תקציב שנתי</th><th>ביצוע בפועל</th><th>% ביצוע</th><th>תקציב יחסי</th><th>% מול יחסי</th></tr></thead>
+          <thead><tr><th>קטגוריה</th><th>תקציב שנתי</th><th>ביצוע</th><th>יתרה</th><th>התקדמות</th><th>תחזית סוף שנה</th><th>קצב</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <h2 style="margin:0">חתך חודשי</h2>
+        <div style="min-width:220px"><label>קטגוריה</label><select id="m_scope" onchange="renderMonthly()"></select></div>
+      </div>
+      <p class="hint">הוצאה בפועל בכל חודש בשנת התקציב. הקו האנכי = תקציב חודשי ממוצע (תקציב שנתי ÷ 12).</p>
+      <div class="stat" id="monthStats" style="margin-bottom:12px"></div>
+      <div id="monthlyBars"></div>
     </div>
   </section>
 
@@ -803,44 +871,180 @@ function renderTxTable(){
 }
 
 /* ====== לוח מחוונים: תקציב מול ביצוע ====== */
+function relPctOf(annual, actual, frac){ const rel=annual*frac; return rel>0?actual/rel:(actual>0?2:0); }
+function isExc(annual, actual, frac){ return (annual>0 && actual>annual) || relPctOf(annual,actual,frac) > 1.0; }
+function projForecast(actual, frac){ return frac>0 ? actual/frac : null; }
+function paceCls(annual, actual, frac){
+  if(annual>0 && actual>annual) return "pb-red";
+  return {"p-red":"pb-red","p-orange":"pb-orange","p-green":"pb-green"}[paceClass(relPctOf(annual,actual,frac))];
+}
+function progressBar(actual, annual, frac){
+  const ratio = annual>0 ? actual/annual : (actual>0?1:0);
+  const fill = Math.min(100, ratio*100);
+  const marker = Math.min(100, frac*100);
+  const label = annual>0 ? pct(actual/annual) : (actual>0?"∞":"—");
+  return `<div class="pb ${paceCls(annual,actual,frac)}"><div class="pb-fill" style="width:${fill.toFixed(1)}%"></div>`+
+    `<div class="pb-marker" style="inset-inline-start:${marker.toFixed(1)}%"></div><span class="pb-label">${label}</span></div>`;
+}
+function projCell(actual, annual, frac){
+  const proj = projForecast(actual, frac);
+  if(proj==null) return '<span class="muted">—</span>';
+  const diff = proj - annual;
+  if(annual>0 && diff > annual*0.005) return `<span style="color:var(--red);font-weight:700">${ils(proj)}</span><div style="font-size:11px;color:var(--red)">חריגה צפויה ${ils(diff)}</div>`;
+  if(annual===0 && proj>0) return `<span style="color:var(--red);font-weight:700">${ils(proj)}</span><div style="font-size:11px;color:var(--red)">ללא תקציב</div>`;
+  return `<span>${ils(proj)}</span>`;
+}
+function sortSubs(subs, mode, frac){
+  if(mode==="default") return subs;
+  const a=subs.slice();
+  if(mode==="remaining") a.sort((x,y)=>(x.annual-x.actual)-(y.annual-y.actual));
+  else if(mode==="actual") a.sort((x,y)=>y.actual-x.actual);
+  else a.sort((x,y)=>relPctOf(y.annual,y.actual,frac)-relPctOf(x.annual,x.actual,frac));
+  return a;
+}
+
 function renderDashboard(){
   const frac=fyFraction(), actual=actualBySub();
+  const sortMode=(document.getElementById("dashSort")||{}).value||"default";
+  const onlyExc=!!(document.getElementById("dashOnlyExc")||{}).checked;
   const tb=document.querySelector("#dashTable tbody"); tb.innerHTML="";
-  let gB=0,gA=0,gR=0;
-  for(const main of mainOrder()){
-    const cats=state.categories.filter(c=>c.main===main);
-    let mB=0,mA=0,mR=0;
-    const rows=cats.map(c=>{
-      const a=actual[c.main+"||"+c.sub]||0;
-      const rb=c.annualBudget*frac;
-      mB+=c.annualBudget; mA+=a; mR+=rb;
-      const relPct = rb>0 ? a/rb : (a>0?2:0);
-      return `<tr><td style="padding-right:24px">${esc(c.sub)}</td>
-        <td class="num">${ils(c.annualBudget)}</td>
-        <td class="num">${ils(a)}</td>
-        <td class="num">${c.annualBudget>0?pct(a/c.annualBudget):"—"}</td>
-        <td class="num">${ils(rb)}</td>
-        <td class="num"><span class="pill ${paceClass(relPct)}">${rb>0?pct(relPct):"—"}</span></td></tr>`;
-    }).join("");
-    gB+=mB; gA+=mA; gR+=mR;
-    const mRel=mR>0?mA/mR:(mA>0?2:0);
+
+  const mains = mainOrder().map(main=>({
+    main,
+    cats: state.categories.filter(c=>c.main===main).map(c=>({sub:c.sub, annual:c.annualBudget, actual:actual[c.main+"||"+c.sub]||0}))
+  }));
+
+  // סיכומים כלליים + ספירת חריגות (על כל הנתונים — ללא תלות בסינון)
+  let gB=0,gA=0, overCount=0, overSum=0, projOverCount=0;
+  for(const m of mains) for(const c of m.cats){
+    gB+=c.annual; gA+=c.actual;
+    if(c.annual>0 && c.actual>c.annual){ overCount++; overSum+=c.actual-c.annual; }
+    else { const p=projForecast(c.actual,frac); if(p!=null && c.annual>0 && p>c.annual) projOverCount++; }
+  }
+  const gR=gB*frac;
+
+  for(const {main,cats} of mains){
+    let mB=0,mA=0; cats.forEach(c=>{mB+=c.annual;mA+=c.actual;});
+    let subs = cats.map(c=>({...c, relPct:relPctOf(c.annual,c.actual,frac), exc:isExc(c.annual,c.actual,frac)}));
+    if(onlyExc) subs=subs.filter(s=>s.exc);
+    if(onlyExc && !subs.length) continue;
+    subs = sortSubs(subs, sortMode, frac);
+    const mRelPct = relPctOf(mB,mA,frac);
     tb.insertAdjacentHTML("beforeend",
-      `<tr class="main-row"><td>${esc(main)}</td><td class="num">${ils(mB)}</td><td class="num">${ils(mA)}</td>
-       <td class="num">${mB>0?pct(mA/mB):"—"}</td><td class="num">${ils(mR)}</td>
-       <td class="num"><span class="pill ${paceClass(mRel)}">${mR>0?pct(mRel):"—"}</span></td></tr>`+rows);
+      `<tr class="main-row"><td>${esc(main)}</td>
+        <td class="num">${ils(mB)}</td><td class="num">${ils(mA)}</td>
+        <td class="num ${mB-mA<0?"neg":""}">${ils(mB-mA)}</td>
+        <td>${progressBar(mA,mB,frac)}</td>
+        <td class="num">${projCell(mA,mB,frac)}</td>
+        <td class="num"><span class="pill ${paceClass(mRelPct)}">${mB*frac>0?pct(mRelPct):"—"}</span></td></tr>`);
+    for(const c of subs){
+      tb.insertAdjacentHTML("beforeend",
+        `<tr class="${c.exc?"row-exc":""}"><td style="padding-right:24px">${esc(c.sub)}</td>
+          <td class="num">${ils(c.annual)}</td><td class="num">${ils(c.actual)}</td>
+          <td class="num ${c.annual-c.actual<0?"neg":""}">${ils(c.annual-c.actual)}</td>
+          <td>${progressBar(c.actual,c.annual,frac)}</td>
+          <td class="num">${projCell(c.actual,c.annual,frac)}</td>
+          <td class="num"><span class="pill ${paceClass(c.relPct)}">${c.annual*frac>0?pct(c.relPct):"—"}</span></td></tr>`);
+    }
   }
   tb.insertAdjacentHTML("beforeend",
     `<tr class="grand"><td>סה"כ כללי</td><td class="num">${ils(gB)}</td><td class="num">${ils(gA)}</td>
-     <td class="num">${gB>0?pct(gA/gB):"—"}</td><td class="num">${ils(gR)}</td>
-     <td class="num">${gR>0?pct(gA/gR):"—"}</td></tr>`);
+      <td class="num">${ils(gB-gA)}</td><td>${progressBar(gA,gB,frac)}</td>
+      <td class="num">${projCell(gA,gB,frac)}</td>
+      <td class="num">${gR>0?pct(gA/gR):"—"}</td></tr>`);
 
+  // כרטיסי סיכום
+  const gProj=projForecast(gA,frac), projDelta=gProj==null?null:gProj-gB;
   document.getElementById("dashStats").innerHTML=`
     <div class="box"><div class="lbl">תקציב שנתי כולל</div><div class="val">${ils(gB)}</div></div>
     <div class="box"><div class="lbl">ביצוע בפועל (YTD)</div><div class="val">${ils(gA)}</div></div>
-    <div class="box"><div class="lbl">יתרה לניצול</div><div class="val">${ils(gB-gA)}</div></div>
+    <div class="box"><div class="lbl">יתרה לניצול</div><div class="val ${gB-gA<0?"neg":""}">${ils(gB-gA)}</div></div>
+    <div class="box"><div class="lbl">תחזית סוף שנה</div><div class="val">${gProj==null?"—":ils(gProj)}</div>${projDelta==null?"":`<div style="font-size:12px;font-weight:700;color:${projDelta>0?"var(--red)":"var(--green)"}">${projDelta>0?"חריגה צפויה ":"בתקציב · יתרה "}${ils(Math.abs(projDelta))}</div>`}</div>
     <div class="box"><div class="lbl">תקציב יחסי עד היום</div><div class="val">${ils(gR)}</div></div>`;
-  document.getElementById("paceHint").textContent=
-    "חלף "+pct(frac)+" משנת התקציב. צבע 🟢 = בקצב, 🟠 = מתקרב לתקרה היחסית, 🔴 = חורג מהקצב.";
+  document.getElementById("paceHint").textContent="חלף "+pct(frac)+" משנת התקציב. צבע 🟢 = בקצב, 🟠 = מתקרב לתקרה היחסית, 🔴 = חורג מהקצב.";
+
+  // התראות
+  const al=document.getElementById("dashAlerts");
+  if(!overCount && !projOverCount){ al.innerHTML='<div class="alert okk">✅ אין חריגות — כל הקטגוריות בקצב התקציב.</div>'; }
+  else {
+    let h="";
+    if(overCount) h+=`<div class="alert red">🔴 ${overCount} קטגוריות חרגו מהתקציב השנתי · סה"כ חריגה ${ils(overSum)} <button class="btn mini sec" onclick="document.getElementById('dashOnlyExc').checked=true;renderDashboard()">הצג רק חריגות</button></div>`;
+    if(projOverCount) h+=`<div class="alert orange">🟠 ${projOverCount} קטגוריות צפויות לחרוג עד סוף השנה לפי הקצב הנוכחי.</div>`;
+    al.innerHTML=h;
+  }
+
+  renderDashChart(mains, frac);
+  renderMonthly();
+}
+
+function renderDashChart(mains, frac){
+  const el=document.getElementById("dashChart"); if(!el) return;
+  const data=mains.map(m=>{let B=0,A=0;m.cats.forEach(c=>{B+=c.annual;A+=c.actual;});return {main:m.main,B,A};})
+    .filter(d=>d.B>0||d.A>0).sort((a,b)=>b.A-a.A);
+  const maxV=Math.max(1,...data.map(d=>Math.max(d.B,d.A)));
+  el.innerHTML = data.map(d=>`<div class="chart-row">
+      <div class="chart-lbl" title="${esc(d.main)}">${esc(d.main)}</div>
+      <div class="chart-track">
+        <div class="chart-annual" style="width:${(d.B/maxV*100).toFixed(1)}%"></div>
+        <div class="chart-actual ${paceCls(d.B,d.A,frac)}" style="width:${(d.A/maxV*100).toFixed(1)}%"></div>
+        <div class="chart-marker" style="inset-inline-start:${(d.B*frac/maxV*100).toFixed(1)}%"></div>
+      </div>
+      <div class="chart-val">${ils(d.A)} / ${ils(d.B)}</div>
+    </div>`).join("") || '<p class="hint">אין נתונים.</p>';
+}
+
+/* ====== חתך לפי חודשים ====== */
+const HE_MONTHS=["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
+function fyMonths(){
+  const s=new Date(state.fiscalYear.start), e=new Date(state.fiscalYear.end);
+  const out=[]; let d=new Date(s.getFullYear(), s.getMonth(), 1);
+  const end=new Date(e.getFullYear(), e.getMonth(), 1);
+  let guard=0;
+  while(d<end && guard<60){ out.push(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")); d.setMonth(d.getMonth()+1); guard++; }
+  return out;
+}
+function monthLabel(ym){ const p=ym.split("-"); return HE_MONTHS[Number(p[1])-1]+" "+p[0].slice(2); }
+function renderMonthly(){
+  const sel=document.getElementById("m_scope"); if(!sel) return;
+  const mains=mainOrder();
+  if(sel.options.length===0){
+    sel.innerHTML='<option value="">כל הקטגוריות</option>'+mains.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join("");
+  }
+  const scope=sel.value;
+  const months=fyMonths(), sums={}; months.forEach(m=>sums[m]=0);
+  for(const t of state.transactions){
+    if(scope && t.main!==scope) continue;
+    const ym=(t.date||"").slice(0,7);
+    if(ym in sums) sums[ym]+=Number(t.amount||0);
+  }
+  let scopeAnnual=0;
+  for(const c of state.categories){ if(!scope || c.main===scope) scopeAnnual+=c.annualBudget; }
+  const monthlyBudget=scopeAnnual/12;
+  const vals=months.map(m=>sums[m]);
+  const maxV=Math.max(1, monthlyBudget, ...vals);
+  const total=vals.reduce((a,b)=>a+b,0);
+  const activeN=vals.filter(v=>v>0).length;
+  const avg=activeN?total/activeN:0;
+  let peak=0, peakM=""; months.forEach(m=>{ if(sums[m]>peak){peak=sums[m];peakM=m;} });
+
+  document.getElementById("monthStats").innerHTML=`
+    <div class="box"><div class="lbl">סה"כ בתחום</div><div class="val">${ils(total)}</div></div>
+    <div class="box"><div class="lbl">ממוצע חודשי (פעיל)</div><div class="val">${ils(avg)}</div></div>
+    <div class="box"><div class="lbl">תקציב חודשי ממוצע</div><div class="val">${ils(monthlyBudget)}</div></div>
+    <div class="box"><div class="lbl">החודש הגבוה ביותר</div><div class="val" style="font-size:18px">${peakM?monthLabel(peakM)+" · "+ils(peak):"—"}</div></div>`;
+
+  const markerPos=Math.min(100, monthlyBudget/maxV*100);
+  document.getElementById("monthlyBars").innerHTML=months.map(m=>{
+    const v=sums[m], over=monthlyBudget>0 && v>monthlyBudget;
+    return `<div class="mbar-row">
+      <div class="mbar-lbl">${monthLabel(m)}</div>
+      <div class="mbar-track">
+        <div class="mbar-fill ${over?"over":""}" style="width:${(v/maxV*100).toFixed(1)}%"></div>
+        ${monthlyBudget>0?`<div class="mbar-marker" style="inset-inline-start:${markerPos.toFixed(1)}%"></div>`:""}
+      </div>
+      <div class="mbar-val">${ils(v)}</div>
+    </div>`;
+  }).join("");
 }
 
 /* ====== סיכום ספקים ====== */
