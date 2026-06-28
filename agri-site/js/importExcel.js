@@ -71,6 +71,7 @@
     var content = U.el('div');
 
     body.appendChild(U.el('p', { class: 'muted', text: 'ייבוא אל: ' + collLabel(coll) }));
+    body.appendChild(U.el('button', { class: 'btn secondary small', style: 'margin-bottom:8px;', onclick: function () { downloadTemplate(coll); } }, '📄 הורד אקסל לדוגמה'));
     body.appendChild(modeWrap);
     body.appendChild(sheetWrap);
     body.appendChild(content);
@@ -299,5 +300,21 @@
     return keys.some(function (k) { return header.indexOf(k.toLowerCase()) !== -1; });
   }
 
-  global.ImportExcel = { openDialog: openDialog, parseNameGrade: parseNameGrade };
+  // הורדת אקסל לדוגמה בפורמט הנכון לייבוא (כותרות + שורת דוגמה)
+  function downloadTemplate(coll) {
+    var spec = {
+      students: { headers: ['שם', 'כיתה', 'טלפון', 'הערות'], example: ['ישראל ישראלי', 'יב', '0501234567', ''] },
+      sites: { headers: ['שם העסק', 'מיקום', 'איש קשר', 'טלפון', 'אימייל', 'תשלום שעתי', 'תשלום נסיעות'], example: ['משק לדוגמה', 'גיתית', 'יוסי כהן', '0521234567', 'demo@example.com', 35, 50] },
+      staff: { headers: ['שם', 'טלפון'], example: ['דוד לוי', '0531234567'] },
+      transports: { headers: ['שם הסעה', 'קיבולת'], example: ['הסעה 1', 50] }
+    }[coll] || { headers: ['שם'], example: ['דוגמה'] };
+    var ws = XLSX.utils.aoa_to_sheet([spec.headers, spec.example]);
+    ws['!cols'] = spec.headers.map(function () { return { wch: 16 }; });
+    var wb = XLSX.utils.book_new();
+    wb.Workbook = { Views: [{ RTL: true }] };
+    XLSX.utils.book_append_sheet(wb, ws, 'ייבוא');
+    XLSX.writeFile(wb, 'תבנית-ייבוא-' + collLabel(coll) + '.xlsx');
+  }
+
+  global.ImportExcel = { openDialog: openDialog, parseNameGrade: parseNameGrade, downloadTemplate: downloadTemplate };
 })(window);

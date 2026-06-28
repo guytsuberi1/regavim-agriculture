@@ -3,6 +3,7 @@
   'use strict';
   var U = global.U;
   var sub = 'students';
+  var showArchive = false; // הצגת רשומות בארכיון (active=false) במקום הפעילות
 
   // הגדרת השדות לכל אוסף
   function fieldDefs(coll) {
@@ -61,17 +62,21 @@
     var data = Store.get();
 
     var isTeams = sub === 'teams';
-    var head = U.el('div', { class: 'page-head' }, [
-      U.el('h2', { text: 'נתוני בסיס' }),
-      U.el('div', { class: 'spacer' }),
-      (!isTeams && sub === 'students') ? U.el('button', { class: 'btn secondary', onclick: mergeDuplicateStudents }, '🧹 איחוד כפילויות') : null,
-      isTeams ? null : U.el('button', { class: 'btn accent', onclick: openImport }, '⬆ ייבוא מאקסל'),
-      isTeams ? null : U.el('button', { class: 'btn', onclick: function () { openForm(null); } }, '+ הוספה')
-    ]);
+    var headBtns = [U.el('h2', { text: 'נתוני בסיס' }), U.el('div', { class: 'spacer' })];
+    if (!isTeams) {
+      headBtns.push(U.el('button', { class: 'btn secondary', onclick: function () { showArchive = !showArchive; App.render(); } }, showArchive ? '→ חזרה לפעילים' : '📦 ארכיון'));
+      if (!showArchive) {
+        if (sub === 'students') headBtns.push(U.el('button', { class: 'btn secondary', onclick: mergeDuplicateStudents }, '🧹 איחוד כפילויות'));
+        headBtns.push(U.el('button', { class: 'btn secondary', onclick: function () { if (global.ImportExcel) global.ImportExcel.downloadTemplate(sub); } }, '📄 אקסל לדוגמה'));
+        headBtns.push(U.el('button', { class: 'btn accent', onclick: openImport }, '⬆ ייבוא מאקסל'));
+        headBtns.push(U.el('button', { class: 'btn', onclick: function () { openForm(null); } }, '+ הוספה'));
+      }
+    }
+    var head = U.el('div', { class: 'page-head' }, headBtns);
 
     var tabs = U.el('div', { class: 'subtabs' },
       ['students', 'sites', 'staff', 'transports', 'teams'].map(function (c) {
-        var count = c === 'teams' ? (data.teams ? data.teams.length : 0) : (data[c] ? data[c].length : 0);
+        var count = c === 'teams' ? (data.teams ? data.teams.length : 0) : ((data[c] || []).filter(function (x) { return x.active !== false; }).length);
         return U.el('button', {
           class: sub === c ? 'active' : '',
           onclick: function () { sub = c; App.render(); }
@@ -91,12 +96,12 @@
 
   function buildTable() {
     var data = Store.get();
-    var defs = fieldDefs(sub).filter(function (d) { return d.col; });
-    var rows = data[sub] || [];
+    var defs = fieldDefs(sub).filter(function (d) { return d.col && d.key !== 'active'; });
+    var rows = (data[sub] || []).filter(function (it) { return showArchive ? it.active === false : it.active !== false; });
 
     if (!rows.length) {
       return U.el('div', { class: 'card empty' },
-        'אין עדיין רשומות. לחצו "הוספה" או "ייבוא מאקסל".');
+        showArchive ? 'הארכיון ריק.' : 'אין עדיין רשומות. לחצו "הוספה" או "ייבוא מאקסל".');
     }
 
     var thead = U.el('tr', null,
@@ -109,7 +114,9 @@
       });
       tds.push(U.el('td', { class: 'actions' }, [
         U.el('button', { class: 'btn small secondary', onclick: function () { openForm(item); } }, 'עריכה'),
-        U.el('button', { class: 'btn small danger', onclick: function () { del(item); } }, 'מחיקה')
+        showArchive
+          ? U.el('button', { class: 'btn small', onclick: function () { restore(item); } }, '♻ שחזור')
+          : U.el('button', { class: 'btn small secondary', onclick: function () { archive(item); } }, '📦 לארכיון')
       ]));
       return U.el('tr', null, tds);
     });
@@ -117,11 +124,12 @@
     return U.el('table', { class: 'grid' }, [U.el('thead', null, [thead]), U.el('tbody', null, tbody)]);
   }
 
-  function del(item) {
-    if (!confirm('למחוק את "' + item.name + '"?')) return;
-    Store.remove(sub, item.id);
-    App.render();
+  // העברה לארכיון / שחזור — שומר את כל המידע ההיסטורי (לא מוחק)
+  function archive(item) {
+    if (!confirm('להעביר את "' + item.name + '" לארכיון? המידע יישמר וניתן לשחזר.')) return;
+    item.active = false; Store.save(); App.render();
   }
+  function restore(item) { item.active = true; Store.save(); App.render(); }
 
   function openForm(item) {
     var defs = fieldDefs(sub);
