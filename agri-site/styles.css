@@ -358,6 +358,11 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
 
 /* ============ התאמה לנייד ============ */
 @media (max-width: 860px) {
+  /* מניעת גלילה אופקית של כל העמוד (המגירה יושבת מחוץ למסך ויצרה רוחב עודף) */
+  html, body { overflow-x: hidden; }
+  .layout { overflow-x: hidden; max-width: 100vw; }
+  .sidebar { width: min(290px, 86vw); flex-basis: auto; }
+
   main { padding: 12px 10px; }
 
   /* כותרת מסך — קומפקטית; כפתורים בשורה נשברת ובגודל נוח למגע */
