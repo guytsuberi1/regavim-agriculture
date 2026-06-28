@@ -164,7 +164,8 @@
       ])]),
       U.el('tbody', null, rows.length ? rows : [U.el('tr', null, [U.el('td', { colspan: '5', class: 'center muted', text: 'אין אנשי צוות פעילים.' })])])
     ]);
-    return table;
+    // עטיפה לגלילה אופקית — הטבלה נטענת א-סינכרונית ולכן לא נתפסת ע"י העטיפה הגלובלית ב-app.js
+    return U.el('div', { class: 'tbl-scroll' }, [table]);
   }
 
   function openPwdDialog(action, staff, email) {
