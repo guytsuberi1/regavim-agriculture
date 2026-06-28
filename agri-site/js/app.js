@@ -41,6 +41,14 @@
     } else {
       view.appendChild(U.el('div', { class: 'empty' }, 'המסך בבנייה...'));
     }
+    // עטיפת טבלאות רחבות בגולל אופקי — כדי שלא ייחתכו בנייד
+    Array.prototype.forEach.call(view.querySelectorAll('table.grid'), function (t) {
+      var p = t.parentNode;
+      if (!p || (p.classList && p.classList.contains('tbl-scroll'))) return;
+      var wrap = U.el('div', { class: 'tbl-scroll' });
+      p.insertBefore(wrap, t);
+      wrap.appendChild(t);
+    });
   }
 
   function setTab(tab) {

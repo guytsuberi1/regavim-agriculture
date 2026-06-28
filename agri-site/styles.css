@@ -352,3 +352,62 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
 .fn-site { font-weight: 700; color: var(--brown); font-size: 14px; }
 .fn-date { font-size: 12px; color: var(--muted); }
 .fn-text { font-size: 14px; color: var(--text); line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+
+/* גולל אופקי לטבלאות (נעטף אוטומטית ב-app.js) */
+.tbl-scroll { width: 100%; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* ============ התאמה לנייד ============ */
+@media (max-width: 860px) {
+  main { padding: 12px 10px; }
+
+  /* כותרת מסך — קומפקטית; כפתורים בשורה נשברת ובגודל נוח למגע */
+  .page-head { gap: 8px; margin-bottom: 12px; }
+  .page-head h2 { font-size: 18px; width: 100%; }
+  .page-head .spacer { display: none; }
+
+  /* כפתורים — יעדי מגע גדולים יותר */
+  .btn { padding: 9px 13px; font-size: 14px; }
+  .btn.small { padding: 7px 10px; font-size: 13px; }
+
+  /* טפסים — font-size 16px מונע זום אוטומטי באייפון */
+  input, select, textarea { font-size: 16px; padding: 9px 10px; }
+
+  /* טבלאות — צפופות מעט יותר, ונגללות אופקית דרך .tbl-scroll */
+  table.grid { font-size: 13px; }
+  table.grid th, table.grid td { padding: 7px 8px; }
+  table.grid td.actions { white-space: normal; }
+
+  /* כרטיסים */
+  .card { padding: 12px; }
+  .totbar { gap: 10px; }
+  .totbar .t { padding: 7px 12px; flex: 1 1 40%; }
+  .totbar .t b { font-size: 18px; }
+
+  /* תכנון שבועי / חודשי — גלילה אופקית, כל יום ברוחב קריא */
+  .week-grid { grid-auto-flow: column; grid-template-columns: none; grid-auto-columns: 80%; overflow-x: auto; -webkit-overflow-scrolling: touch; gap: 8px; padding-bottom: 8px; }
+  .month-grid { grid-auto-flow: column; grid-template-columns: none; grid-auto-columns: 44%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .month-dow { display: none; }
+
+  /* דשבורד — כרטיסי מדד קטנים יותר, שניים בשורה */
+  .kpi-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .kpi { padding: 12px; gap: 10px; }
+  .kpi-ic { width: 40px; height: 40px; font-size: 20px; }
+  .kpi-val { font-size: 22px; }
+  .dash-panel { padding: 14px 12px; }
+
+  /* מודאל — כמעט מסך מלא */
+  .modal { width: 96vw; max-height: 90vh; }
+  .modal-body { padding: 14px; }
+  .modal-foot { padding: 12px 14px; }
+
+  /* מאגר התלמידים (סידור יומי) — לא יגלוש מעבר לרוחב המסך */
+  .pool { width: 100%; border-radius: 14px 14px 0 0; }
+  .pool-group { max-width: 100%; }
+}
+
+@media (max-width: 480px) {
+  .kpi-grid { grid-template-columns: 1fr 1fr; }
+  .totbar .t { flex: 1 1 100%; }
+  .week-grid { grid-auto-columns: 88%; }
+  .month-grid { grid-auto-columns: 70%; }
+}

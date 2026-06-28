@@ -164,7 +164,7 @@
       ])]),
       U.el('tbody', null, rows.length ? rows : [U.el('tr', null, [U.el('td', { colspan: '5', class: 'center muted', text: 'אין אנשי צוות פעילים.' })])])
     ]);
-    return U.el('div', { style: 'overflow-x:auto;' }, [table]);
+    return table;
   }
 
   function openPwdDialog(action, staff, email) {
