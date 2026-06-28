@@ -96,7 +96,7 @@
       var stu = Store.getById('students', id) || { name: '(נמחק)', grade: '' };
       var st = stats[id];
       var avg = st.ratingCount ? (st.ratingSum / st.ratingCount).toFixed(1) : '';
-      return { name: stu.name, grade: stu.grade || '', work: st.work, absApproved: st.absApproved, absUnapproved: st.absUnapproved, rating: avg };
+      return { name: stu.name, grade: stu.grade || '', work: st.work, absApproved: st.absApproved, absUnapproved: st.absUnapproved, rating: avg, ratingSum: st.ratingSum, ratingCount: st.ratingCount };
     }).sort(function (a, b) { return b.work - a.work; });
   }
 
@@ -173,22 +173,50 @@
     else root.appendChild(renderTable(['הסעה', 'ימי פעילות', 'מספר הסעות', 'סה"כ נוסעים'], transportReport().map(function (r) { return [r.name, r.days, r.trips, r.workers]; })));
   }
 
+  function statCardR(value, label, fg, bg) {
+    return U.el('div', { style: 'flex:1;min-width:120px;background:' + (bg || '#fff') + ';border:1px solid var(--border,#e2e8f0);border-radius:12px;padding:12px;text-align:center;' }, [
+      U.el('div', { style: 'font-size:24px;font-weight:800;color:' + (fg || 'var(--green-dark,#1b5e20)') + ';', text: String(value) }),
+      U.el('div', { class: 'muted', style: 'font-size:12px;margin-top:3px;', text: label })
+    ]);
+  }
+  function classSummary(grade, rows) {
+    var work = 0, absU = 0, absA = 0, rSum = 0, rCnt = 0;
+    rows.forEach(function (r) { work += r.work; absU += r.absUnapproved; absA += r.absApproved; rSum += r.ratingSum; rCnt += r.ratingCount; });
+    var total = work + absU;
+    var pct = total ? Math.round(work / total * 100) : null;
+    var pctCol = pct == null ? ['#475569', '#f1f5f9'] : (pct >= 75 ? ['#15803d', '#dcfce7'] : (pct >= 50 ? ['#b45309', '#fef3c7'] : ['#b91c1c', '#fee2e2']));
+    return U.el('div', null, [
+      U.el('h3', { style: 'color:var(--green-dark);margin:0 0 8px;', text: 'סיכום כיתה ' + grade }),
+      U.el('div', { style: 'display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;' }, [
+        statCardR(pct == null ? '—' : pct + '%', 'אחוז יציאה כיתתי', pctCol[0], pctCol[1]),
+        statCardR(rCnt ? (rSum / rCnt).toFixed(1) : '—', 'ציון ממוצע כיתתי'),
+        statCardR(rows.length, 'תלמידים פעילים'),
+        statCardR(work, 'סה"כ ימי עבודה'),
+        statCardR(absU, 'היעדרויות בלי אישור')
+      ])
+    ]);
+  }
   function renderStudents() {
     var rep = studentReport();
-    // סינון כיתה
     var wrap = U.el('div');
     var gradeFilter = U.el('select', { style: 'margin-bottom:10px;' }, [U.el('option', { value: '' }, 'כל הכיתות')].concat(U.GRADES.map(function (g) { return U.el('option', { value: g }, 'כיתה ' + g); })));
     var HEADERS = ['תלמיד', 'כיתה', 'ימי עבודה שיצא', 'לא יצא באישור', 'לא יצא בלי אישור', 'ציון ממוצע'];
     function rowOf(r) { return [r.name, r.grade, r.work, r.absApproved, r.absUnapproved, r.rating]; }
-    gradeFilter.addEventListener('change', function () {
-      U.clear(tableWrap);
-      var rows = rep.filter(function (r) { return !gradeFilter.value || r.grade === gradeFilter.value; }).map(rowOf);
-      tableWrap.appendChild(renderTable(HEADERS, rows));
-    });
+    var summaryWrap = U.el('div');
     var tableWrap = U.el('div');
-    tableWrap.appendChild(renderTable(HEADERS, rep.map(rowOf)));
+    function rebuild() {
+      var g = gradeFilter.value;
+      var rows = rep.filter(function (r) { return !g || r.grade === g; });
+      U.clear(summaryWrap);
+      if (g && rows.length) summaryWrap.appendChild(classSummary(g, rows));
+      U.clear(tableWrap);
+      tableWrap.appendChild(renderTable(HEADERS, rows.map(rowOf)));
+    }
+    gradeFilter.addEventListener('change', rebuild);
     wrap.appendChild(gradeFilter);
+    wrap.appendChild(summaryWrap);
     wrap.appendChild(tableWrap);
+    rebuild();
     return wrap;
   }
 
