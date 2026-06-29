@@ -137,12 +137,12 @@
       } else if (accountsUnknown) {
         actions.appendChild(U.el('span', { class: 'muted', style: 'font-size:12px;', text: 'דרושה פריסת manage-users' }));
       } else {
-        if (hasAccount) actions.appendChild(U.el('button', { class: 'btn small secondary', onclick: function () { openPwdDialog('resetPassword', s, email); } }, '🔑 אפס סיסמה'));
-        else actions.appendChild(U.el('button', { class: 'btn small', onclick: function () { openPwdDialog('create', s, email); } }, '➕ צור חשבון'));
+        if (hasAccount) actions.appendChild(U.el('button', { class: 'btn small secondary', title: 'אפס סיסמה', onclick: function () { openPwdDialog('resetPassword', s, email); } }, '🔑'));
+        else actions.appendChild(U.el('button', { class: 'btn small', title: 'צור חשבון', onclick: function () { openPwdDialog('create', s, email); } }, '➕'));
         // שליחת פרטי התחברות — מוצגים תמיד (אם אין טלפון, תוצג הודעה בלחיצה)
-        actions.appendChild(U.el('button', { class: 'btn small', style: 'background:#0a7d2c;', title: 'יצירת סיסמה ושליחת פרטי התחברות ב-SMS', onclick: function () { sendCredentialsSms(s, email, hasAccount); } }, '📩 שלח SMS'));
-        actions.appendChild(U.el('button', { class: 'btn small', style: 'background:#25D366;', title: 'יצירת סיסמה ופתיחת וואטסאפ עם פרטי ההתחברות', onclick: function () { sendCredentialsWhatsApp(s, email, hasAccount); } }, '📲 וואטסאפ'));
-        if (hasAccount) actions.appendChild(U.el('button', { class: 'btn small danger', onclick: function () { delAccount(s, email); } }, '✕ מחק חשבון'));
+        actions.appendChild(U.el('button', { class: 'btn small', style: 'background:#0a7d2c;', title: 'שליחת פרטי התחברות ב-SMS', onclick: function () { sendCredentialsSms(s, email, hasAccount); } }, '📩'));
+        actions.appendChild(U.el('button', { class: 'btn small ico', style: 'background:#25D366;color:#fff;', title: 'שליחת פרטי התחברות בוואטסאפ', onclick: function () { sendCredentialsWhatsApp(s, email, hasAccount); }, html: U.WA_SVG }));
+        if (hasAccount) actions.appendChild(U.el('button', { class: 'btn small danger', title: 'מחק חשבון', onclick: function () { delAccount(s, email); } }, '🗑'));
       }
 
       return U.el('tr', null, [

@@ -113,10 +113,10 @@
         return U.el('td', { text: displayVal(d, item) });
       });
       tds.push(U.el('td', { class: 'actions' }, [
-        U.el('button', { class: 'btn small secondary', onclick: function () { openForm(item); } }, 'עריכה'),
+        U.el('button', { class: 'btn small secondary', title: 'עריכה', onclick: function () { openForm(item); } }, '✏️'),
         showArchive
-          ? U.el('button', { class: 'btn small', onclick: function () { restore(item); } }, '♻ שחזור')
-          : U.el('button', { class: 'btn small secondary', onclick: function () { archive(item); } }, '📦 לארכיון')
+          ? U.el('button', { class: 'btn small', title: 'שחזור מהארכיון', onclick: function () { restore(item); } }, '♻')
+          : U.el('button', { class: 'btn small secondary', title: 'העברה לארכיון', onclick: function () { archive(item); } }, '📦')
       ]));
       return U.el('tr', null, tds);
     });

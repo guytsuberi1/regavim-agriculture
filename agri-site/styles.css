@@ -112,6 +112,9 @@ main { padding: 18px; max-width: 1400px; margin: 0 auto; }
 .btn.danger { background: #fff; color: var(--danger); border: 1px solid var(--danger); }
 .btn.small { padding: 4px 9px; font-size: 13px; }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
+/* כפתורי איקון — מרובעים, האיקון ממורכז */
+.btn.ico { gap: 0; }
+.btn.ico .wa-ico, .wa-ico { width: 17px; height: 17px; display: inline-block; vertical-align: -3px; }
 
 /* ---------- טפסים ---------- */
 input, select, textarea {

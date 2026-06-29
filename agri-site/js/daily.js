@@ -45,10 +45,10 @@
       U.el('button', { class: 'btn secondary small', onclick: function () { curDate = U.addDays(curDate, 1); App.render(); } }, 'יום הבא ←'),
       U.el('span', { class: 'tag', text: U.weekdayName(curDate) + ' · ' + U.hebrewDate(curDate) }),
       U.el('div', { class: 'spacer' }),
-      U.el('button', { class: 'btn secondary', onclick: openAbsentDialog }, '🚫 נעדרים היום' + (Store.get().dailyAbsent[curDate] && Store.get().dailyAbsent[curDate].length ? ' (' + Store.get().dailyAbsent[curDate].length + ')' : '')),
-      U.el('button', { class: 'btn accent', onclick: exportImage }, '🖼 ייצוא תמונה'),
-      U.el('button', { class: 'btn secondary', onclick: openWhatsApp }, '📲 וואטסאפ'),
-      U.el('button', { class: 'btn secondary', onclick: sendAllSms }, '📩 SMS לכולם'),
+      U.el('button', { class: 'btn secondary', title: 'נעדרים היום', onclick: openAbsentDialog }, '🚫' + (Store.get().dailyAbsent[curDate] && Store.get().dailyAbsent[curDate].length ? ' ' + Store.get().dailyAbsent[curDate].length : '')),
+      U.el('button', { class: 'btn accent ico', title: 'ייצוא תמונה', onclick: exportImage }, '🖼'),
+      U.el('button', { class: 'btn secondary ico', title: 'שליחה בוואטסאפ', style: 'color:#25D366;', onclick: openWhatsApp, html: U.WA_SVG }),
+      U.el('button', { class: 'btn secondary ico', title: 'שליחת SMS לכולם', onclick: sendAllSms }, '📩'),
       U.el('button', { class: 'btn', onclick: addCard }, '+ הוסף אתר')
     ]);
     root.appendChild(head);
@@ -1000,7 +1000,7 @@
     body.appendChild(U.el('div', { style: 'margin:0 0 10px;padding:10px;background:var(--green-light);border-radius:8px;' }, [
       U.el('div', { style: 'font-weight:700;color:var(--green-dark);margin-bottom:4px;', text: '📤 שליחה אחת לקבוצה' }),
       U.el('div', { class: 'muted', style: 'font-size:13px;margin-bottom:8px;', text: 'סיכום מלא של היום — לחיצה תפתח וואטסאפ, בחרו קבוצה ושלחו.' }),
-      U.el('a', { class: 'btn small', href: 'https://wa.me/?text=' + encodeURIComponent(dayGroupMessage()), target: '_blank', rel: 'noopener', style: 'background:#25D366;color:#fff;border:0;', text: '📤 שלח סיכום לקבוצה' })
+      U.el('a', { class: 'btn small', href: 'https://wa.me/?text=' + encodeURIComponent(dayGroupMessage()), target: '_blank', rel: 'noopener', style: 'background:#25D366;color:#fff;border:0;', html: U.WA_SVG }, ' שלח סיכום לקבוצה')
     ]));
     body.appendChild(U.el('p', { class: 'muted', style: 'margin:0 0 8px;', text: 'או — שליחה אישית לכל אדם:' }));
     var any = false;
@@ -1017,7 +1017,7 @@
         var link = (wn ? 'https://wa.me/' + wn : 'https://wa.me/') + '?text=' + encodeURIComponent(cardMessage(card, pp.name));
         body.appendChild(U.el('div', { style: 'display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);' }, [
           U.el('span', { style: 'flex:1;font-size:14px;', text: pp.name + ' · ' + pp.role + (wn ? '' : ' · (אין מספר)') }),
-          U.el('a', { class: 'btn small', href: link, target: '_blank', rel: 'noopener', style: 'background:#25D366;color:#fff;border:0;' }, '📲 שלח')
+          U.el('a', { class: 'btn small ico', href: link, target: '_blank', rel: 'noopener', title: 'שלח בוואטסאפ', style: 'background:#25D366;color:#fff;border:0;', html: U.WA_SVG })
         ]));
       });
     });
