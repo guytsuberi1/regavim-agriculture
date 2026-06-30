@@ -178,7 +178,8 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
 .pool-search { padding: 4px 12px; border: 1px solid var(--green); border-radius: 16px; font-size: 14px; min-width: 190px; }
 
 /* מגירה תחתונה קבועה — נפתחת כלפי מעלה ומכסה את האתרים בעת הגדלה */
-.pool { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 1400px; z-index: 50; max-height: 94vh; box-shadow: 0 -6px 24px rgba(0,0,0,.20); border-radius: 14px 14px 0 0; }
+.pool { position: fixed; bottom: 0; left: 0; right: 230px; width: auto; max-width: none; transform: none; z-index: 50; max-height: 94vh; box-shadow: 0 -6px 24px rgba(0,0,0,.20); border-radius: 14px 14px 0 0; }
+.layout.collapsed .pool { right: 0; }
 .pool-resizer { height: 10px; margin: -4px 0 2px; cursor: ns-resize; display: flex; align-items: center; justify-content: center; }
 .pool-resizer::before { content: ""; width: 60px; height: 4px; border-radius: 3px; background: var(--border); }
 .pool-resizer:hover::before { background: var(--green); }
@@ -279,8 +280,24 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
 .fadd-plus { color: var(--green); font-weight: 700; }
 .fadd-note { font-size: 12px; opacity: .7; }
 .site-card .sc-team { margin: 4px 0; }
-.site-card .sc-team-head { display: flex; align-items: center; gap: 6px; padding: 2px 4px; border-bottom: 1px dashed var(--border); }
-.site-card .sc-team-title { font-size: 12px; font-weight: 600; color: var(--green-dark); }
+.site-card .sc-team-head { display: flex; align-items: center; gap: 6px; padding: 5px 8px; margin-top: 4px; background: var(--green-light); border-radius: 7px; }
+.site-card .sc-team-title { font-size: 14px; font-weight: 800; color: var(--green-dark); }
+/* ריבוע משובצים/מתוכננים בשורת הסיכום — צבע לפי הכמות */
+.totbar .t.tw-tot { border: 2px solid var(--green); }
+.totbar .t.tw-tot.under { border-color: var(--danger); }
+.totbar .t.tw-tot.under b { color: var(--danger); }
+.totbar .t.tw-tot.over { border-color: var(--accent); }
+.totbar .t.tw-tot.over b { color: var(--accent); }
+/* תג כיתה ברור וממותג */
+.grade-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 21px; padding: 0 6px; border-radius: 6px; font-size: 12px; font-weight: 800; color: #fff; flex: 0 0 auto; }
+.grade-badge.gb0 { background: #2563eb; }
+.grade-badge.gb1 { background: #16a34a; }
+.grade-badge.gb2 { background: #d97706; }
+.grade-badge.gb3 { background: #7c3aed; }
+.grade-badge.gbx { background: #64748b; }
+/* כפתור מחיקה עדין (פחות צועק) */
+.sc-del { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 17px; line-height: 1; padding: 2px 7px; border-radius: 6px; }
+.sc-del:hover { color: var(--danger); background: #fdecea; }
 .site-card .sc-team .sc-students { margin: 2px 0 0; }
 .staff-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; }
 .staff-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--green-light); border: 1px solid var(--green); color: var(--green-dark); border-radius: 14px; padding: 2px 8px; font-size: 12px; }
@@ -441,7 +458,7 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
   .modal-foot { padding: 12px 14px; }
 
   /* מאגר התלמידים (סידור יומי) — לא יגלוש מעבר לרוחב המסך */
-  .pool { width: 100%; border-radius: 14px 14px 0 0; }
+  .pool { left: 0; right: 0; width: auto; border-radius: 14px 14px 0 0; }
   .pool-group { max-width: 100%; }
 }
 

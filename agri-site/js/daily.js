@@ -14,6 +14,19 @@
     return (Store.get()[coll] || []).filter(function (x) { return x.active !== false; });
   }
 
+  // תג כיתה ברור וממותג
+  function gradeBadge(g) {
+    var i = U.GRADES.indexOf(g);
+    return U.el('span', { class: 'grade-badge gb' + (i < 0 ? 'x' : i), title: 'כיתה ' + g, text: g });
+  }
+  // השוואת שני תלמידים לפי כיתה (ט→יב) ואז שם
+  function gradeStudentCmp(idA, idB) {
+    var a = Store.getById('students', idA) || {}, b = Store.getById('students', idB) || {};
+    var ga = U.GRADES.indexOf(a.grade), gb = U.GRADES.indexOf(b.grade);
+    if (ga !== gb) return (ga < 0 ? 99 : ga) - (gb < 0 ? 99 : gb);
+    return (a.name || '').localeCompare(b.name || '', 'he');
+  }
+
   function assignedStudentIds(day, exceptCardId) {
     var set = {};
     day.cards.forEach(function (c) {
@@ -84,22 +97,22 @@
   }
 
   function buildTotals(day) {
-    var went = 0, total = 0, target = 0, sickN = 0;
+    var total = 0, target = 0;
     day.cards.forEach(function (c) {
       target += U.num(c.targetWorkers);
-      (c.students || []).forEach(function (s) {
-        total++;
-        if (s.wentToWork) went++;
-        if (s.sick) sickN++;
-      });
+      total += (c.students || []).length;
     });
-    var items = [
-      tot(day.cards.length, 'אתרים'),
-      tot(total, 'משובצים'),
-      tot(went, 'יצאו לעבודה')
-    ];
-    if (sickN > 0) items.push(tot(sickN, 'חולים'));
-    if (target > 0) items.splice(1, 0, tot(target, 'מתוכננים'));
+    var items = [tot(day.cards.length, 'אתרים')];
+    // ריבוע אחד: משובצים מול מתוכננים, צבוע לפי הכמות
+    if (target > 0) {
+      var cls = total < target ? 'under' : (total > target ? 'over' : 'ok');
+      items.push(U.el('div', { class: 't tw-tot ' + cls }, [
+        U.el('b', { text: total + ' / ' + target }),
+        U.el('span', { text: 'משובצים / מתוכננים' })
+      ]));
+    } else {
+      items.push(tot(total, 'משובצים'));
+    }
     return U.el('div', { class: 'totbar' }, items);
   }
   function tot(n, label) { return U.el('div', { class: 't' }, [U.el('b', { text: n }), U.el('span', { text: label })]); }
@@ -140,10 +153,10 @@
     var head = U.el('div', { class: 'sc-head' }, [
       U.el('div', { style: 'display:flex;gap:4px;align-items:center;' }, [
         siteSel,
-        U.el('button', { class: 'btn small danger no-print', title: 'הסר אתר', onclick: function () { removeCard(day, card); } }, '✕')
+        U.el('button', { class: 'sc-del no-print', title: 'הסר אתר', onclick: function () { removeCard(day, card); } }, '×')
       ]),
-      counter,
-      meta
+      meta,
+      counter
     ]);
 
     // ---- גוף ----
@@ -170,23 +183,28 @@
     // בניית שורת תלמיד בודד
     function buildStudentLi(st) {
       var stu = Store.getById('students', st.studentId);
-      var name = stu ? stu.name + (stu.grade ? ' (' + stu.grade + ')' : '') : '⚠ נמחק';
-
-      var gradeColors = { 'ט': '#fff3cd', 'י': '#d1ecf1', 'יא': '#d4edda', 'יב': '#f8d7da' };
-      var nameCell = U.el('div', { style: 'flex:1;' }, [
-        U.el('div', { text: (st.teamLeader ? '⭐ ' : '') + name }),
-        st.note ? U.el('div', { class: 'muted', style: 'font-size:11px;', text: '📝 ' + st.note }) : null
+      var name = stu ? stu.name : '⚠ נמחק';
+      var nameCell = U.el('div', { style: 'flex:1;display:flex;align-items:center;gap:7px;' }, [
+        (stu && stu.grade) ? gradeBadge(stu.grade) : null,
+        U.el('div', null, [
+          U.el('div', { text: (st.teamLeader ? '⭐ ' : '') + name }),
+          st.note ? U.el('div', { class: 'muted', style: 'font-size:11px;', text: '📝 ' + st.note }) : null
+        ])
       ]);
       var li = U.el('li', { class: (st.teamLeader ? 'leader ' : ''), draggable: 'true' }, [
         nameCell,
-        U.el('button', { class: 'btn small danger no-print', onclick: function () { removeStudent(card, st.studentId); } }, '✕')
+        U.el('button', { class: 'sc-del no-print', title: 'הסר תלמיד', onclick: function () { removeStudent(card, st.studentId); } }, '×')
       ]);
-      if (stu && stu.grade && gradeColors[stu.grade]) li.style.setProperty('background', gradeColors[stu.grade], 'important');
       li.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text/plain', 'student:' + st.studentId); e.dataTransfer.effectAllowed = 'move'; });
       return li;
     }
+    // מיון: ראש צוות ראשון, ואז לפי כיתה (ט→יב) ואז שם
     function sortLeadersFirst(arr) {
-      return arr.slice().sort(function (a, b) { return (b.teamLeader ? 1 : 0) - (a.teamLeader ? 1 : 0); });
+      return arr.slice().sort(function (a, b) {
+        var la = a.teamLeader ? 0 : 1, lb = b.teamLeader ? 0 : 1;
+        if (la !== lb) return la - lb;
+        return gradeStudentCmp(a.studentId, b.studentId);
+      });
     }
 
     // תלמידים — מקובצים לפי מצב המאגר: "לפי כיתות" → קיבוץ לפי כיתה; אחרת לפי צוות.
@@ -311,47 +329,61 @@
   function staffMultiControl(day, card) {
     if (!card.staffIds) card.staffIds = card.staffId ? [card.staffId] : [];
     var wrap = U.el('div', { class: 'field', style: 'margin:6px 0;' });
-    wrap.appendChild(U.el('label', { text: 'אנשי צוות' }));
+    wrap.appendChild(U.el('div', { style: 'display:flex;align-items:center;justify-content:space-between;gap:8px;' }, [
+      U.el('label', { text: 'אנשי צוות', style: 'margin:0;' }),
+      U.el('button', { class: 'btn small secondary no-print', title: 'בחירת אנשי צוות', onclick: function () { openAddStaff(day, card); } }, '+ הוסף')
+    ]));
     var chips = U.el('div', { class: 'staff-chips' });
-    var sel = selectFrom('staff', '', '+ הוסף איש צוות', false, 'staff');
-    function sync() {
-      U.clear(chips);
-      card.staffIds.forEach(function (id) {
-        var p = Store.getById('staff', id);
-        chips.appendChild(U.el('span', { class: 'staff-chip' }, [
-          U.el('span', { text: p ? p.name : '(נמחק)' }),
-          U.el('button', { class: 'staff-chip-x no-print', title: 'הסר', onclick: function () {
-            card.staffIds = card.staffIds.filter(function (x) { return x !== id; });
-            card.staffId = card.staffIds[0] || null;
-            Store.save(); App.render();
-          } }, '✕')
-        ]));
-      });
-      // חסימת איש צוות שכבר משובץ בכרטיס זה או באתר אחר באותו יום
-      var taken = assignedStaffIds(day, card.id);
-      Array.prototype.forEach.call(sel.options, function (o) {
-        if (!o.value) return;
-        var here = card.staffIds.indexOf(o.value) !== -1;
-        var elsewhere = !!taken[o.value];
-        o.disabled = here || elsewhere;
-        var base = o.getAttribute('data-name') || o.textContent.replace(/ \(.*\)$/, '');
-        o.setAttribute('data-name', base);
-        o.textContent = elsewhere ? base + ' (משובץ באתר אחר)' : base;
-      });
-      sel.value = '';
-    }
-    sel.addEventListener('change', function () {
-      var id = sel.value;
-      if (id && card.staffIds.indexOf(id) === -1 && !assignedStaffIds(day, card.id)[id]) {
-        card.staffIds.push(id); card.staffId = card.staffIds[0] || null; Store.save(); App.render();
-        return;
-      }
-      sync();
+    card.staffIds.forEach(function (id) {
+      var p = Store.getById('staff', id);
+      chips.appendChild(U.el('span', { class: 'staff-chip' }, [
+        U.el('span', { text: p ? p.name : '(נמחק)' }),
+        U.el('button', { class: 'staff-chip-x no-print', title: 'הסר', onclick: function () {
+          card.staffIds = card.staffIds.filter(function (x) { return x !== id; });
+          card.staffId = card.staffIds[0] || null;
+          Store.save(); App.render();
+        } }, '✕')
+      ]));
     });
-    sync();
+    if (!card.staffIds.length) chips.appendChild(U.el('span', { class: 'muted', style: 'font-size:12px;', text: 'לא שובצו' }));
     wrap.appendChild(chips);
-    wrap.appendChild(sel);
     return wrap;
+  }
+
+  // בחירת אנשי צוות מרובים — רשימה עם תיבות סימון (כמו הוספת חברים לצוות)
+  function openAddStaff(day, card) {
+    if (!card.staffIds) card.staffIds = card.staffId ? [card.staffId] : [];
+    var takenElsewhere = assignedStaffIds(day, card.id);
+    var staff = activeList('staff').sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'he'); });
+    var selectedMap = {}; card.staffIds.forEach(function (id) { selectedMap[id] = true; });
+    var search = U.el('input', { type: 'text', placeholder: 'חיפוש…', style: 'width:100%;margin-bottom:8px;' });
+    var countEl = U.el('span', { class: 'tag' });
+    var listBox = U.el('div', { style: 'max-height:340px;overflow:auto;' });
+    function updateCount() { countEl.textContent = 'נבחרו: ' + Object.keys(selectedMap).filter(function (k) { return selectedMap[k]; }).length; }
+    function build(filter) {
+      U.clear(listBox);
+      var shown = staff.filter(function (s) { return !filter || (s.name || '').indexOf(filter) !== -1; });
+      if (!shown.length) { listBox.appendChild(U.el('div', { class: 'muted', style: 'padding:8px;', text: 'לא נמצאו' })); return; }
+      shown.forEach(function (s) {
+        var elsewhere = takenElsewhere[s.id] && !selectedMap[s.id];
+        var cb = U.el('input', { type: 'checkbox', checked: !!selectedMap[s.id] });
+        cb.disabled = !!elsewhere;
+        cb.addEventListener('change', function () { selectedMap[s.id] = cb.checked; updateCount(); });
+        listBox.appendChild(U.el('label', { style: 'display:flex;gap:7px;align-items:center;font-weight:400;color:var(--text);padding:3px 0;' + (elsewhere ? 'opacity:.5;' : '') },
+          [cb, s.name + (s.role === 'leader' ? ' · ראש צוות' : '') + (elsewhere ? ' · (משובץ באתר אחר)' : '')]));
+      });
+    }
+    search.addEventListener('input', function () { build(search.value.trim()); });
+    build(''); updateCount();
+    Modal.open('אנשי צוות — ' + (card.siteId ? (Store.getById('sites', card.siteId) || {}).name : 'אתר'),
+      U.el('div', null, [U.el('div', { style: 'display:flex;gap:8px;align-items:center;margin-bottom:6px;' }, [search, countEl]), listBox]), [
+      { label: 'ביטול', class: 'secondary' },
+      { label: 'שמירה', onClick: function (close) {
+        card.staffIds = Object.keys(selectedMap).filter(function (k) { return selectedMap[k]; });
+        card.staffId = card.staffIds[0] || null;
+        Store.save(); close(); App.render();
+      } }
+    ]);
   }
 
   // ---------- פעולות ----------
@@ -447,7 +479,17 @@
   // טיפול בגרירה לתוך כרטיס אתר
   function handleDrop(day, card, payload) {
     if (!payload) return;
-    if (payload.indexOf('team:') === 0) assignTeamToCard(day, card, payload.slice(5));
+    if (payload.indexOf('team:') === 0) {
+      var teamId = payload.slice(5);
+      // אם כל חברי הצוות כבר באתר הזה — מדובר בגרירה פנימית; לא לעשות כלום (מנע קפיצה לסוף הרשימה)
+      var team = Store.getById('teams', teamId);
+      if (team) {
+        var ids = global.TeamUtil.orderedStudentIds(team);
+        var allHere = ids.length && ids.every(function (id) { return card.students.some(function (s) { return s.studentId === id; }); });
+        if (allHere) return;
+      }
+      assignTeamToCard(day, card, teamId);
+    }
     else if (payload.indexOf('grade:') === 0) assignGradeToCard(day, card, payload.slice(6));
     else if (payload.indexOf('student:') === 0) { placeStudent(day, card, payload.slice(8), false); Store.save(); App.render(); }
   }

@@ -19,14 +19,21 @@
 
   function isInAnyTeam(studentId) { return !!teamOfStudent(studentId); }
 
-  // מזהי התלמידים בצוות לפי סדר: ראש צוות ואז חברים (רק קיימים)
+  // השוואת תלמידים לפי כיתה (ט→יב) ואז שם
+  function gradeCmp(idA, idB) {
+    var a = Store.getById('students', idA) || {}, b = Store.getById('students', idB) || {};
+    var ga = U.GRADES.indexOf(a.grade), gb = U.GRADES.indexOf(b.grade);
+    if (ga !== gb) return (ga < 0 ? 99 : ga) - (gb < 0 ? 99 : gb);
+    return (a.name || '').localeCompare(b.name || '', 'he');
+  }
+
+  // מזהי התלמידים בצוות לפי סדר: ראש צוות ואז חברים לפי כיתה (רק קיימים)
   function orderedStudentIds(team) {
     var ids = [];
     if (team.leaderStudentId && Store.getById('students', team.leaderStudentId)) ids.push(team.leaderStudentId);
-    (team.memberIds || []).forEach(function (id) {
-      if (Store.getById('students', id)) ids.push(id);
-    });
-    return ids;
+    var members = (team.memberIds || []).filter(function (id) { return id !== team.leaderStudentId && Store.getById('students', id); });
+    members.sort(gradeCmp);
+    return ids.concat(members);
   }
 
   function teamLabel(team) {
@@ -71,7 +78,7 @@
     var leader = team.leaderStudentId ? Store.getById('students', team.leaderStudentId) : null;
     var title = (team.name && team.name.trim()) ? team.name.trim() : (leader ? leader.name : '(ללא ראש צוות)');
 
-    var memberLis = (team.memberIds || []).map(function (id) {
+    var memberLis = (team.memberIds || []).slice().sort(gradeCmp).map(function (id) {
       var s = Store.getById('students', id);
       var li = U.el('li', { class: 'team-member', draggable: 'true', style: 'display:flex;align-items:center;gap:6px;padding:3px 4px;border-radius:6px;' }, [
         U.el('span', { class: 'grip', style: 'color:var(--muted);cursor:grab;', text: '⠿' }),
