@@ -7,7 +7,7 @@
 //
 // Secrets נדרשים:
 //   GEMINI_API_KEY  — מפתח חינמי מ-https://aistudio.google.com/app/apikey
-//   GEMINI_MODEL    — אופציונלי (ברירת מחדל: gemini-2.0-flash)
+//   GEMINI_MODEL    — אופציונלי (ברירת מחדל: gemini-2.5-flash)
 //   ADMIN_EMAILS    — אופציונלי; אם לא מוגדר, כל משתמש מחובר רשאי.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
   const URL = Deno.env.get("SUPABASE_URL")!;
   const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
   const GEMINI_KEY = Deno.env.get("GEMINI_API_KEY") ?? "";
-  const MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-2.0-flash";
+  const MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-2.5-flash";
   if (!GEMINI_KEY) {
     return reply({ error: "missing GEMINI_API_KEY — הגדירו מפתח חינמי מ-Google AI Studio ב-Secrets" }, 500);
   }
