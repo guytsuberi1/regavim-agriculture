@@ -143,7 +143,7 @@
       ]));
       root.appendChild(U.el('table', { class: 'grid' }, [
         U.el('thead', null, [U.el('tr', null,
-          ['שם עסק', 'איש קשר', 'טלפון', 'יתרת חוב', 'סטטוס', 'מטופל ע"י', 'שנת חוב', 'הערות']
+          ['שם עסק', 'איש קשר', 'טלפון', 'יתרת חוב', 'סטטוס', 'מטופל ע"י', 'תאריך חוב', 'הערות']
             .map(function (h) { return U.el('th', { text: h }); }))]),
         tbody
       ]));
@@ -352,7 +352,7 @@
     if (isEdit) siteSel.disabled = true;
 
     var openInp = U.el('input', { type: 'number', step: '0.01', value: rec ? rec.openingDebt : '', placeholder: '0', style: 'width:100%;' });
-    var yearInp = U.el('input', { type: 'text', value: rec ? (rec.debtYear || '') : '', placeholder: 'לדוגמה: 2025/6', style: 'width:100%;' });
+    var yearInp = U.el('input', { type: 'text', value: rec ? (rec.debtYear || '') : '', placeholder: 'dd/mm/yyyy', style: 'width:100%;' });
     var statusSel = U.el('select', { style: 'width:100%;' }, [U.el('option', { value: '' }, '— ללא —')].concat(
       STATUSES.map(function (s) { return U.el('option', { value: s.value }, s.value); })));
     statusSel.value = rec ? (rec.status || '') : 'פתוחה';
@@ -364,7 +364,7 @@
     var body = U.el('div', null, [
       fld('עסק (אתר)', siteSel),
       fld('חוב פתיחה (₪)', openInp),
-      fld('שנת חוב', yearInp),
+      fld('תאריך חוב', yearInp),
       fld('סטטוס', statusSel),
       fld('מטופל ע"י', handlerInp),
       fld('הערות', notesInp)
@@ -543,9 +543,9 @@
   function normName(s) { return String(s || '').replace(/["'״׳\s.\-]/g, '').replace(/בעמ$/, ''); }
 
   // ---------- אקסל לדוגמה + ייבוא מאקסל ----------
-  var XL_HEADERS = ['שם עסק', 'איש קשר', 'טלפון', 'חוב פתיחה', 'שנת חוב', 'סטטוס', 'מטופל ע"י', 'הערות'];
+  var XL_HEADERS = ['שם עסק', 'איש קשר', 'טלפון', 'חוב פתיחה', 'תאריך חוב', 'סטטוס', 'מטופל ע"י', 'הערות'];
   function downloadDebtTemplate() {
-    var example = ['לדוגמה: יקב הר קידה', 'ישראל ישראלי', '050-0000000', 1500, '2025', 'פתוחה', 'שלמה', 'הערה חופשית'];
+    var example = ['לדוגמה: יקב הר קידה', 'ישראל ישראלי', '050-0000000', 1500, '31/12/2025', 'פתוחה', 'שלמה', 'הערה חופשית'];
     var ws = XLSX.utils.aoa_to_sheet([XL_HEADERS, example]);
     ws['!cols'] = XL_HEADERS.map(function () { return { wch: 18 }; });
     var wb = XLSX.utils.book_new(); wb.Workbook = { Views: [{ RTL: true }] };
@@ -578,7 +578,7 @@
       contact: colIdx(['איש קשר', 'קשר']),
       phone: colIdx(['טלפון']),
       amount: colIdx(['חוב פתיחה', 'חוב', 'סכום', 'יתרה']),
-      year: colIdx(['שנה']),
+      year: colIdx(['תאריך', 'שנה']),
       status: colIdx(['סטטוס']),
       handler: colIdx(['מטופל', 'מטפל']),
       note: colIdx(['הער'])
@@ -674,7 +674,7 @@
         include: true,
         name: String(r.name || '').trim(),
         total: U.num(r.total),
-        year: String(r.year || '').trim(),
+        date: String(r.date || '').trim(),
         customerNumber: String(r.customerNumber || '').trim(),
         invoiceCount: r.invoiceCount || 0
       };
@@ -697,14 +697,14 @@
       });
       var totInp = U.el('input', { type: 'number', step: '0.01', value: st.total, style: 'width:110px;' });
       totInp.addEventListener('input', function () { st.total = U.num(totInp.value); });
-      var yrInp = U.el('input', { type: 'text', value: st.year, style: 'width:70px;' });
-      yrInp.addEventListener('input', function () { st.year = yrInp.value; });
+      var dtInp = U.el('input', { type: 'text', value: st.date, placeholder: 'dd/mm/yyyy', style: 'width:100px;' });
+      dtInp.addEventListener('input', function () { st.date = dtInp.value; });
 
       tbody.appendChild(U.el('tr', null, [
         U.el('td', { class: 'center' }, [chk]),
         U.el('td', null, [nameInp]),
         U.el('td', { class: 'center' }, [totInp]),
-        U.el('td', { class: 'center' }, [yrInp]),
+        U.el('td', { class: 'center' }, [dtInp]),
         U.el('td', { class: 'center', text: st.invoiceCount ? String(st.invoiceCount) : '' }),
         siteCell
       ]));
@@ -712,7 +712,7 @@
 
     var table = U.el('div', { class: 'tbl-scroll' }, [U.el('table', { class: 'grid' }, [
       U.el('thead', null, [U.el('tr', null,
-        ['', 'שם עסק', 'יתרת חוב (₪)', 'שנה', 'חשבוניות', 'אתר'].map(function (h) { return U.el('th', { text: h }); }))]),
+        ['', 'שם עסק', 'יתרת חוב (₪)', 'תאריך', 'חשבוניות', 'אתר'].map(function (h) { return U.el('th', { text: h }); }))]),
       tbody
     ])]);
     var info = U.el('div', { class: 'muted', style: 'margin-bottom:10px;', html:
@@ -728,7 +728,7 @@
           if (s.customerNumber) note.push('מס׳ לקוח ' + s.customerNumber);
           if (s.invoiceCount) note.push(s.invoiceCount + ' חשבוניות');
           note.push('יובא מ-PDF');
-          return { name: s.name, amount: s.total, year: s.year, status: 'פתוחה', note: note.join(' · ') };
+          return { name: s.name, amount: s.total, year: s.date, status: 'פתוחה', note: note.join(' · ') };
         });
         var res = commitDebtObjs(objs);
         close(); App.render();
