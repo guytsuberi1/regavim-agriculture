@@ -5,6 +5,7 @@
 
   var TABS = {
     dashboard: global.DashboardView,
+    planning: global.PlanningView,
     daily: global.DailyView,
     field: global.FieldView,
     weekly: global.WeeklyView,
@@ -28,6 +29,8 @@
       var vis = admin ? (t !== 'kitchen') : (kitchen ? t === 'kitchen' : t === 'field');
       b.style.display = vis ? '' : 'none';
     });
+    // כותרות הנושאים בסרגל — רק למנהל (משתמש מוגבל רואה טאב יחיד)
+    U.$all('#tabs .nav-sec').forEach(function (d) { d.style.display = admin ? '' : 'none'; });
     if (kitchen) current = 'kitchen';
     else if (!admin) current = 'field';
   }
