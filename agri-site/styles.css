@@ -231,10 +231,11 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
 .week-day .wx-line { margin: 4px 0; padding: 4px 7px; border-radius: 7px; font-size: 11.5px; background: #eaf3fb; color: #1c4f7a; text-align: center; }
 .week-day .ev-box { border: 1px solid #f0c98a; background: #fffaf0; border-radius: 8px; padding: 5px 6px; margin: 4px 0 6px; }
 .week-day .ev-box-head { font-size: 11px; font-weight: 800; color: #9a6a1a; margin-bottom: 4px; }
-.week-day .ev-item { font-size: 11.5px; background: #fff4e0; color: #8a5a00; border-radius: 5px; padding: 2px 6px; margin-bottom: 3px; display: flex; gap: 6px; align-items: baseline; }
-.week-day .ev-item:last-child { margin-bottom: 0; }
+.week-day .ev-box-body { height: 84px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; }
+.week-day .ev-item { font-size: 11.5px; background: #fff4e0; color: #8a5a00; border-radius: 5px; padding: 2px 6px; display: flex; gap: 6px; align-items: baseline; flex: 0 0 auto; }
 .week-day .ev-time { font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .week-day .ev-item.allday .ev-time { font-weight: 700; opacity: .8; }
+.week-day .ev-empty { font-size: 11px; color: var(--muted); text-align: center; padding: 6px 0; }
 
 /* ---------- תצוגה חודשית ---------- */
 .month-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }

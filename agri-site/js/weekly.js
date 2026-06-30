@@ -280,8 +280,8 @@
         ic[0] + ' ' + ic[1] + ' · ' + Math.round(w.tmax) + '°/' + Math.round(w.tmin) + '°' +
         (w.pop != null && w.pop > 0 ? ' · 💧' + w.pop + '%' : '')));
     }
-    var evs = eventsOn(iso);
-    if (evs.length) cell.appendChild(buildEventsBox(evs));
+    // תיבת יומן בגודל קבוע — מוצגת בכל הימים (במצב שבועי) כשיש אירועים כלשהם בשבוע
+    if (viewMode === 'week' && weekHasAnyEvents()) cell.appendChild(buildEventsBox(eventsOn(iso)));
 
     // סה"כ עובדים שתוכננו ליום זה
     var totWorkers = items.reduce(function (sum, it) { return sum + U.num(it.workers); }, 0);
@@ -308,7 +308,14 @@
     return cell;
   }
 
-  // תיבת אירועי יומן ממוסגרת — עם שעות וטווח השעות של היום
+  // האם יש אירועים כלשהם בשבוע הנוכחי (כדי להציג תיבה אחידה בכל הימים)
+  function weekHasAnyEvents() {
+    if (!evMap || evWeek !== weekStart) return false;
+    for (var i = 0; i < 7; i++) { if ((evMap[U.addDays(weekStart, i)] || []).length) return true; }
+    return false;
+  }
+
+  // תיבת אירועי יומן ממוסגרת בגודל קבוע — כותרת + גוף נגלל
   function buildEventsBox(evs) {
     var times = [];
     var rows = evs.map(function (t) {
@@ -318,7 +325,8 @@
     });
     var rangeTxt = '';
     if (times.length) { times.sort(); rangeTxt = ' · ' + times[0] + '–' + times[times.length - 1]; }
-    return U.el('div', { class: 'ev-box' }, [U.el('div', { class: 'ev-box-head', text: '📅 יומן' + rangeTxt })].concat(rows));
+    var body = U.el('div', { class: 'ev-box-body' }, rows.length ? rows : [U.el('div', { class: 'ev-empty', text: 'אין אירועים' })]);
+    return U.el('div', { class: 'ev-box' }, [U.el('div', { class: 'ev-box-head', text: '📅 יומן' + rangeTxt }), body]);
   }
 
   function rangeDates(from, to) {
