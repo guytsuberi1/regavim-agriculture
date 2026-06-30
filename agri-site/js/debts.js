@@ -8,8 +8,6 @@
 
   // מצב תצוגה (נשמר בין רינדורים)
   var filterStatus = '';
-  var onlyWithBalance = false;
-  var search = '';
   var selectedSiteId = null;
 
   // ---------- סטטוסים (תואם לצ'יפים בגיליון) ----------
@@ -85,13 +83,7 @@
   }
 
   function aggPassesFilter(a) {
-    if (onlyWithBalance && Math.abs(a.balance) < 0.005) return false;
     if (filterStatus) { if (!a.statuses[filterStatus]) return false; }
-    if (search) {
-      var s = siteOf(a.siteId);
-      var hay = [s.name, s.contactName, s.phone].concat(Object.keys(a.handlers)).filter(Boolean).join(' ').toLowerCase();
-      if (hay.indexOf(search.toLowerCase()) === -1) return false;
-    }
     return true;
   }
 
@@ -113,18 +105,13 @@
     ]);
     root.appendChild(head);
 
-    // ----- סינון -----
-    var searchInp = U.el('input', { type: 'search', placeholder: 'חיפוש עסק / איש קשר…', value: search, style: 'min-width:200px;' });
-    searchInp.addEventListener('input', function () { search = searchInp.value; rerenderKeepFocus(); });
+    // ----- סינון לפי סטטוס -----
     var statusSel = U.el('select', null, [U.el('option', { value: '' }, 'כל הסטטוסים')].concat(
       STATUSES.map(function (s) { return U.el('option', { value: s.value }, s.value); })));
     statusSel.value = filterStatus;
     statusSel.addEventListener('change', function () { filterStatus = statusSel.value; App.render(); });
-    var balChk = U.el('input', { type: 'checkbox', checked: onlyWithBalance });
-    balChk.addEventListener('change', function () { onlyWithBalance = balChk.checked; App.render(); });
     root.appendChild(U.el('div', { class: 'no-print', style: 'display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;' }, [
-      searchInp, statusSel,
-      U.el('label', { style: 'display:inline-flex;gap:5px;align-items:center;cursor:pointer;' }, [balChk, U.el('span', { text: 'רק עם יתרה' })])
+      U.el('span', { class: 'muted', text: 'סינון לפי סטטוס:' }), statusSel
     ]));
 
     // ----- טבלה מסכמת (חלק עליון) -----
@@ -153,30 +140,30 @@
     root.appendChild(buildDetailPanel(allAggs));
   }
 
-  function rerenderKeepFocus() {
-    var active = document.activeElement;
-    var wasSearch = active && active.getAttribute && active.getAttribute('type') === 'search';
-    var pos = wasSearch ? active.selectionStart : null;
-    App.render();
-    if (wasSearch) {
-      var inp = U.$('input[type=search]');
-      if (inp) { inp.focus(); try { inp.setSelectionRange(pos, pos); } catch (e) {} }
-    }
-  }
-
   function buildSummaryRow(a) {
     var s = siteOf(a.siteId);
     var statusCell;
-    if (a.recs.length === 1) {
-      var rec0 = a.recs[0];
-      var ssel = U.el('select', { class: 'debt-status-sel', title: 'שינוי סטטוס' }, [U.el('option', { value: '' }, '—')].concat(
-        STATUSES.map(function (s) { return U.el('option', { value: s.value }, s.value); })));
-      ssel.value = rec0.status || '';
-      ssel.addEventListener('change', function () { rec0.status = ssel.value; Store.save(); App.render(); });
+    if (a.recs.length) {
+      // סטטוס משותף לכל החובות (אם כולם זהים); אחרת "מעורב".
+      var uniq = {};
+      a.recs.forEach(function (r) { uniq[r.status || ''] = true; });
+      var keys = Object.keys(uniq);
+      var multi = a.recs.length > 1;
+      var blankLabel = (multi && keys.length > 1) ? 'מעורב' : '—';
+      var ssel = U.el('select', {
+        class: 'debt-status-sel',
+        title: multi ? 'שינוי הסטטוס לכל ' + a.recs.length + ' החובות של החקלאי' : 'שינוי סטטוס'
+      }, [U.el('option', { value: '' }, blankLabel)].concat(
+        STATUSES.map(function (st) { return U.el('option', { value: st.value }, st.value); })));
+      ssel.value = (keys.length === 1) ? keys[0] : '';
+      ssel.addEventListener('change', function () {
+        a.recs.forEach(function (r) { r.status = ssel.value; });
+        Store.save(); App.render();
+      });
       statusCell = ssel;
-    } else if (a.recs.length > 1) statusCell = U.el('span', { class: 'tag', text: a.recs.length + ' חובות' });
-    else if (a.billed && !a.recs.length) statusCell = U.el('span', { class: 'tag', style: 'background:#E0F2FE;color:#075985;', text: 'חיוב שוטף' });
-    else statusCell = statusChip('');
+    } else if (a.billed) {
+      statusCell = U.el('span', { class: 'tag', style: 'background:#E0F2FE;color:#075985;', text: 'חיוב שוטף' });
+    } else statusCell = statusChip('');
 
     var nameBtn = U.el('button', {
       class: 'btn small secondary', style: 'font-weight:600;',
