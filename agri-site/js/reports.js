@@ -1,16 +1,17 @@
-/* reports.js — דוחות תלמידים / אתרים / צוות */
+/* reports.js — דוחות תלמידים / אתרים / צוות / הסעה */
 (function (global) {
   'use strict';
   var U = global.U;
   var sub = 'students';
+  var datePreset = 'custom';
   var fromDate = U.addDays(U.todayISO(), -30);
   var toDate = U.todayISO();
-  var summaryDate = U.todayISO(); // #1 סיכום יומי
-  var cardStudentId = '';        // #3 כרטיס תלמיד
+  var summaryDate = U.todayISO();
+  var cardStudentId = '';
 
   function inRange(iso) { return iso >= fromDate && iso <= toDate; }
+  function gi(g) { var i = U.GRADES.indexOf(g); return i < 0 ? 99 : i; }
 
-  // אוסף את כל הכרטיסים בטווח
   function eachCard(cb) {
     var days = Store.get().days;
     Object.keys(days).forEach(function (iso) {
@@ -33,13 +34,11 @@
     if (d.absenceInfo[iso] && !Object.keys(d.absenceInfo[iso]).length) delete d.absenceInfo[iso];
     Store.save();
   }
-  // סט מזהי תלמידים שיצאו ביום
   function wentOn(iso) {
     var set = {}, day = Store.get().days[iso];
     if (day) (day.cards || []).forEach(function (c) { (c.students || []).forEach(function (s) { if (s.wentToWork) set[s.studentId] = true; }); });
     return set;
   }
-  // מי שלא יצא ביום: שובץ ולא סומן "יצא" + נעדרי היום (לא כולל מי שיצא)
   function nonAttendanceOn(iso) {
     var day = Store.get().days[iso], went = wentOn(iso), seen = {}, out = [];
     if (day) (day.cards || []).forEach(function (c) {
@@ -57,7 +56,6 @@
     });
     return out;
   }
-  // מי שקיבל ציון ביום (כולל מי שיצא)
   function ratedOn(iso) {
     var day = Store.get().days[iso], seen = {}, out = [];
     if (day) (day.cards || []).forEach(function (c) {
@@ -71,17 +69,16 @@
     return out;
   }
 
+  // ---------- חישובי דוחות ----------
   function studentReport() {
     var stats = {};
     function ensure(id) { if (!stats[id]) stats[id] = { work: 0, absApproved: 0, absUnapproved: 0, ratingSum: 0, ratingCount: 0 }; return stats[id]; }
-    // ציונים (מכל רשומת תלמיד עם ציון בטווח)
     eachCard(function (iso, c) {
       (c.students || []).forEach(function (s) {
         var st = ensure(s.studentId);
         if (s.rating) { st.ratingSum += U.num(s.rating); st.ratingCount++; }
       });
     });
-    // נוכחות/היעדרות לכל יום בטווח
     var days = Store.get().days;
     Object.keys(days).forEach(function (iso) {
       if (!inRange(iso)) return;
@@ -96,7 +93,7 @@
       var stu = Store.getById('students', id) || { name: '(נמחק)', grade: '' };
       var st = stats[id];
       var avg = st.ratingCount ? (st.ratingSum / st.ratingCount).toFixed(1) : '';
-      return { name: stu.name, grade: stu.grade || '', work: st.work, absApproved: st.absApproved, absUnapproved: st.absUnapproved, rating: avg, ratingSum: st.ratingSum, ratingCount: st.ratingCount };
+      return { id: id, name: stu.name, grade: stu.grade || '', work: st.work, absApproved: st.absApproved, absUnapproved: st.absUnapproved, rating: avg, ratingSum: st.ratingSum, ratingCount: st.ratingCount };
     }).sort(function (a, b) { return b.work - a.work; });
   }
 
@@ -112,126 +109,271 @@
       st.hours += w * U.num(c.hours);
     });
     return Object.keys(stats).map(function (id) {
-      var s = Store.getById('sites', id) || { name: '(נמחק)' };
-      return { name: s.name, days: Object.keys(stats[id].days).length, workers: stats[id].workers, hours: stats[id].hours };
+      var s = Store.getById('sites', id) || { name: '(נמחק)', location: '' };
+      return { id: id, name: s.name, location: s.location || '', days: Object.keys(stats[id].days).length, workers: stats[id].workers, hours: stats[id].hours };
     }).sort(function (a, b) { return b.hours - a.hours; });
   }
 
   function staffReport() {
     var stats = {};
-    function bump(id, iso, role) {
-      if (!id) return;
-      if (!stats[id]) stats[id] = { days: {}, role: role };
-      stats[id].days[iso] = true;
-    }
+    function ensure(id, role) { if (!stats[id]) stats[id] = { days: {}, hours: 0, role: role }; return stats[id]; }
     eachCard(function (iso, c) {
       var sids = (c.staffIds && c.staffIds.length) ? c.staffIds : (c.staffId ? [c.staffId] : []);
-      sids.forEach(function (sid) { bump(sid, iso, 'איש צוות'); });
-      bump(c.leaderId, iso, 'ראש צוות');
+      var h = U.num(c.hours);
+      sids.forEach(function (sid) { if (!sid) return; var s = ensure(sid, 'איש צוות'); s.days[iso] = true; s.hours += h; });
+      if (c.leaderId && sids.indexOf(c.leaderId) === -1) { var l = ensure(c.leaderId, 'ראש צוות'); l.days[iso] = true; l.hours += h; }
     });
     return Object.keys(stats).map(function (id) {
       var p = Store.getById('staff', id) || { name: '(נמחק)' };
-      return { name: p.name, days: Object.keys(stats[id].days).length };
+      return { id: id, name: p.name, days: Object.keys(stats[id].days).length, hours: stats[id].hours };
     }).sort(function (a, b) { return b.days - a.days; });
   }
 
   function transportReport() {
+    // הסעה יוצאת פעם אחת ביום (גם אם משובצת ל-2 אתרים — מורידה ב-2 נקודות). לכן מספר נסיעות = ימי פעילות.
     var stats = {};
     eachCard(function (iso, c) {
       if (!c.transportId) return;
-      if (!stats[c.transportId]) stats[c.transportId] = { days: {}, trips: 0, workers: 0 };
-      var st = stats[c.transportId];
-      st.days[iso] = true;
-      st.trips++;
-      st.workers += (c.students || []).filter(function (s) { return s.wentToWork; }).length;
+      if (!stats[c.transportId]) stats[c.transportId] = { days: {}, workers: 0 };
+      stats[c.transportId].days[iso] = true;
+      stats[c.transportId].workers += (c.students || []).filter(function (s) { return s.wentToWork; }).length;
     });
     return Object.keys(stats).map(function (id) {
       var tr = Store.getById('transports', id) || { name: '(נמחק)' };
-      return { name: tr.name, days: Object.keys(stats[id].days).length, trips: stats[id].trips, workers: stats[id].workers };
+      return { id: id, name: tr.name, days: Object.keys(stats[id].days).length, workers: stats[id].workers };
     }).sort(function (a, b) { return b.days - a.days; });
   }
 
+  // ---------- רכיבי UI ----------
+  function statCardR(value, label, fg, bg) {
+    return U.el('div', { class: 'rep-stat', style: bg ? ('background:' + bg + ';') : '' }, [
+      U.el('div', { class: 'rep-stat-val', style: fg ? ('color:' + fg + ';') : '', text: String(value) }),
+      U.el('div', { class: 'rep-stat-lbl', text: label })
+    ]);
+  }
+  function statRow(cards) { return U.el('div', { class: 'rep-stats' }, cards); }
+
+  function spot(icon, label, name, value, tone) {
+    return U.el('div', { class: 'spot spot-' + (tone || 'n') }, [
+      U.el('div', { class: 'spot-ic', text: icon }),
+      U.el('div', { class: 'spot-body' }, [
+        U.el('div', { class: 'spot-lbl', text: label }),
+        U.el('div', { class: 'spot-name', text: name || '—' }),
+        value != null ? U.el('div', { class: 'spot-val', text: value }) : null
+      ])
+    ]);
+  }
+
+  // טבלה הניתנת למיון (לחיצה על כותרת)
+  function cellCmp(va, vb, header) {
+    if (header === 'כיתה') return gi(va) - gi(vb);
+    var sa = String(va == null ? '' : va), sb = String(vb == null ? '' : vb);
+    var na = parseFloat(sa.replace(/[^0-9.\-]/g, '')), nb = parseFloat(sb.replace(/[^0-9.\-]/g, ''));
+    var aNum = sa !== '' && !isNaN(na) && /[0-9]/.test(sa);
+    var bNum = sb !== '' && !isNaN(nb) && /[0-9]/.test(sb);
+    if (aNum && bNum) return na - nb;
+    if (aNum !== bNum) return aNum ? -1 : 1;
+    return sa.localeCompare(sb, 'he');
+  }
+  function sortableTable(headers, rows, emptyText) {
+    if (!rows.length) return U.el('div', { class: 'card empty' }, emptyText || 'אין נתונים בטווח התאריכים שנבחר.');
+    var st = { col: -1, dir: 1 };
+    var tbody = U.el('tbody');
+    function fill() {
+      U.clear(tbody);
+      var sorted = rows.slice();
+      if (st.col >= 0) sorted.sort(function (a, b) { return cellCmp(a[st.col], b[st.col], headers[st.col]) * st.dir; });
+      sorted.forEach(function (r) { tbody.appendChild(U.el('tr', null, r.map(function (c, i) { return U.el('td', { class: i === 0 ? '' : 'center', text: c }); }))); });
+    }
+    var thRow = U.el('tr', null, headers.map(function (h, i) {
+      var th = U.el('th', { class: 'sortable', title: 'מיון לפי ' + h, text: h });
+      th.addEventListener('click', function () {
+        if (st.col === i) st.dir = -st.dir; else { st.col = i; st.dir = 1; }
+        Array.prototype.forEach.call(thRow.children, function (x, xi) { x.textContent = headers[xi] + (st.col === xi ? (st.dir === 1 ? ' ▲' : ' ▼') : ''); });
+        fill();
+      });
+      return th;
+    }));
+    fill();
+    return U.el('table', { class: 'grid' }, [U.el('thead', null, [thRow]), tbody]);
+  }
+  function renderTable(headers, rows, emptyText) {
+    if (!rows.length) return U.el('div', { class: 'card empty' }, emptyText || 'אין נתונים בטווח התאריכים שנבחר.');
+    return U.el('table', { class: 'grid' }, [
+      U.el('thead', null, [U.el('tr', null, headers.map(function (h) { return U.el('th', { text: h }); }))]),
+      U.el('tbody', null, rows.map(function (r) { return U.el('tr', null, r.map(function (c, i) { return U.el('td', { class: i === 0 ? '' : 'center', text: c }); })); }))
+    ]);
+  }
+
+  // ---------- ניווט ראשי ----------
   function render(root) {
     var head = U.el('div', { class: 'page-head' }, [
       U.el('h2', { text: 'דוחות' }),
-      dateRange(),
-      U.el('div', { class: 'spacer' }),
       U.el('button', { class: 'btn accent', onclick: exportExcel }, '⬇ ייצוא אקסל')
     ]);
     root.appendChild(head);
+    root.appendChild(datePresetBar());
 
+    // כרטיס תלמיד ראשון (הכי מימין)
     root.appendChild(U.el('div', { class: 'subtabs' }, [
-      ['students', 'תלמידים'], ['card', 'כרטיס תלמיד'], ['sites', 'אתרים'], ['staff', 'צוות'], ['transports', 'הסעה']
+      ['card', 'כרטיס תלמיד'], ['students', 'תלמידים'], ['sites', 'אתרים'], ['staff', 'צוות'], ['transports', 'הסעה']
     ].map(function (p) {
       return U.el('button', { class: sub === p[0] ? 'active' : '', onclick: function () { sub = p[0]; App.render(); } }, p[1]);
     })));
 
     if (sub === 'students') root.appendChild(renderStudents());
     else if (sub === 'card') root.appendChild(renderStudentCard());
-    else if (sub === 'sites') root.appendChild(renderTable(['אתר', 'ימי פעילות', 'סה"כ עובדים', 'סה"כ שעות'], siteReport().map(function (r) { return [r.name, r.days, r.workers, r.hours]; })));
-    else if (sub === 'staff') root.appendChild(renderTable(['שם', 'ימי פעילות'], staffReport().map(function (r) { return [r.name, r.days]; })));
-    else root.appendChild(renderTable(['הסעה', 'ימי פעילות', 'מספר הסעות', 'סה"כ נוסעים'], transportReport().map(function (r) { return [r.name, r.days, r.trips, r.workers]; })));
+    else if (sub === 'sites') root.appendChild(renderSites());
+    else if (sub === 'staff') root.appendChild(renderStaff());
+    else root.appendChild(renderTransports());
   }
 
-  function statCardR(value, label, fg, bg) {
-    return U.el('div', { style: 'flex:1;min-width:120px;background:' + (bg || '#fff') + ';border:1px solid var(--border,#e2e8f0);border-radius:12px;padding:12px;text-align:center;' }, [
-      U.el('div', { style: 'font-size:24px;font-weight:800;color:' + (fg || 'var(--green-dark,#1b5e20)') + ';', text: String(value) }),
-      U.el('div', { class: 'muted', style: 'font-size:12px;margin-top:3px;', text: label })
-    ]);
+  // ---------- סרגל מסנן תאריכים ----------
+  function setPreset(kind) {
+    datePreset = kind;
+    var today = U.todayISO();
+    if (kind === 'week') { fromDate = U.startOfWeek(today); toDate = U.addDays(fromDate, 6); }
+    else if (kind === 'month') { var d = U.fromISO(today); fromDate = U.toISO(new Date(d.getFullYear(), d.getMonth(), 1)); toDate = U.toISO(new Date(d.getFullYear(), d.getMonth() + 1, 0)); }
+    else if (kind === 'year') { var y = U.fromISO(today).getFullYear(); fromDate = y + '-01-01'; toDate = y + '-12-31'; }
+    App.render();
   }
+  function datePresetBar() {
+    var seg = [['week', 'שבוע'], ['month', 'חודש'], ['year', 'שנה'], ['custom', 'טווח']].map(function (p) {
+      return U.el('button', { class: 'btn small ' + (datePreset === p[0] ? 'accent' : 'secondary'), onclick: function () { p[0] === 'custom' ? (datePreset = 'custom', App.render()) : setPreset(p[0]); } }, p[1]);
+    });
+    var children = [U.el('span', { class: 'muted', text: 'תקופה:' })].concat(seg);
+    if (datePreset === 'custom') {
+      var f = U.el('input', { type: 'date', value: fromDate });
+      f.addEventListener('change', function () { if (f.value) { fromDate = f.value; App.render(); } });
+      var t = U.el('input', { type: 'date', value: toDate });
+      t.addEventListener('change', function () { if (t.value) { toDate = t.value; App.render(); } });
+      children.push(U.el('span', { style: 'display:inline-flex;gap:6px;align-items:center;' }, [U.el('label', { style: 'margin:0;', text: 'מ' }), f, U.el('label', { style: 'margin:0;', text: 'עד' }), t]));
+    } else {
+      children.push(U.el('span', { class: 'tag', text: U.gregLabel(fromDate) + ' – ' + U.gregLabel(toDate) }));
+    }
+    return U.el('div', { style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px;' }, children);
+  }
+
+  // ---------- דוח תלמידים ----------
+  var STU_HEADERS = ['תלמיד', 'כיתה', 'ימי עבודה', 'לא יצא באישור', 'לא יצא בלי אישור', 'ציון ממוצע'];
+  function stuRow(r) { return [r.name, r.grade, r.work, r.absApproved, r.absUnapproved, r.rating]; }
+
   function classSummary(grade, rows) {
-    var work = 0, absU = 0, absA = 0, rSum = 0, rCnt = 0;
-    rows.forEach(function (r) { work += r.work; absU += r.absUnapproved; absA += r.absApproved; rSum += r.ratingSum; rCnt += r.ratingCount; });
+    var work = 0, absU = 0, rSum = 0, rCnt = 0;
+    var bestAtt = null, bestAttP = -1, worstAbs = null, topAvg = null, lowAvg = null;
+    rows.forEach(function (r) {
+      work += r.work; absU += r.absUnapproved; rSum += r.ratingSum; rCnt += r.ratingCount;
+      var t = r.work + r.absUnapproved;
+      if (t) { var p = r.work / t; if (p > bestAttP) { bestAttP = p; bestAtt = r; } }
+      if (r.absUnapproved > 0 && (!worstAbs || r.absUnapproved > worstAbs.absUnapproved)) worstAbs = r;
+      if (r.ratingCount) { var a = r.ratingSum / r.ratingCount; if (!topAvg || a > topAvg.a) topAvg = { r: r, a: a }; if (!lowAvg || a < lowAvg.a) lowAvg = { r: r, a: a }; }
+    });
     var total = work + absU;
     var pct = total ? Math.round(work / total * 100) : null;
     var pctCol = pct == null ? ['#475569', '#f1f5f9'] : (pct >= 75 ? ['#15803d', '#dcfce7'] : (pct >= 50 ? ['#b45309', '#fef3c7'] : ['#b91c1c', '#fee2e2']));
-    // הדגשות למחנך
-    var worst = null, bestRow = null, bestPct = -1;
-    rows.forEach(function (r) {
-      if (r.absUnapproved > 0 && (!worst || r.absUnapproved > worst.absUnapproved)) worst = r;
-      var t = r.work + r.absUnapproved; if (t) { var p = r.work / t; if (p > bestPct) { bestPct = p; bestRow = r; } }
-    });
-    var hi = U.el('div', { style: 'margin-bottom:14px;font-size:13.5px;line-height:1.9;' });
-    if (bestRow) hi.appendChild(U.el('div', { text: '✓ אחוז היציאה הגבוה ביותר: ' + bestRow.name + ' (' + Math.round(bestPct * 100) + '%)' }));
-    if (worst) hi.appendChild(U.el('div', { style: 'color:#b91c1c;', text: '⚠ הכי הרבה היעדרויות בלי אישור: ' + worst.name + ' (' + worst.absUnapproved + ')' }));
 
-    return U.el('div', null, [
+    var spots = U.el('div', { class: 'spot-row' }, [
+      spot('🏆', 'אחוז היציאה הגבוה ביותר', bestAtt ? bestAtt.name : null, bestAtt ? Math.round(bestAttP * 100) + '%' : null, 'good'),
+      spot('⚠️', 'הכי הרבה היעדרויות (בלי אישור)', worstAbs ? worstAbs.name : null, worstAbs ? worstAbs.absUnapproved : null, 'bad'),
+      spot('⭐', 'הציון הממוצע הגבוה ביותר', topAvg ? topAvg.r.name : null, topAvg ? topAvg.a.toFixed(1) : null, 'purple'),
+      spot('📉', 'הציון הממוצע הנמוך ביותר', lowAvg ? lowAvg.r.name : null, lowAvg ? lowAvg.a.toFixed(1) : null, 'warn')
+    ]);
+
+    return U.el('div', { style: 'margin-bottom:16px;' }, [
       U.el('h3', { style: 'color:var(--green-dark);margin:0 0 8px;', text: 'סיכום כיתה ' + grade }),
-      U.el('div', { style: 'display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;' }, [
+      statRow([
         statCardR(pct == null ? '—' : pct + '%', 'אחוז יציאה כיתתי', pctCol[0], pctCol[1]),
         statCardR(rCnt ? (rSum / rCnt).toFixed(1) : '—', 'ציון ממוצע כיתתי'),
-        statCardR(rows.length, 'תלמידים פעילים'),
+        statCardR(rows.length, 'תלמידים'),
         statCardR(work, 'סה"כ ימי עבודה'),
         statCardR(absU, 'היעדרויות בלי אישור')
       ]),
-      hi
+      spots
     ]);
   }
+
   function renderStudents() {
     var rep = studentReport();
     var wrap = U.el('div');
-    var gradeFilter = U.el('select', { style: 'margin-bottom:10px;' }, [U.el('option', { value: '' }, 'כל הכיתות')].concat(U.GRADES.map(function (g) { return U.el('option', { value: g }, 'כיתה ' + g); })));
-    var HEADERS = ['תלמיד', 'כיתה', 'ימי עבודה שיצא', 'לא יצא באישור', 'לא יצא בלי אישור', 'ציון ממוצע'];
-    function rowOf(r) { return [r.name, r.grade, r.work, r.absApproved, r.absUnapproved, r.rating]; }
-    var summaryWrap = U.el('div');
-    var tableWrap = U.el('div');
+    var gradeFilter = U.el('select', { style: 'margin-bottom:12px;' }, [U.el('option', { value: '' }, 'כל הכיתות')].concat(U.GRADES.map(function (g) { return U.el('option', { value: g }, 'כיתה ' + g); })));
+    var summaryWrap = U.el('div'), tableWrap = U.el('div');
     function rebuild() {
       var g = gradeFilter.value;
-      var rows = rep.filter(function (r) { return !g || r.grade === g; });
-      U.clear(summaryWrap);
-      if (g && rows.length) summaryWrap.appendChild(classSummary(g, rows));
-      U.clear(tableWrap);
-      tableWrap.appendChild(renderTable(HEADERS, rows.map(rowOf)));
+      U.clear(summaryWrap); U.clear(tableWrap);
+      if (g) {
+        var rows = rep.filter(function (r) { return r.grade === g; });
+        if (rows.length) summaryWrap.appendChild(classSummary(g, rows));
+        tableWrap.appendChild(sortableTable(STU_HEADERS, rows.map(stuRow)));
+      } else {
+        // מקובץ לפי כיתות
+        var any = false;
+        U.GRADES.concat(['']).forEach(function (gr) {
+          var rows = rep.filter(function (r) { return (r.grade || '') === gr; });
+          if (!rows.length) return;
+          any = true;
+          tableWrap.appendChild(U.el('h3', { class: 'rep-grade-head', text: gr ? 'כיתה ' + gr : 'ללא כיתה' }));
+          tableWrap.appendChild(sortableTable(STU_HEADERS, rows.map(stuRow)));
+        });
+        if (!any) tableWrap.appendChild(U.el('div', { class: 'card empty' }, 'אין נתונים בטווח התאריכים שנבחר.'));
+      }
     }
     gradeFilter.addEventListener('change', rebuild);
-    wrap.appendChild(gradeFilter);
+    wrap.appendChild(U.el('div', { class: 'field' }, [U.el('label', { text: 'סינון כיתה' }), gradeFilter]));
     wrap.appendChild(summaryWrap);
     wrap.appendChild(tableWrap);
     rebuild();
     return wrap;
   }
 
-  // #1 — סיכום יומי
+  // ---------- דוח אתרים ----------
+  function renderSites() {
+    var si = siteReport();
+    var wrap = U.el('div');
+    var totDays = si.reduce(function (a, r) { return a + r.days; }, 0);
+    var totHours = si.reduce(function (a, r) { return a + r.hours; }, 0);
+    var top = si[0];
+    wrap.appendChild(statRow([
+      statCardR(si.length, 'אתרים פעילים'),
+      statCardR(totDays, 'סה"כ ימי פעילות'),
+      statCardR(Math.round(totHours).toLocaleString('he-IL'), 'סה"כ שעות עבודה'),
+      statCardR(top ? top.name : '—', 'חקלאי מוביל (שעות)')
+    ]));
+    wrap.appendChild(sortableTable(['אתר', 'מיקום', 'ימי פעילות', 'סה"כ עובדים', 'סה"כ שעות'],
+      si.map(function (r) { return [r.name, r.location || '—', r.days, r.workers, Math.round(r.hours)]; })));
+    return wrap;
+  }
+
+  // ---------- דוח צוות ----------
+  function renderStaff() {
+    var sf = staffReport();
+    var wrap = U.el('div');
+    var totDays = sf.reduce(function (a, r) { return a + r.days; }, 0);
+    var totHours = sf.reduce(function (a, r) { return a + r.hours; }, 0);
+    var most = sf[0];
+    var least = sf.length ? sf[sf.length - 1] : null;
+    wrap.appendChild(statRow([
+      statCardR(sf.length, 'אנשי צוות פעילים'),
+      statCardR(totDays, 'סה"כ ימי עבודה'),
+      statCardR(Math.round(totHours).toLocaleString('he-IL'), 'סה"כ שעות עבודה'),
+      statCardR(most ? most.name : '—', 'הכי הרבה ימים'),
+      statCardR(least ? least.name : '—', 'הכי מעט ימים')
+    ]));
+    wrap.appendChild(sortableTable(['שם', 'ימי עבודה', 'סה"כ שעות'],
+      sf.map(function (r) { return [r.name, r.days, Math.round(r.hours)]; })));
+    return wrap;
+  }
+
+  // ---------- דוח הסעות ----------
+  function renderTransports() {
+    var tp = transportReport();
+    var wrap = U.el('div');
+    wrap.appendChild(U.el('p', { class: 'muted', style: 'font-size:12.5px;margin:0 0 10px;', text: 'הסעה יוצאת פעם אחת ביום — לכן "מספר נסיעות" שווה למספר ימי הפעילות (גם אם ההסעה מורידה תלמידים בכמה אתרים באותו יום).' }));
+    wrap.appendChild(sortableTable(['הסעה', 'מספר נסיעות (= ימי פעילות)', 'סה"כ נוסעים'],
+      tp.map(function (r) { return [r.name, r.days, r.workers]; })));
+    return wrap;
+  }
+
+  // ---------- סיכום יומי (לדשבורד) ----------
   function renderDailySummary() {
     var wrap = U.el('div');
     var dateInp = U.el('input', { type: 'date', value: summaryDate, style: 'margin-bottom:10px;' });
@@ -278,7 +420,7 @@
     return wrap;
   }
 
-  // #3 — כרטיס תלמיד
+  // ---------- כרטיס תלמיד ----------
   function renderStudentCard() {
     var wrap = U.el('div');
     var students = (Store.get().students || []).filter(function (s) { return s.active !== false; }).sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'he'); });
@@ -288,74 +430,68 @@
     wrap.appendChild(U.el('div', { class: 'field' }, [U.el('label', { text: 'תלמיד' }), sel]));
     if (!cardStudentId) { wrap.appendChild(U.el('div', { class: 'card empty' }, 'בחרו תלמיד לצפייה בכרטיס.')); return wrap; }
 
-    var days = Store.get().days, rows = [], work = 0, notout = 0, absApproved = 0, absUnapproved = 0, rSum = 0, rCnt = 0, hoursSum = 0;
+    var days = Store.get().days, rows = [], work = 0, absApproved = 0, absUnapproved = 0, rSum = 0, rCnt = 0, hoursSum = 0;
+    var bySite = {};
     Object.keys(days).filter(inRange).sort().forEach(function (iso) {
-      var entry = null, site = '', cardHours = 0;
+      var entry = null, siteName = '', siteId = null, cardHours = 0;
       (days[iso].cards || []).forEach(function (c) {
-        (c.students || []).forEach(function (s) { if (s.studentId === cardStudentId) { entry = s; cardHours = c.hours; site = c.siteId ? ((Store.getById('sites', c.siteId) || {}).name || '(אתר)') : '(אתר)'; } });
+        (c.students || []).forEach(function (s) { if (s.studentId === cardStudentId) { entry = s; cardHours = c.hours; siteId = c.siteId || null; siteName = c.siteId ? ((Store.getById('sites', c.siteId) || {}).name || '(אתר)') : '(אתר)'; } });
       });
       var inAbsent = ((Store.get().dailyAbsent || {})[iso] || []).indexOf(cardStudentId) !== -1;
       if (!entry && !inAbsent) return;
       var didGo = !!(entry && entry.wentToWork);
       var info = getAbs(iso, cardStudentId);
-      if (didGo) { work++; hoursSum += U.num(cardHours); } else { notout++; if (info.approved) absApproved++; else absUnapproved++; }
+      if (didGo) { work++; hoursSum += U.num(cardHours); if (siteId) bySite[siteId] = (bySite[siteId] || 0) + 1; }
+      else { if (info.approved) absApproved++; else absUnapproved++; }
       if (entry && entry.rating) { rSum += U.num(entry.rating); rCnt++; }
       rows.push([
         U.gregLabel(iso),
-        didGo ? site : (inAbsent ? 'נעדר היום' : (site || '')),
+        didGo ? siteName : (inAbsent ? 'נעדר היום' : (siteName || '')),
         didGo ? '✓ יצא' : 'לא יצא',
         (entry && entry.rating) || '',
         didGo ? '' : (info.approved ? 'באישור' : 'לא באישור'),
         (info.reason || '') || (entry && entry.note) || ''
       ]);
     });
-    var total = work + absUnapproved; // היעדרות באישור לא נספרת באחוז היציאה
+    var total = work + absUnapproved;
     var pct = total ? Math.round(work / total * 100) : null;
     var pctCol = pct == null ? ['#475569', '#f1f5f9'] : (pct >= 75 ? ['#15803d', '#dcfce7'] : (pct >= 50 ? ['#b45309', '#fef3c7'] : ['#b91c1c', '#fee2e2']));
-    function statCard(value, label, fg, bg) {
-      return U.el('div', { style: 'flex:1;min-width:120px;background:' + (bg || '#fff') + ';border:1px solid var(--border,#e2e8f0);border-radius:12px;padding:12px;text-align:center;' }, [
-        U.el('div', { style: 'font-size:24px;font-weight:800;color:' + (fg || 'var(--green-dark,#1b5e20)') + ';', text: String(value) }),
-        U.el('div', { class: 'muted', style: 'font-size:12px;margin-top:3px;', text: label })
-      ]);
-    }
-    wrap.appendChild(U.el('div', { style: 'display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;' }, [
-      statCard(pct == null ? '—' : pct + '%', 'אחוז יציאה', pctCol[0], pctCol[1]),
-      statCard(work, 'ימים שיצא'),
-      statCard(hoursSum, 'סה"כ שעות'),
-      statCard(absApproved, 'לא יצא — באישור'),
-      statCard(absUnapproved, 'לא יצא — בלי אישור'),
-      statCard(rCnt ? (rSum / rCnt).toFixed(1) : '—', 'ציון ממוצע')
+
+    // חקלאי שעבד אצלו הכי הרבה
+    var topSiteId = null, topSiteN = 0;
+    Object.keys(bySite).forEach(function (id) { if (bySite[id] > topSiteN) { topSiteN = bySite[id]; topSiteId = id; } });
+    var topSiteName = topSiteId ? ((Store.getById('sites', topSiteId) || {}).name || '(אתר)') : '—';
+    // הצוות שלו
+    var team = global.TeamUtil ? global.TeamUtil.teamOfStudent(cardStudentId) : null;
+    var teamName = team ? global.TeamUtil.teamLabel(team) : '—';
+
+    wrap.appendChild(statRow([
+      statCardR(pct == null ? '—' : pct + '%', 'אחוז יציאה', pctCol[0], pctCol[1]),
+      statCardR(work, 'ימים שיצא'),
+      statCardR(hoursSum, 'סה"כ שעות'),
+      statCardR(rCnt ? (rSum / rCnt).toFixed(1) : '—', 'ציון ממוצע'),
+      statCardR(absApproved, 'לא יצא — באישור'),
+      statCardR(absUnapproved, 'לא יצא — בלי אישור')
     ]));
-    wrap.appendChild(renderTable(['תאריך', 'אתר', 'יצא?', 'ציון', 'אישור', 'סיבה/הערה'], rows));
+    wrap.appendChild(U.el('div', { class: 'spot-row', style: 'margin-bottom:14px;' }, [
+      spot('🏆', 'חקלאי שעבד אצלו הכי הרבה', topSiteName, topSiteN ? topSiteN + ' ימים' : null, 'good'),
+      spot('👥', 'צוות', teamName, null, 'info')
+    ]));
+    wrap.appendChild(renderTable(['תאריך', 'אתר', 'יצא?', 'ציון', 'אישור', 'סיבה/הערה'], rows, 'אין פעילות לתלמיד בטווח שנבחר.'));
     return wrap;
   }
 
-  function renderTable(headers, rows) {
-    if (!rows.length) return U.el('div', { class: 'card empty' }, 'אין נתונים בטווח התאריכים שנבחר.');
-    return U.el('table', { class: 'grid' }, [
-      U.el('thead', null, [U.el('tr', null, headers.map(function (h) { return U.el('th', { text: h }); }))]),
-      U.el('tbody', null, rows.map(function (r) { return U.el('tr', null, r.map(function (c, i) { return U.el('td', { class: i === 0 ? '' : 'center', text: c }); })); }))
-    ]);
-  }
-
-  function dateRange() {
-    var f = U.el('input', { type: 'date', value: fromDate });
-    f.addEventListener('change', function () { if (f.value) { fromDate = f.value; App.render(); } });
-    var t = U.el('input', { type: 'date', value: toDate });
-    t.addEventListener('change', function () { if (t.value) { toDate = t.value; App.render(); } });
-    return U.el('span', { style: 'display:inline-flex;gap:6px;align-items:center;' }, [U.el('label', { style: 'margin:0;', text: 'מ' }), f, U.el('label', { style: 'margin:0;', text: 'עד' }), t]);
-  }
-
+  // ---------- ייצוא אקסל ----------
   function exportExcel() {
     var wb = XLSX.utils.book_new();
     var sr = studentReport();
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['תלמיד', 'כיתה', 'ימי עבודה שיצא', 'לא יצא באישור', 'לא יצא בלי אישור', 'ציון ממוצע']].concat(sr.map(function (r) { return [r.name, r.grade, r.work, r.absApproved, r.absUnapproved, r.rating]; }))), 'תלמידים');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([STU_HEADERS].concat(sr.map(stuRow))), 'תלמידים');
     var si = siteReport();
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['אתר', 'ימי פעילות', 'סה"כ עובדים', 'סה"כ שעות']].concat(si.map(function (r) { return [r.name, r.days, r.workers, r.hours]; }))), 'אתרים');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['אתר', 'מיקום', 'ימי פעילות', 'סה"כ עובדים', 'סה"כ שעות']].concat(si.map(function (r) { return [r.name, r.location, r.days, r.workers, Math.round(r.hours)]; }))), 'אתרים');
     var sf = staffReport();
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['שם', 'ימי פעילות']].concat(sf.map(function (r) { return [r.name, r.days]; }))), 'צוות');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['שם', 'ימי עבודה', 'סה"כ שעות']].concat(sf.map(function (r) { return [r.name, r.days, Math.round(r.hours)]; }))), 'צוות');
     var tp = transportReport();
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['הסעה', 'ימי פעילות', 'מספר הסעות', 'סה"כ נוסעים']].concat(tp.map(function (r) { return [r.name, r.days, r.trips, r.workers]; }))), 'הסעות');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['הסעה', 'מספר נסיעות', 'סה"כ נוסעים']].concat(tp.map(function (r) { return [r.name, r.days, r.workers]; }))), 'הסעות');
     XLSX.writeFile(wb, 'דוחות-' + fromDate + '_' + toDate + '.xlsx');
   }
 
