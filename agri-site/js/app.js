@@ -20,19 +20,27 @@
 
   var current = 'dashboard';
 
-  // הרשאות: אדמין רואה הכל חוץ מ"תורני מטבח"; מנהל מטבח רואה רק "תורני מטבח"; כל השאר רק "מצב שטח"
+  // הרשאות → אילו טאבים גלויים
+  // admin=רכז חקלאות (הכל) · manager=מנהל (הכל למעט נתוני בסיס, מטבח והגדרות) · kitchen=מנהל מטבח · field=מצב שטח
+  var ROLE_TABS = {
+    admin: ['dashboard', 'planning', 'billing', 'debts', 'reports', 'base', 'kitchen', 'field', 'settings'],
+    manager: ['dashboard', 'planning', 'billing', 'debts', 'reports', 'field'],
+    kitchen: ['kitchen'],
+    field: ['field']
+  };
+  function roleKey() {
+    return Store.currentRole ? Store.currentRole() : (Store.isAdmin() ? 'admin' : (Store.isKitchen() ? 'kitchen' : 'field'));
+  }
   function applyRole() {
-    var admin = Store.isAdmin();
-    var kitchen = !admin && Store.isKitchen();
+    var role = roleKey();
+    var allowed = ROLE_TABS[role] || ROLE_TABS.field;
     U.$all('#tabs button').forEach(function (b) {
       var t = b.getAttribute('data-tab');
-      var vis = admin ? (t !== 'kitchen') : (kitchen ? t === 'kitchen' : t === 'field');
-      b.style.display = vis ? '' : 'none';
+      b.style.display = allowed.indexOf(t) !== -1 ? '' : 'none';
     });
-    // כותרות הנושאים בסרגל — רק למנהל (משתמש מוגבל רואה טאב יחיד)
-    U.$all('#tabs .nav-sec').forEach(function (d) { d.style.display = admin ? '' : 'none'; });
-    if (kitchen) current = 'kitchen';
-    else if (!admin) current = 'field';
+    // כותרות הנושאים בסרגל — רק למי שרואה כמה טאבים (רכז/מנהל)
+    U.$all('#tabs .nav-sec').forEach(function (d) { d.style.display = (role === 'admin' || role === 'manager') ? '' : 'none'; });
+    if (allowed.indexOf(current) === -1) current = allowed[0];
   }
 
   function render() {
@@ -55,10 +63,8 @@
   }
 
   function setTab(tab) {
-    if (!Store.isAdmin()) { // הגנה: לא-מנהל מוגבל למסך היחיד שלו
-      var allowed = Store.isKitchen() ? 'kitchen' : 'field';
-      if (tab !== allowed) tab = allowed;
-    }
+    var allowed = ROLE_TABS[roleKey()] || ROLE_TABS.field;
+    if (allowed.indexOf(tab) === -1) tab = allowed[0]; // הגנה: מסך לא-מורשה → לטאב הראשון המותר
     current = tab;
     U.$all('#tabs button').forEach(function (b) {
       b.classList.toggle('active', b.getAttribute('data-tab') === tab);

@@ -78,23 +78,25 @@
   var sessionUser = null;
   function setSessionUser(u) { sessionUser = u || null; }
 
+  // הרשאות: admin=רכז חקלאות (הכל) · manager=מנהל (הכל למעט נתוני בסיס ומטבח) · kitchen=מנהל מטבח · field=מצב שטח
   // הרשאה אפקטיבית למייל: הגדרה מפורשת ב-userRoles גוברת; אחרת נופלים לרשימות הקשיחות; ברירת מחדל — שטח.
   function roleOf(email) {
     email = String(email || '').toLowerCase();
     if (!email) return 'field';
     var roles = (data && data.userRoles) || {};
-    if (roles[email] === 'admin' || roles[email] === 'kitchen' || roles[email] === 'field') return roles[email];
+    var r = roles[email];
+    if (r === 'admin' || r === 'manager' || r === 'kitchen' || r === 'field') return r;
     if (ADMIN_EMAILS.indexOf(email) !== -1) return 'admin';
     if (KITCHEN_EMAILS.indexOf(email) !== -1) return 'kitchen';
     return 'field';
   }
-  function isAdmin() {
-    if (!cloudMode) return true; // מצב מקומי (ללא ענן) — גישה מלאה
-    return !!(sessionUser && roleOf(sessionUser.email) === 'admin');
+  function currentRole() {
+    if (!cloudMode) return 'admin'; // מצב מקומי (ללא ענן) — גישה מלאה
+    return sessionUser ? roleOf(sessionUser.email) : 'field';
   }
-  function isKitchen() {
-    return !!(sessionUser && roleOf(sessionUser.email) === 'kitchen');
-  }
+  function isAdmin() { return currentRole() === 'admin'; }            // רכז חקלאות — גישה מלאה
+  function canManage() { var r = currentRole(); return r === 'admin' || r === 'manager'; }
+  function isKitchen() { return currentRole() === 'kitchen'; }
   // קביעת הרשאה למשתמש (לפי מייל). role: 'admin'|'kitchen'|'field'.
   function setUserRole(email, role) {
     email = String(email || '').toLowerCase();
@@ -550,6 +552,8 @@
     serverMode: serverMode,
     isAdmin: isAdmin,
     isKitchen: isKitchen,
+    canManage: canManage,
+    currentRole: currentRole,
     roleOf: roleOf,
     setUserRole: setUserRole,
     currentEmail: function () { return sessionUser && sessionUser.email ? String(sessionUser.email).toLowerCase() : null; },

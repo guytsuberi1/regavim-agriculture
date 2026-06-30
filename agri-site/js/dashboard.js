@@ -139,7 +139,7 @@
 
   // ---------- רינדור ראשי ----------
   function render(root) {
-    if (!Store.isAdmin()) { root.appendChild(U.el('div', { class: 'card empty' }, 'אין הרשאה.')); return; }
+    if (!Store.canManage()) { root.appendChild(U.el('div', { class: 'card empty' }, 'אין הרשאה.')); return; }
 
     root.appendChild(U.el('div', { class: 'page-head dash-head' }, [
       U.el('div', null, [

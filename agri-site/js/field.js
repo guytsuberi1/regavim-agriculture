@@ -36,7 +36,7 @@
     var day = dayOf();
     var absN = ((Store.get().dailyAbsent || {})[fieldDate] || []).length;
     var id = myStaffId();
-    var isMgr = !id && Store.isAdmin(); // רכז/מנהל ללא קישור לאיש צוות — רואה את כל האתרים
+    var isMgr = !id && Store.canManage(); // רכז/מנהל ללא קישור לאיש צוות — רואה את כל האתרים
 
     // פתיחה אוטומטית של האתר המשובץ לאיש הצוות — פעם אחת לכל (זהות+תאריך)
     var autoKey = (id || (isMgr ? 'mgr' : '-')) + '|' + fieldDate;

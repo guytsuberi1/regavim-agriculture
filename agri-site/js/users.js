@@ -74,7 +74,7 @@
       U.el('button', { class: 'btn secondary small', onclick: function () { App.render(); } }, '↻ רענן')
     ]));
     root.appendChild(U.el('p', { class: 'muted', text: 'יצירת חשבון התחברות (אימייל + סיסמה) לכל איש צוות, וקביעת ההרשאה שלו. לאחר חיבור החשבון, איש הצוות מתחבר ורואה אוטומטית את האתר ששובץ לו במצב שטח. האימייל נקבע בנתוני בסיס → אנשי צוות.' }));
-    root.appendChild(U.el('p', { class: 'muted', style: 'font-size:12px;margin-top:-6px;', text: 'הרשאות: "מצב שטח" — איש צוות רגיל (סימון יציאה וציון בלבד) · "תורני מטבח" — מסך תורנות מטבח · "מנהל" — גישה מלאה לכל המסכים.' }));
+    root.appendChild(U.el('p', { class: 'muted', style: 'font-size:12px;margin-top:-6px;', text: 'הרשאות: "מצב שטח" — איש צוות רגיל · "מנהל מטבח" — מסך תורני מטבח · "מנהל" — כל המסכים למעט נתוני בסיס, מטבח והגדרות · "רכז חקלאות" — גישה מלאה.' }));
 
     var staff = (Store.get().staff || []).filter(function (s) { return s.active !== false; })
       .sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'he'); });
@@ -106,7 +106,7 @@
       var hasAccount = hasEmail && accounts[email.toLowerCase()];
 
       var status;
-      if (!hasEmail) status = U.el('span', { class: 'muted', text: '— ללא אימייל' });
+      if (!hasEmail) status = U.el('span', { class: 'tag', style: 'background:#fee2e2;color:#b91c1c;font-weight:700;', text: 'חסר מייל' });
       else if (accountsUnknown) status = U.el('span', { class: 'muted', text: '—' });
       else if (hasAccount) status = U.el('span', { class: 'tag', style: 'background:#e8f5e9;color:#1b5e20;', text: '✓ יש חשבון' });
       else status = U.el('span', { class: 'tag', style: 'background:#fff3e0;color:#b07a3f;', text: 'אין חשבון' });
@@ -117,8 +117,9 @@
         var cur = Store.roleOf(email);
         var roleSel = U.el('select', null, [
           U.el('option', { value: 'field' }, 'מצב שטח'),
-          U.el('option', { value: 'kitchen' }, 'תורני מטבח'),
-          U.el('option', { value: 'admin' }, 'מנהל (גישה מלאה)')
+          U.el('option', { value: 'kitchen' }, 'מנהל מטבח'),
+          U.el('option', { value: 'manager' }, 'מנהל'),
+          U.el('option', { value: 'admin' }, 'רכז חקלאות (גישה מלאה)')
         ]);
         roleSel.value = cur;
         roleSel.addEventListener('change', function () {
