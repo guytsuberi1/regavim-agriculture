@@ -133,6 +133,8 @@ label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 3px
 table.grid { width: 100%; border-collapse: collapse; background: var(--card); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
 table.grid th, table.grid td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: right; }
 table.grid th { background: var(--green-light); color: var(--green-dark); font-weight: 600; font-size: 13px; }
+table.grid th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+table.grid th.sortable:hover { background: #d7eedd; }
 table.grid tr:hover td { background: #fafdfb; }
 table.grid td.actions { white-space: nowrap; text-align: left; }
 .muted { color: var(--muted); }

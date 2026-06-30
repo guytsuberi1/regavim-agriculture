@@ -4,13 +4,30 @@
   var U = global.U;
   var sub = 'students';
   var showArchive = false; // הצגת רשומות בארכיון (active=false) במקום הפעילות
+  var sortKey = null, sortDir = 1; // מיון הטבלה
+
+  // תג כיתה ברור (כמו בסידור היומי)
+  function gradeBadge(g) {
+    var i = U.GRADES.indexOf(g);
+    return U.el('span', { class: 'grade-badge gb' + (i < 0 ? 'x' : i), title: 'כיתה ' + g, text: g });
+  }
+  function cmpVal(a, b, def) {
+    var va = a[def.key], vb = b[def.key];
+    if (def.key === 'grade') {
+      var ga = U.GRADES.indexOf(va), gb = U.GRADES.indexOf(vb);
+      return (ga < 0 ? 99 : ga) - (gb < 0 ? 99 : gb);
+    }
+    if (def.type === 'number') return U.num(va) - U.num(vb);
+    if (def.type === 'bool') return (va === false ? 0 : 1) - (vb === false ? 0 : 1);
+    return String(va == null ? '' : va).localeCompare(String(vb == null ? '' : vb), 'he');
+  }
 
   // הגדרת השדות לכל אוסף
   function fieldDefs(coll) {
     if (coll === 'students') return [
       { key: 'name', label: 'שם התלמיד', type: 'text', required: true, col: true },
       { key: 'grade', label: 'כיתה', type: 'select', options: U.GRADES, col: true },
-      { key: 'phone', label: 'טלפון', type: 'text', col: true },
+      { key: 'phone', label: 'טלפון', type: 'text', required: true, col: true },
       { key: 'active', label: 'פעיל', type: 'bool', col: true, def: true },
       { key: 'notes', label: 'הערות', type: 'text' }
     ];
@@ -31,8 +48,8 @@
       { key: 'name', label: 'שם', type: 'text', required: true, col: true },
       { key: 'role', label: 'תפקיד', type: 'select', options: ['איש צוות', 'ראש צוות'],
         values: ['staff', 'leader'], col: true, def: 'staff' },
-      { key: 'phone', label: 'טלפון', type: 'text', col: true },
-      { key: 'email', label: 'אימייל להתחברות', type: 'text', col: true },
+      { key: 'phone', label: 'טלפון', type: 'text', required: true, col: true },
+      { key: 'email', label: 'אימייל להתחברות', type: 'text', required: true, col: true },
       { key: 'homeroom', label: 'מחנך', type: 'bool', col: true, def: false },
       { key: 'active', label: 'פעיל', type: 'bool', col: true, def: true }
     ];
@@ -79,7 +96,7 @@
         var count = c === 'teams' ? (data.teams ? data.teams.length : 0) : ((data[c] || []).filter(function (x) { return x.active !== false; }).length);
         return U.el('button', {
           class: sub === c ? 'active' : '',
-          onclick: function () { sub = c; App.render(); }
+          onclick: function () { sub = c; sortKey = null; App.render(); }
         }, collTitle(c) + ' (' + count + ')');
       })
     );
@@ -104,12 +121,23 @@
         showArchive ? 'הארכיון ריק.' : 'אין עדיין רשומות. לחצו "הוספה" או "ייבוא מאקסל".');
     }
 
+    var sdef = sortKey ? defs.filter(function (d) { return d.key === sortKey; })[0] : null;
+    if (sdef) rows = rows.slice().sort(function (a, b) { return cmpVal(a, b, sdef) * sortDir; });
+
     var thead = U.el('tr', null,
-      defs.map(function (d) { return U.el('th', { text: d.label }); })
-        .concat([U.el('th', { text: '' })]));
+      defs.map(function (d) {
+        var arrow = sortKey === d.key ? (sortDir === 1 ? ' ▲' : ' ▼') : '';
+        var th = U.el('th', { class: 'sortable', title: 'מיון לפי ' + d.label, text: d.label + arrow });
+        th.addEventListener('click', function () {
+          if (sortKey === d.key) sortDir = -sortDir; else { sortKey = d.key; sortDir = 1; }
+          App.render();
+        });
+        return th;
+      }).concat([U.el('th', { text: '' })]));
 
     var tbody = rows.map(function (item) {
       var tds = defs.map(function (d) {
+        if (d.key === 'grade' && item.grade) return U.el('td', null, [gradeBadge(item.grade)]);
         return U.el('td', { text: displayVal(d, item) });
       });
       tds.push(U.el('td', { class: 'actions' }, [
