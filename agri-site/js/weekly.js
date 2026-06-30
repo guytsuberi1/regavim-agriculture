@@ -272,6 +272,17 @@
     cell.appendChild(U.el('h4', { text: U.weekdayName(iso) }));
     cell.appendChild(U.el('div', { class: 'heb', text: U.hebrewDate(iso) + ' · ' + U.gregLabel(iso) }));
 
+    // --- מעל התכנון: מזג אוויר ואירועי יומן (כמו בגוגל קלנדר) ---
+    var w = wxData && wxData[iso];
+    if (w) {
+      var ic = wxIcon(w.code);
+      cell.appendChild(U.el('div', { class: 'wx-line' },
+        ic[0] + ' ' + ic[1] + ' · ' + Math.round(w.tmax) + '°/' + Math.round(w.tmin) + '°' +
+        (w.pop != null && w.pop > 0 ? ' · 💧' + w.pop + '%' : '')));
+    }
+    var evs = eventsOn(iso);
+    if (evs.length) cell.appendChild(buildEventsBox(evs));
+
     // סה"כ עובדים שתוכננו ליום זה
     var totWorkers = items.reduce(function (sum, it) { return sum + U.num(it.workers); }, 0);
     if (totWorkers > 0) {
@@ -294,24 +305,20 @@
     });
 
     cell.appendChild(U.el('button', { class: 'btn small secondary no-print', style: 'margin-top:auto;', onclick: function () { openItem(iso, null, -1); } }, '+ הוסף'));
-
-    // מזג אוויר ליום זה (אם בטווח התחזית)
-    var w = wxData && wxData[iso];
-    if (w) {
-      var ic = wxIcon(w.code);
-      cell.appendChild(U.el('div', { class: 'wx-line' },
-        ic[0] + ' ' + ic[1] + ' · ' + Math.round(w.tmax) + '°/' + Math.round(w.tmin) + '°' +
-        (w.pop != null && w.pop > 0 ? ' · 💧' + w.pop + '%' : '')));
-    }
-
-    // אירועי בית הספר ליום זה
-    var evs = eventsOn(iso);
-    if (evs.length) {
-      var evBox = U.el('div', { class: 'ev-line' });
-      evs.forEach(function (t) { evBox.appendChild(U.el('div', { class: 'ev-item', text: '📌 ' + t })); });
-      cell.appendChild(evBox);
-    }
     return cell;
+  }
+
+  // תיבת אירועי יומן ממוסגרת — עם שעות וטווח השעות של היום
+  function buildEventsBox(evs) {
+    var times = [];
+    var rows = evs.map(function (t) {
+      var m = /^(\d{2}:\d{2}) · ([\s\S]*)$/.exec(t);
+      if (m) { times.push(m[1]); return U.el('div', { class: 'ev-item' }, [U.el('span', { class: 'ev-time', text: m[1] }), U.el('span', { text: m[2] })]); }
+      return U.el('div', { class: 'ev-item allday' }, [U.el('span', { class: 'ev-time', text: 'כל היום' }), U.el('span', { text: t })]);
+    });
+    var rangeTxt = '';
+    if (times.length) { times.sort(); rangeTxt = ' · ' + times[0] + '–' + times[times.length - 1]; }
+    return U.el('div', { class: 'ev-box' }, [U.el('div', { class: 'ev-box-head', text: '📅 יומן' + rangeTxt })].concat(rows));
   }
 
   function rangeDates(from, to) {
