@@ -368,6 +368,26 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
 .fn-date { font-size: 12px; color: var(--muted); }
 .fn-text { font-size: 14px; color: var(--text); line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
 
+/* סיכום יומי לפי אתרים */
+.ds-site { padding: 14px; margin-bottom: 12px; }
+.ds-site-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 8px; }
+.ds-site-name { font-size: 16px; font-weight: 700; color: var(--green-dark); }
+.ds-site-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ds-students { display: flex; flex-direction: column; gap: 4px; }
+.ds-student { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 5px 6px; border-radius: 8px; }
+.ds-student:hover { background: var(--bg); }
+.ds-name { flex: 1; min-width: 120px; font-size: 14px; }
+.ds-right { display: inline-flex; align-items: center; gap: 8px; }
+.ds-status { font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
+.ds-status.went { background: var(--green-light); color: var(--green-dark); }
+.ds-status.absent { background: #fdecea; color: var(--danger); }
+.ds-status.none { background: #eef2f6; color: var(--muted); }
+.ds-rate { font-size: 12px; color: var(--accent); font-weight: 700; }
+.ds-absedit { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.ds-absedit .ds-appr { width: auto; }
+.ds-absedit .ds-reason { flex: 1; min-width: 150px; }
+@media (max-width: 640px) { .ds-name { min-width: 100%; } .ds-absedit { width: 100%; } }
+
 /* גולל אופקי לטבלאות (נעטף אוטומטית ב-app.js) */
 .tbl-scroll { width: 100%; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 

@@ -5,6 +5,7 @@
 
   var sub = 'overview';      // overview | daily | notes | finance
   var period = 'month';      // week | month | year (לשונית "מבט על")
+  var dashDate = U.todayISO(); // תאריך לסיכום היומי
 
   function money(n) { return '₪' + Math.round(U.num(n)).toLocaleString('he-IL'); }
   function inRange(iso, r) { return iso >= r.start && iso <= r.end; }
@@ -199,10 +200,113 @@
     root.appendChild(U.el('p', { class: 'muted', style: 'font-size:12px;', text: 'הכנסות מחושבות לפי שעות×תעריף + נסיעות לכל יום (אומדן ניהולי; הנתון המדויק לחיוב נמצא ב"דרישת תשלום").' }));
   }
 
-  // ---------- סיכום יומי ----------
+  // ---------- סיכום יומי (תכנון מול ביצוע, לפי אתרים) ----------
   function renderDaily(root) {
-    var box = global.ReportsUtil ? ReportsUtil.renderDailySummary() : U.el('div', { class: 'dash-empty', text: 'הסיכום היומי אינו זמין.' });
-    root.appendChild(U.el('div', { class: 'card' }, [box]));
+    var dInp = U.el('input', { type: 'date', value: dashDate });
+    dInp.addEventListener('change', function () { if (dInp.value) { dashDate = dInp.value; App.render(); } });
+    root.appendChild(U.el('div', { style: 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;' }, [
+      U.el('button', { class: 'btn secondary small', onclick: function () { dashDate = U.addDays(dashDate, -1); App.render(); } }, '→ אתמול'),
+      dInp,
+      U.el('button', { class: 'btn secondary small', onclick: function () { dashDate = U.addDays(dashDate, 1); App.render(); } }, 'מחר ←'),
+      U.el('button', { class: 'btn secondary small', onclick: function () { dashDate = U.todayISO(); App.render(); } }, 'היום'),
+      U.el('span', { class: 'tag', text: U.weekdayName(dashDate) + ' · ' + U.gregLabel(dashDate) })
+    ]));
+
+    var day = (Store.get().days || {})[dashDate];
+    var cards = (day && day.cards) ? day.cards : [];
+
+    var planned = 0, went = 0, sites = 0;
+    cards.forEach(function (c) {
+      var w = (c.students || []).filter(function (s) { return s.wentToWork; }).length;
+      if (c.targetWorkers !== '' && c.targetWorkers != null) planned += U.num(c.targetWorkers);
+      went += w;
+      if (c.siteId || (c.students || []).length) sites++;
+    });
+    var absUnap = 0;
+    if (global.ReportsUtil) ReportsUtil.nonAttendanceOn(dashDate).forEach(function (x) { if (!ReportsUtil.getAbs(dashDate, x.studentId).approved) absUnap++; });
+    var attTotal = went + absUnap, attPct = attTotal ? Math.round(went / attTotal * 100) : null;
+
+    function tot(n, label) { return U.el('div', { class: 't' }, [U.el('b', { text: String(n) }), U.el('span', { text: label })]); }
+    root.appendChild(U.el('div', { class: 'totbar' }, [
+      tot(sites, 'אתרים'),
+      tot(planned || '—', 'מתוכננים'),
+      tot(went, 'יצאו לעבודה'),
+      tot(attPct == null ? '—' : attPct + '%', 'אחוז יציאה')
+    ]));
+
+    if (!cards.length) { root.appendChild(U.el('div', { class: 'card empty' }, 'אין שיבוץ ליום זה.')); }
+    else cards.forEach(function (c) { root.appendChild(siteSection(c)); });
+
+    var genAbsent = ((Store.get().dailyAbsent || {})[dashDate] || []);
+    if (genAbsent.length) root.appendChild(generalAbsentSection(genAbsent));
+  }
+
+  function siteSection(card) {
+    var site = card.siteId ? Store.getById('sites', card.siteId) : null;
+    var students = (card.students || []).slice().sort(function (a, b) {
+      return ((b.teamLeader ? 1 : 0) - (a.teamLeader ? 1 : 0)) || ((b.wentToWork ? 1 : 0) - (a.wentToWork ? 1 : 0));
+    });
+    var went = students.filter(function (s) { return s.wentToWork; }).length;
+    var hasPlan = card.targetWorkers !== '' && card.targetWorkers != null;
+    var planned = U.num(card.targetWorkers);
+    var cls = hasPlan ? (went < planned ? 'under' : (went > planned ? 'over' : 'ok')) : '';
+    var staff = (card.staffIds && card.staffIds.length ? card.staffIds : (card.staffId ? [card.staffId] : []))
+      .map(function (id) { var p = Store.getById('staff', id); return p ? p.name : ''; }).filter(Boolean).join(', ');
+
+    var head = U.el('div', { class: 'ds-site-head' }, [
+      U.el('div', { class: 'ds-site-name', text: site ? site.name : '(אתר)' }),
+      U.el('div', { class: 'ds-site-meta' }, [
+        U.el('span', { class: 'tw-counter ' + cls, text: hasPlan ? ('ביצוע ' + went + ' / תכנון ' + planned) : ('יצאו ' + went + ' / ' + students.length) }),
+        staff ? U.el('span', { class: 'muted', style: 'font-size:12px;', text: '👤 ' + staff }) : null
+      ])
+    ]);
+
+    var list = students.length
+      ? U.el('div', { class: 'ds-students' }, students.map(studentRow))
+      : U.el('div', { class: 'muted', style: 'padding:6px 2px;', text: 'אין תלמידים משובצים.' });
+
+    var kids = [head, list];
+    if (card.fieldNote) kids.push(U.el('div', { class: 'fieldnote', style: 'margin-top:8px;' }, [U.el('div', { class: 'fn-text', text: '📝 ' + card.fieldNote })]));
+    return U.el('div', { class: 'card ds-site' }, kids);
+  }
+
+  function absEditor(studentId) {
+    var info = (global.ReportsUtil && ReportsUtil.getAbs) ? ReportsUtil.getAbs(dashDate, studentId) : { approved: false, reason: '' };
+    var sel = U.el('select', { class: 'ds-appr' }, [U.el('option', { value: '0' }, 'לא באישור'), U.el('option', { value: '1' }, 'באישור')]);
+    sel.value = info.approved ? '1' : '0';
+    var note = U.el('input', { type: 'text', class: 'ds-reason', value: info.reason || '', placeholder: 'סיבה / הערה' });
+    function persist() { if (global.ReportsUtil && ReportsUtil.setAbs) ReportsUtil.setAbs(dashDate, studentId, { approved: sel.value === '1', reason: note.value }); }
+    sel.addEventListener('change', persist); note.addEventListener('change', persist);
+    return U.el('div', { class: 'ds-absedit' }, [sel, note]);
+  }
+
+  function studentRow(st) {
+    var stu = Store.getById('students', st.studentId) || { name: '⚠ נמחק', grade: '' };
+    var name = stu.name + (stu.grade ? ' (' + stu.grade + ')' : '');
+    var statusCls = st.wentToWork ? 'went' : (st.absent ? 'absent' : 'none');
+    var statusTxt = st.wentToWork ? '✓ יצא' : (st.absent ? '✕ לא יצא' : '— לא סומן');
+    var right = [U.el('span', { class: 'ds-status ' + statusCls, text: statusTxt })];
+    if (st.wentToWork && st.rating) right.push(U.el('span', { class: 'ds-rate', text: '⭐ ' + st.rating }));
+    var row = U.el('div', { class: 'ds-student' }, [
+      U.el('span', { class: 'ds-name', text: (st.teamLeader ? '⭐ ' : '') + name }),
+      U.el('span', { class: 'ds-right' }, right)
+    ]);
+    if (!st.wentToWork) row.appendChild(absEditor(st.studentId));
+    return row;
+  }
+
+  function generalAbsentSection(ids) {
+    var rows = ids.map(function (id) {
+      var stu = Store.getById('students', id) || { name: '⚠', grade: '' };
+      return U.el('div', { class: 'ds-student' }, [
+        U.el('span', { class: 'ds-name', text: stu.name + (stu.grade ? ' (' + stu.grade + ')' : '') }),
+        absEditor(id)
+      ]);
+    });
+    return U.el('div', { class: 'card ds-site' }, [
+      U.el('div', { class: 'ds-site-head' }, [U.el('div', { class: 'ds-site-name', text: '🚫 נעדרים כלליים (היום)' })]),
+      U.el('div', { class: 'ds-students' }, rows)
+    ]);
   }
 
   // ---------- הערות מהשטח ----------

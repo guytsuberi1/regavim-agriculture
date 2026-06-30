@@ -363,7 +363,8 @@
     renderDailySummary: renderDailySummary,
     nonAttendanceOn: nonAttendanceOn,
     wentOn: wentOn,
-    getAbs: getAbs
+    getAbs: getAbs,
+    setAbs: setAbs
   };
   global.ReportsView = { render: render };
 })(window);
