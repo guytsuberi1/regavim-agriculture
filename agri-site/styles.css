@@ -330,9 +330,21 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
   background: var(--kpi-bg, var(--green-light));
 }
 .kpi-body { min-width: 0; }
+.kpi-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .kpi-val { font-size: 26px; font-weight: 800; line-height: 1.1; color: var(--text); letter-spacing: -.5px; }
 .kpi-lbl { font-size: 13px; color: var(--muted); margin-top: 3px; font-weight: 600; }
 .kpi-sub { font-size: 11px; color: var(--muted); margin-top: 2px; opacity: .85; }
+.kpi-badge { font-size: 11px; font-weight: 800; padding: 1px 7px; border-radius: 999px; white-space: nowrap; }
+.kpi-badge.up { background: #dcfce7; color: #16a34a; }
+.kpi-badge.down { background: #fee2e2; color: #dc2626; }
+.kpi-badge.flat { background: #eef2f6; color: #64748b; }
+.period-sel { display: inline-flex; gap: 6px; }
+.trend { display: flex; align-items: flex-end; gap: 8px; height: 140px; padding-top: 6px; }
+.trend-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; min-width: 0; }
+.trend-bar { width: 70%; max-width: 44px; background: #86c596; border-radius: 6px 6px 0 0; min-height: 2px; }
+.trend-bar.cur { background: var(--green); }
+.trend-val { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.trend-lbl { font-size: 11px; color: var(--muted); white-space: nowrap; }
 .kpi-good   { --kpi-c: #16a34a; --kpi-bg: #dcfce7; }
 .kpi-bad    { --kpi-c: #dc2626; --kpi-bg: #fee2e2; }
 .kpi-warn   { --kpi-c: #d97706; --kpi-bg: #fef3c7; }
