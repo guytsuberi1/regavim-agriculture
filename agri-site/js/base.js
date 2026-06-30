@@ -81,11 +81,11 @@
     var isTeams = sub === 'teams';
     var headBtns = [U.el('h2', { text: 'נתוני בסיס' }), U.el('div', { class: 'spacer' })];
     if (!isTeams) {
-      headBtns.push(U.el('button', { class: 'btn secondary', onclick: function () { showArchive = !showArchive; App.render(); } }, showArchive ? '→ חזרה לפעילים' : '📦 ארכיון'));
+      headBtns.push(U.el('button', { class: 'btn secondary ico', title: showArchive ? 'חזרה לפעילים' : 'ארכיון', onclick: function () { showArchive = !showArchive; App.render(); } }, showArchive ? '↩' : '📦'));
       if (!showArchive) {
-        if (sub === 'students') headBtns.push(U.el('button', { class: 'btn secondary', onclick: mergeDuplicateStudents }, '🧹 איחוד כפילויות'));
-        headBtns.push(U.el('button', { class: 'btn secondary', onclick: function () { if (global.ImportExcel) global.ImportExcel.downloadTemplate(sub); } }, '📄 אקסל לדוגמה'));
-        headBtns.push(U.el('button', { class: 'btn accent', onclick: openImport }, '⬆ ייבוא מאקסל'));
+        if (sub === 'students') headBtns.push(U.el('button', { class: 'btn secondary ico', title: 'איחוד כפילויות', onclick: mergeDuplicateStudents }, '🧹'));
+        headBtns.push(U.el('button', { class: 'btn secondary ico', title: 'אקסל לדוגמה', onclick: function () { if (global.ImportExcel) global.ImportExcel.downloadTemplate(sub); } }, '📄'));
+        headBtns.push(U.el('button', { class: 'btn secondary ico', title: 'ייבוא מאקסל', onclick: openImport }, '📥'));
         headBtns.push(U.el('button', { class: 'btn', onclick: function () { openForm(null); } }, '+ הוספה'));
       }
     }
