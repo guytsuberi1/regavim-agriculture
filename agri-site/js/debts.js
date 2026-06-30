@@ -69,7 +69,8 @@
     records().forEach(function (rec) {
       var a = ensure(rec.siteId);
       a.recs.push(rec);
-      a.balance += recordBalance(rec);
+      // חוב בסטטוס "שולם" אינו נספר ביתרה/בסה"כ
+      a.balance += (rec.status === 'שולם') ? 0 : recordBalance(rec);
       if (rec.status) a.statuses[rec.status] = true;
       if (rec.handledBy) a.handlers[rec.handledBy] = true;
       if (rec.debtYear) a.years[rec.debtYear] = true;
@@ -103,10 +104,11 @@
     var head = U.el('div', { class: 'page-head' }, [
       U.el('h2', { text: '💰 ניהול חובות חקלאים' }),
       U.el('div', { class: 'spacer' }),
-      U.el('button', { class: 'btn', onclick: function () { openRecord(null, selectedSiteId || ''); } }, '+ חוב חדש'),
-      U.el('button', { class: 'btn accent', onclick: exportExcel }, '⬇ ייצוא לאקסל'),
-      U.el('button', { class: 'btn secondary', onclick: function () { window.print(); } }, '🖨️ הדפסה'),
-      U.el('button', { class: 'btn secondary no-print', onclick: importOpening }, '⬇ ייבוא נתוני פתיחה')
+      U.el('button', { class: 'btn secondary ico no-print', title: 'אקסל לדוגמה לייבוא', onclick: downloadDebtTemplate }, '📄'),
+      U.el('button', { class: 'btn secondary ico no-print', title: 'ייבוא מאקסל', onclick: importDebtsExcel }, '📥'),
+      U.el('button', { class: 'btn secondary ico', title: 'ייצוא לאקסל', onclick: exportExcel }, '⬇'),
+      U.el('button', { class: 'btn secondary ico no-print', title: 'הדפסה', onclick: function () { window.print(); } }, '🖨️'),
+      U.el('button', { class: 'btn', onclick: function () { openRecord(null, selectedSiteId || ''); } }, '+ חוב חדש')
     ]);
     root.appendChild(head);
 
@@ -163,10 +165,15 @@
 
   function buildSummaryRow(a) {
     var s = siteOf(a.siteId);
-    var statuses = Object.keys(a.statuses);
     var statusCell;
-    if (a.recs.length > 1) statusCell = U.el('span', { class: 'tag', text: a.recs.length + ' חובות' });
-    else if (statuses.length) statusCell = statusChip(statuses[0]);
+    if (a.recs.length === 1) {
+      var rec0 = a.recs[0];
+      var ssel = U.el('select', { class: 'debt-status-sel', title: 'שינוי סטטוס' }, [U.el('option', { value: '' }, '—')].concat(
+        STATUSES.map(function (s) { return U.el('option', { value: s.value }, s.value); })));
+      ssel.value = rec0.status || '';
+      ssel.addEventListener('change', function () { rec0.status = ssel.value; Store.save(); App.render(); });
+      statusCell = ssel;
+    } else if (a.recs.length > 1) statusCell = U.el('span', { class: 'tag', text: a.recs.length + ' חובות' });
     else if (a.billed && !a.recs.length) statusCell = U.el('span', { class: 'tag', style: 'background:#E0F2FE;color:#075985;', text: 'חיוב שוטף' });
     else statusCell = statusChip('');
 
@@ -347,7 +354,7 @@
     var yearInp = U.el('input', { type: 'text', value: rec ? (rec.debtYear || '') : '', placeholder: 'לדוגמה: 2025/6', style: 'width:100%;' });
     var statusSel = U.el('select', { style: 'width:100%;' }, [U.el('option', { value: '' }, '— ללא —')].concat(
       STATUSES.map(function (s) { return U.el('option', { value: s.value }, s.value); })));
-    statusSel.value = rec ? (rec.status || '') : 'בטיפול';
+    statusSel.value = rec ? (rec.status || '') : 'פתוחה';
     var handlerInp = U.el('input', { type: 'text', value: rec ? (rec.handledBy || '') : '', placeholder: 'מי מטפל', style: 'width:100%;' });
     var notesInp = U.el('textarea', { rows: '2', style: 'width:100%;', placeholder: 'הערות' });
     notesInp.value = rec ? (rec.notes || '') : '';
@@ -533,6 +540,73 @@
   ];
 
   function normName(s) { return String(s || '').replace(/["'״׳\s.\-]/g, '').replace(/בעמ$/, ''); }
+
+  // ---------- אקסל לדוגמה + ייבוא מאקסל ----------
+  var XL_HEADERS = ['שם עסק', 'איש קשר', 'טלפון', 'חוב פתיחה', 'שנת חוב', 'סטטוס', 'מטופל ע"י', 'הערות'];
+  function downloadDebtTemplate() {
+    var example = ['לדוגמה: יקב הר קידה', 'ישראל ישראלי', '050-0000000', 1500, '2025', 'פתוחה', 'שלמה', 'הערה חופשית'];
+    var ws = XLSX.utils.aoa_to_sheet([XL_HEADERS, example]);
+    ws['!cols'] = XL_HEADERS.map(function () { return { wch: 18 }; });
+    var wb = XLSX.utils.book_new(); wb.Workbook = { Views: [{ RTL: true }] };
+    XLSX.utils.book_append_sheet(wb, ws, 'חובות');
+    XLSX.writeFile(wb, 'תבנית-חובות-חקלאים.xlsx');
+  }
+  function importDebtsExcel() {
+    var inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = '.xlsx,.xls';
+    inp.onchange = function () {
+      var f = inp.files[0]; if (!f) return;
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        try {
+          var wb = XLSX.read(e.target.result, { type: 'array' });
+          var ws = wb.Sheets[wb.SheetNames[0]];
+          importDebtRows(XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false }));
+        } catch (err) { alert('שגיאה בקריאת הקובץ: ' + (err.message || err)); }
+      };
+      reader.readAsArrayBuffer(f);
+    };
+    inp.click();
+  }
+  function importDebtRows(rows) {
+    if (!rows || rows.length < 2) { alert('הקובץ ריק או חסר שורות נתונים.'); return; }
+    var header = rows[0].map(function (h) { return String(h == null ? '' : h).trim(); });
+    function colIdx(names) { for (var i = 0; i < header.length; i++) for (var j = 0; j < names.length; j++) if (header[i].indexOf(names[j]) !== -1) return i; return -1; }
+    var ci = {
+      name: colIdx(['שם עסק', 'עסק', 'אתר', 'שם']),
+      contact: colIdx(['איש קשר', 'קשר']),
+      phone: colIdx(['טלפון']),
+      amount: colIdx(['חוב פתיחה', 'חוב', 'סכום', 'יתרה']),
+      year: colIdx(['שנה']),
+      status: colIdx(['סטטוס']),
+      handler: colIdx(['מטופל', 'מטפל']),
+      note: colIdx(['הער'])
+    };
+    if (ci.name < 0 || ci.amount < 0) { alert('לא נמצאו העמודות "שם עסק" ו"חוב פתיחה". הורידו את אקסל לדוגמה והשתמשו באותן כותרות.'); return; }
+    function cell(r, i) { return i >= 0 ? String(r[i] == null ? '' : r[i]).trim() : ''; }
+    var data = rows.slice(1).filter(function (r) { return r && cell(r, ci.name); });
+    if (!data.length) { alert('אין שורות נתונים.'); return; }
+    if (!confirm('לייבא ' + data.length + ' חובות? אתרים שלא קיימים ייווצרו אוטומטית (כלא-פעילים).')) return;
+    var sites = Store.get().sites || [];
+    var created = 0, added = 0;
+    data.forEach(function (r) {
+      var nm = cell(r, ci.name);
+      var site = null;
+      for (var i = 0; i < sites.length; i++) if (normName(sites[i].name) === normName(nm)) { site = sites[i]; break; }
+      if (!site) {
+        site = Store.upsert('sites', { name: nm, contactName: cell(r, ci.contact), phone: cell(r, ci.phone), active: false, notes: 'נוצר מייבוא חובות' });
+        sites = Store.get().sites; created++;
+      }
+      Store.upsert('debtRecords', {
+        siteId: site.id, openingDebt: U.num(r[ci.amount]),
+        debtYear: cell(r, ci.year), status: cell(r, ci.status) || 'פתוחה',
+        handledBy: cell(r, ci.handler), notes: cell(r, ci.note), imported: true
+      });
+      added++;
+    });
+    App.render();
+    alert('הייבוא הושלם: ' + added + ' חובות' + (created ? ', ' + created + ' אתרים חדשים נוצרו' : '') + '.');
+  }
 
   function importOpening() {
     if (records().some(function (r) { return r.imported; })) {

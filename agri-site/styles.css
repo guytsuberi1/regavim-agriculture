@@ -413,6 +413,7 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
 .spot-name { font-size: 15px; font-weight: 800; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .spot-val { font-size: 13px; font-weight: 700; color: var(--green-dark); }
 .rep-grade-head { color: var(--green-dark); margin: 18px 0 6px; font-size: 16px; }
+.debt-status-sel { font-size: 12px; padding: 4px 6px; max-width: 130px; }
 
 /* סיכום יומי לפי אתרים */
 .ds-site { padding: 14px; margin-bottom: 12px; }
