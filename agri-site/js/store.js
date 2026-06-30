@@ -527,11 +527,31 @@
     });
   }
 
+  // ---------- ניתוח PDF חובות עם AI (דרך Edge Function parse-debts-pdf) ----------
+  function parseDebtsPdf(payload) {
+    if (!sb) return Promise.reject(new Error('אין חיבור לענן'));
+    return sb.functions.invoke('parse-debts-pdf', { body: payload }).then(function (res) {
+      if (res.error) {
+        var ctx = res.error.context;
+        if (ctx && typeof ctx.json === 'function') {
+          return ctx.json().then(
+            function (j) { throw new Error((j && j.error) || res.error.message); },
+            function () { throw res.error; }
+          );
+        }
+        throw res.error;
+      }
+      if (res.data && res.data.error) throw new Error(res.data.error);
+      return res.data || {};
+    });
+  }
+
   // ---------- חשיפה גלובלית ----------
   global.Store = {
     uid: uid,
     sendSms: sendSms,
     manageUsers: manageUsers,
+    parseDebtsPdf: parseDebtsPdf,
     load: load,
     save: save,
     get: get,

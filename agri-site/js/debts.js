@@ -106,6 +106,7 @@
       U.el('div', { class: 'spacer' }),
       U.el('button', { class: 'btn secondary ico no-print', title: 'אקסל לדוגמה לייבוא', onclick: downloadDebtTemplate }, '📄'),
       U.el('button', { class: 'btn secondary ico no-print', title: 'ייבוא מאקסל', onclick: importDebtsExcel }, '📥'),
+      (Store.serverMode ? U.el('button', { class: 'btn secondary ico no-print', title: 'ייבוא PDF מהעמותה — ניתוח AI', onclick: importDebtsPdf }, '🤖') : null),
       U.el('button', { class: 'btn secondary ico', title: 'ייצוא לאקסל', onclick: exportExcel }, '⬇'),
       U.el('button', { class: 'btn secondary ico no-print', title: 'הדפסה', onclick: function () { window.print(); } }, '🖨️'),
       U.el('button', { class: 'btn', onclick: function () { openRecord(null, selectedSiteId || ''); } }, '+ חוב חדש')
@@ -587,25 +588,153 @@
     var data = rows.slice(1).filter(function (r) { return r && cell(r, ci.name); });
     if (!data.length) { alert('אין שורות נתונים.'); return; }
     if (!confirm('לייבא ' + data.length + ' חובות? אתרים שלא קיימים ייווצרו אוטומטית (כלא-פעילים).')) return;
+    var objs = data.map(function (r) {
+      return {
+        name: cell(r, ci.name), contact: cell(r, ci.contact), phone: cell(r, ci.phone),
+        amount: r[ci.amount], year: cell(r, ci.year), status: cell(r, ci.status),
+        handler: cell(r, ci.handler), note: cell(r, ci.note)
+      };
+    });
+    var res = commitDebtObjs(objs);
+    App.render();
+    alert('הייבוא הושלם: ' + res.added + ' חובות' + (res.created ? ', ' + res.created + ' אתרים חדשים נוצרו' : '') + '.');
+  }
+
+  // יצירת רשומות-חוב מתוך אובייקטים מנורמלים (משותף לאקסל ול-PDF). ללא confirm/alert.
+  function commitDebtObjs(objs) {
     var sites = Store.get().sites || [];
     var created = 0, added = 0;
-    data.forEach(function (r) {
-      var nm = cell(r, ci.name);
+    objs.forEach(function (o) {
+      var nm = String(o.name == null ? '' : o.name).trim();
+      if (!nm) return;
       var site = null;
       for (var i = 0; i < sites.length; i++) if (normName(sites[i].name) === normName(nm)) { site = sites[i]; break; }
       if (!site) {
-        site = Store.upsert('sites', { name: nm, contactName: cell(r, ci.contact), phone: cell(r, ci.phone), active: false, notes: 'נוצר מייבוא חובות' });
+        site = Store.upsert('sites', { name: nm, contactName: o.contact || '', phone: o.phone || '', active: false, notes: 'נוצר מייבוא חובות' });
         sites = Store.get().sites; created++;
       }
       Store.upsert('debtRecords', {
-        siteId: site.id, openingDebt: U.num(r[ci.amount]),
-        debtYear: cell(r, ci.year), status: cell(r, ci.status) || 'פתוחה',
-        handledBy: cell(r, ci.handler), notes: cell(r, ci.note), imported: true
+        siteId: site.id, openingDebt: U.num(o.amount),
+        debtYear: String(o.year == null ? '' : o.year).trim(), status: o.status || 'פתוחה',
+        handledBy: o.handler || '', notes: o.note || '', imported: true
       });
       added++;
     });
-    App.render();
-    alert('הייבוא הושלם: ' + added + ' חובות' + (created ? ', ' + created + ' אתרים חדשים נוצרו' : '') + '.');
+    return { created: created, added: added };
+  }
+
+  // ---------- ייבוא PDF מהעמותה + ניתוח AI ----------
+  function importDebtsPdf() {
+    var inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = 'application/pdf,.pdf';
+    inp.onchange = function () {
+      var f = inp.files[0]; if (!f) return;
+      if (f.size > 15 * 1024 * 1024) { alert('הקובץ גדול מדי (מקסימום ~15MB).'); return; }
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        var dataUrl = String(e.target.result || '');
+        var comma = dataUrl.indexOf(',');
+        var b64 = comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl;
+        runPdfParse(b64, f.type || 'application/pdf');
+      };
+      reader.readAsDataURL(f);
+    };
+    inp.click();
+  }
+
+  function runPdfParse(b64, mime) {
+    var overlay = showAiLoading();
+    Store.parseDebtsPdf({ pdfBase64: b64, mimeType: mime }).then(function (res) {
+      overlay.close();
+      var rows = (res && res.rows) || [];
+      if (!rows.length) { alert('ה-AI לא מצא חובות בקובץ. נסו קובץ ברור יותר, או ייבוא מאקסל.'); return; }
+      openPdfPreview(rows);
+    }).catch(function (err) {
+      overlay.close();
+      alert('שגיאה בניתוח ה-PDF: ' + ((err && err.message) || err));
+    });
+  }
+
+  function showAiLoading() {
+    var box = U.el('div', { class: 'ai-load' }, [
+      U.el('div', { class: 'ai-spin' }),
+      U.el('div', { style: 'margin-top:14px;font-weight:600;', text: '🤖 מנתח את ה-PDF עם AI…' }),
+      U.el('div', { class: 'muted', style: 'margin-top:4px;font-size:13px;', text: 'זה עשוי לקחת עד דקה' })
+    ]);
+    var bg = U.el('div', { class: 'modal-bg' }, [box]);
+    document.body.appendChild(bg);
+    return { close: function () { if (bg.parentNode) bg.parentNode.removeChild(bg); } };
+  }
+
+  function openPdfPreview(rows) {
+    var existing = {};
+    (Store.get().sites || []).forEach(function (s) { existing[normName(s.name)] = true; });
+    var state = rows.map(function (r) {
+      return {
+        include: true,
+        name: String(r.name || '').trim(),
+        total: U.num(r.total),
+        year: String(r.year || '').trim(),
+        customerNumber: String(r.customerNumber || '').trim(),
+        invoiceCount: r.invoiceCount || 0
+      };
+    });
+
+    var tbody = U.el('tbody');
+    state.forEach(function (st) {
+      var newTag = U.el('span', { class: 'tag', style: 'background:#FEF3C7;color:#92400E;', text: 'אתר חדש' });
+      var oldTag = U.el('span', { class: 'muted', text: 'קיים' });
+      var siteCell = U.el('td', { class: 'center' }, [existing[normName(st.name)] ? oldTag : newTag]);
+
+      var chk = U.el('input', { type: 'checkbox', checked: true });
+      chk.addEventListener('change', function () { st.include = chk.checked; });
+      var nameInp = U.el('input', { type: 'text', value: st.name, style: 'width:100%;min-width:150px;' });
+      nameInp.addEventListener('input', function () {
+        st.name = nameInp.value;
+        var has = existing[normName(st.name)];
+        siteCell.innerHTML = '';
+        siteCell.appendChild(has ? U.el('span', { class: 'muted', text: 'קיים' }) : U.el('span', { class: 'tag', style: 'background:#FEF3C7;color:#92400E;', text: 'אתר חדש' }));
+      });
+      var totInp = U.el('input', { type: 'number', step: '0.01', value: st.total, style: 'width:110px;' });
+      totInp.addEventListener('input', function () { st.total = U.num(totInp.value); });
+      var yrInp = U.el('input', { type: 'text', value: st.year, style: 'width:70px;' });
+      yrInp.addEventListener('input', function () { st.year = yrInp.value; });
+
+      tbody.appendChild(U.el('tr', null, [
+        U.el('td', { class: 'center' }, [chk]),
+        U.el('td', null, [nameInp]),
+        U.el('td', { class: 'center' }, [totInp]),
+        U.el('td', { class: 'center' }, [yrInp]),
+        U.el('td', { class: 'center', text: st.invoiceCount ? String(st.invoiceCount) : '' }),
+        siteCell
+      ]));
+    });
+
+    var table = U.el('div', { class: 'tbl-scroll' }, [U.el('table', { class: 'grid' }, [
+      U.el('thead', null, [U.el('tr', null,
+        ['', 'שם עסק', 'יתרת חוב (₪)', 'שנה', 'חשבוניות', 'אתר'].map(function (h) { return U.el('th', { text: h }); }))]),
+      tbody
+    ])]);
+    var info = U.el('div', { class: 'muted', style: 'margin-bottom:10px;', html:
+      'ה-AI חילץ <b>' + state.length + '</b> חובות מתוך ה-PDF. בדקו וערכו לפי הצורך, ובטלו סימון לשורות שלא לייבא. אתרים חדשים ייווצרו כלא-פעילים.' });
+
+    Modal.open('🤖 תצוגה מקדימה — ייבוא חובות מ-PDF', U.el('div', null, [info, table]), [
+      { label: 'ביטול', class: 'secondary' },
+      { label: 'ייבא נבחרים', onClick: function (close) {
+        var chosen = state.filter(function (s) { return s.include && String(s.name).trim() && s.total; });
+        if (!chosen.length) { alert('לא נבחרו שורות לייבוא (ודאו שם ויתרה).'); return; }
+        var objs = chosen.map(function (s) {
+          var note = [];
+          if (s.customerNumber) note.push('מס׳ לקוח ' + s.customerNumber);
+          if (s.invoiceCount) note.push(s.invoiceCount + ' חשבוניות');
+          note.push('יובא מ-PDF');
+          return { name: s.name, amount: s.total, year: s.year, status: 'פתוחה', note: note.join(' · ') };
+        });
+        var res = commitDebtObjs(objs);
+        close(); App.render();
+        alert('הייבוא הושלם: ' + res.added + ' חובות' + (res.created ? ', ' + res.created + ' אתרים חדשים נוצרו' : '') + '.');
+      } }
+    ]);
   }
 
   function importOpening() {
