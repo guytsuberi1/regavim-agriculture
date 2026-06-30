@@ -279,6 +279,8 @@
       cell.appendChild(U.el('div', { class: 'wx-line' },
         ic[0] + ' ' + ic[1] + ' · ' + Math.round(w.tmax) + '°/' + Math.round(w.tmin) + '°' +
         (w.pop != null && w.pop > 0 ? ' · 💧' + w.pop + '%' : '')));
+    } else if (viewMode === 'week') {
+      cell.appendChild(U.el('div', { class: 'wx-line wx-empty', text: '— אין תחזית' }));
     }
     // תיבת יומן בגודל קבוע — מוצגת בכל הימים (במצב שבועי) כשיש אירועים כלשהם בשבוע
     if (viewMode === 'week' && weekHasAnyEvents()) cell.appendChild(buildEventsBox(eventsOn(iso)));
