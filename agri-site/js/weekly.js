@@ -276,9 +276,10 @@
     var w = wxData && wxData[iso];
     if (w) {
       var ic = wxIcon(w.code);
-      cell.appendChild(U.el('div', { class: 'wx-line' },
-        ic[0] + ' ' + ic[1] + ' · ' + Math.round(w.tmax) + '°/' + Math.round(w.tmin) + '°' +
-        (w.pop != null && w.pop > 0 ? ' · 💧' + w.pop + '%' : '')));
+      // שורה אחת קבועה: אייקון + טמפרטורות + גשם (התיאור המלא ב-tooltip), כדי לשמור גובה אחיד
+      cell.appendChild(U.el('div', { class: 'wx-line', title: ic[1] },
+        ic[0] + ' ' + Math.round(w.tmax) + '°/' + Math.round(w.tmin) + '°' +
+        (w.pop != null && w.pop > 0 ? ' 💧' + w.pop + '%' : '')));
     } else if (viewMode === 'week') {
       cell.appendChild(U.el('div', { class: 'wx-line wx-empty', text: '— אין תחזית' }));
     }
@@ -325,10 +326,13 @@
       if (m) { times.push(m[1]); return U.el('div', { class: 'ev-item' }, [U.el('span', { class: 'ev-time', text: m[1] }), U.el('span', { text: m[2] })]); }
       return U.el('div', { class: 'ev-item allday' }, [U.el('span', { class: 'ev-time', text: 'כל היום' }), U.el('span', { text: t })]);
     });
-    var rangeTxt = '';
-    if (times.length) { times.sort(); rangeTxt = ' · ' + times[0] + '–' + times[times.length - 1]; }
+    var headChildren = ['📅 יומן'];
+    if (times.length) {
+      times.sort();
+      headChildren.push(U.el('span', { style: 'direction:ltr;unicode-bidi:isolate;', text: ' · ' + times[0] + '–' + times[times.length - 1] }));
+    }
     var body = U.el('div', { class: 'ev-box-body' }, rows.length ? rows : [U.el('div', { class: 'ev-empty', text: 'אין אירועים' })]);
-    return U.el('div', { class: 'ev-box' }, [U.el('div', { class: 'ev-box-head', text: '📅 יומן' + rangeTxt }), body]);
+    return U.el('div', { class: 'ev-box' }, [U.el('div', { class: 'ev-box-head' }, headChildren), body]);
   }
 
   function rangeDates(from, to) {
