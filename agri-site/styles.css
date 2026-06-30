@@ -166,7 +166,7 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
 .chk { display: inline-flex; gap: 3px; align-items: center; }
 .pool { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 12px; margin-bottom: 14px; }
 .pool .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; max-height: 160px; overflow-y: auto; }
-.chip { background: var(--green-light); border: 1px solid var(--green); color: var(--green-dark); border-radius: 16px; padding: 3px 10px; font-size: 13px; cursor: grab; user-select: none; }
+.chip { display: inline-flex; align-items: center; gap: 6px; background: #fff; border: 1px solid var(--border); color: var(--text); border-radius: 16px; padding: 3px 9px; font-size: 13px; cursor: grab; user-select: none; }
 .chip.assigned { opacity: .35; }
 .chip:active { cursor: grabbing; }
 

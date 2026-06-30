@@ -718,8 +718,10 @@
   function studentChip(id, assigned) {
     var s = Store.getById('students', id);
     if (!s) return null;
-    var chip = U.el('div', { class: 'chip' + (assigned[id] ? ' assigned' : ''), draggable: 'true', text: s.name });
-    if (s.grade && chipGradeColors[s.grade]) chip.style.setProperty('background', chipGradeColors[s.grade], 'important');
+    var chip = U.el('div', { class: 'chip' + (assigned[id] ? ' assigned' : ''), draggable: 'true' }, [
+      s.grade ? gradeBadge(s.grade) : null,
+      U.el('span', { text: s.name })
+    ]);
     chip.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text/plain', 'student:' + id); e.dataTransfer.effectAllowed = 'move'; });
     return chip;
   }
