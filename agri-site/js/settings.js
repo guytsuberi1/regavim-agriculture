@@ -62,42 +62,25 @@
     // ---- סיסמת כניסה להגדרות ----
     root.appendChild(buildPasswordCard(data));
 
-    // ---- גיבוי ל-OneDrive ----
-    var fsBox = U.el('div', { class: 'card', style: 'margin-bottom:16px;max-width:520px;' });
-    fsBox.appendChild(U.el('h3', { style: 'margin-top:0;', text: 'גיבוי וסנכרון ל-OneDrive' }));
-    fsBox.appendChild(U.el('p', { class: 'muted', html:
-      'הנתונים נשמרים אוטומטית בדפדפן זה. כדי לסנכרן בין מחשבים — שמרו את הקובץ ' +
-      '<b>data.json</b> בתיקיית OneDrive המשותפת.' }));
-
-    if (Store.fsSupported()) {
-      fsBox.appendChild(U.el('p', { class: 'muted', text: 'דפדפן זה תומך בחיבור אוטומטי: בחרו פעם אחת קובץ data.json ב-OneDrive, ומאז כל שינוי יישמר אליו אוטומטית.' }));
-      fsBox.appendChild(U.el('div', { class: 'row' }, [
-        U.el('button', { class: 'btn', onclick: function () { Store.connectFile().then(function () { App.render(); }).catch(function () {}); } }, '🔗 חבר/צור קובץ data.json ב-OneDrive'),
-        U.el('button', { class: 'btn secondary', onclick: function () { Store.openExistingFile().then(function () { alert('נטען בהצלחה.'); App.render(); }).catch(function (e) { if (e) alert('שגיאה: ' + (e.message || e)); }); } }, '📂 פתח קובץ קיים מ-OneDrive')
-      ]));
-    } else {
-      fsBox.appendChild(U.el('p', { class: 'muted', text: 'דפדפן זה אינו תומך בחיבור אוטומטי לקובץ — השתמשו בגיבוי/טעינה ידניים למטה (מומלץ לשמור בתיקיית OneDrive).' }));
-    }
-    root.appendChild(fsBox);
-
-    // ---- גיבוי/שחזור ידני ----
-    var manual = U.el('div', { class: 'card', style: 'margin-bottom:16px;max-width:520px;' });
-    manual.appendChild(U.el('h3', { style: 'margin-top:0;', text: 'גיבוי / שחזור ידני' }));
+    // ---- גיבוי ---- (הנתונים מסונכרנים אוטומטית בענן; זהו גיבוי-מצנח ידני)
+    var backup = U.el('div', { class: 'card', style: 'margin-bottom:16px;max-width:520px;' });
+    backup.appendChild(U.el('h3', { style: 'margin-top:0;', text: 'גיבוי' }));
+    backup.appendChild(U.el('p', { class: 'muted', style: 'font-size:13px;', text: 'הנתונים נשמרים ומסונכרנים אוטומטית בענן. כאן אפשר להוריד גיבוי נקודתי לקובץ ולשמור אצלך, ולשחזר ממנו בעת הצורך.' }));
     var fileInput = U.el('input', { type: 'file', accept: '.json', style: 'display:none;' });
     fileInput.addEventListener('change', function () {
       var f = fileInput.files[0]; if (!f) return;
-      if (!confirm('טעינת גיבוי תחליף את כל הנתונים הקיימים. להמשיך?')) return;
+      if (!confirm('שחזור מגיבוי יחליף את כל הנתונים הקיימים. להמשיך?')) return;
       Store.importJSONFile(f, function (err) {
         if (err) alert('שגיאה בטעינה: ' + err.message);
         else { alert('הנתונים נטענו בהצלחה.'); App.render(); }
       });
     });
-    manual.appendChild(U.el('div', { class: 'row' }, [
-      U.el('button', { class: 'btn', onclick: function () { Store.exportJSON(); } }, '⬇ הורד גיבוי (שמרו ב-OneDrive)'),
-      U.el('button', { class: 'btn secondary', onclick: function () { fileInput.click(); } }, '⬆ טען גיבוי מקובץ')
+    backup.appendChild(U.el('div', { class: 'row' }, [
+      U.el('button', { class: 'btn', onclick: function () { Store.exportJSON(); } }, '⬇ הורד גיבוי'),
+      U.el('button', { class: 'btn secondary small', onclick: function () { fileInput.click(); } }, '⬆ שחזור מקובץ')
     ]));
-    manual.appendChild(fileInput);
-    root.appendChild(manual);
+    backup.appendChild(fileInput);
+    root.appendChild(backup);
 
     // ---- אזור סכנה ----
     var danger = U.el('div', { class: 'card', style: 'max-width:520px;border:1px solid var(--danger);' });
