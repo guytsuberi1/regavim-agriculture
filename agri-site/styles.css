@@ -418,6 +418,10 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
 /* קבוצת צוות משובצת בכרטיס אתר (סידור יומי) — תיוג בלבד, ללא רקע */
 .sc-team-tag { background: #2E7D32; color: #fff; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9px; margin-inline-end: 4px; }
 
+/* כותרות נושא במבט-על של הדשבורד */
+.dash-sec { font-weight: 700; color: var(--green-dark); font-size: 14px; margin: 18px 0 8px; }
+.dash-sec:first-of-type { margin-top: 6px; }
+
 /* טבלת סיכום יומי בדשבורד */
 .ds-table td, .ds-table th { vertical-align: middle; }
 .ds-table td .ds-reason { width: 100%; min-width: 130px; }
