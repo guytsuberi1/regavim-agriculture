@@ -290,8 +290,8 @@
     var map = {
       name: ['שם', 'תלמיד', 'עסק'],
       role: ['תפקיד'],
-      homeroom: ['מחנך'],
-      grade: ['כיתה'],
+      homeroomClass: ['כיתת מחנך'],
+      grade: ['כיתה', 'שכבה'],
       location: ['מיקום'],
       contactName: ['איש קשר', 'קשר'],
       phone: ['טלפון', 'נייד'],
@@ -310,7 +310,7 @@
     var spec = {
       students: { headers: ['שם', 'כיתה', 'טלפון', 'הערות'], example: ['ישראל ישראלי', 'יב', '0501234567', ''] },
       sites: { headers: ['שם העסק', 'מיקום', 'איש קשר', 'טלפון', 'אימייל', 'תשלום שעתי', 'תשלום נסיעות'], example: ['משק לדוגמה', 'גיתית', 'יוסי כהן', '0521234567', 'demo@example.com', 35, 50] },
-      staff: { headers: ['שם', 'תפקיד', 'טלפון', 'אימייל להתחברות', 'מחנך'], example: ['דוד לוי', 'איש צוות', '0531234567', 'david@example.com', 'לא'] },
+      staff: { headers: ['שם', 'תפקיד', 'טלפון', 'אימייל להתחברות', 'כיתת מחנך'], example: ['דוד לוי', 'איש צוות', '0531234567', 'david@example.com', ''] },
       transports: { headers: ['שם הסעה', 'קיבולת'], example: ['הסעה 1', 50] }
     }[coll] || { headers: ['שם'], example: ['דוגמה'] };
     var ws = XLSX.utils.aoa_to_sheet([spec.headers, spec.example]);

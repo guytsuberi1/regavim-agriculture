@@ -76,7 +76,7 @@
     if (!d.dailyAbsent) d.dailyAbsent = {};
     if (!global.PickStudents) { alert('בורר התלמידים אינו זמין'); return; }
     var me = myStaffId() ? Store.getById('staff', myStaffId()) : null;
-    var cls = (me && me.homeroom && me.homeroomClass) ? String(me.homeroomClass).trim() : '';
+    var cls = (me && me.homeroomClass) ? String(me.homeroomClass).trim() : '';
     function clsOf(id) { var st = Store.getById('students', id); return st ? String(st.className || '').trim() : ''; }
 
     var title = cls ? ('נעדרים · כיתה ' + cls + ' · ' + U.gregLabel(fieldDate)) : ('נעדרים ליום ' + U.gregLabel(fieldDate));

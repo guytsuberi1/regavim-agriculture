@@ -94,7 +94,7 @@
     return d.length >= 9 ? d : null;
   }
   function sendHomeroomReminder() {
-    var teachers = (Store.get().staff || []).filter(function (s) { return s.homeroom && s.active !== false; });
+    var teachers = (Store.get().staff || []).filter(function (s) { return s.homeroomClass && String(s.homeroomClass).trim() && s.active !== false; });
     if (!teachers.length) { alert('לא הוגדרו מחנכים. סמנו "מחנך" לאיש צוות תחת "נתוני בסיס".'); return; }
     var text = 'תזכורת: נא למלא את רשימת הנעדרים של היום.\nכניסה למערכת: https://chaklaut.rgvb.org.il\n("מצב שטח" ← "נעדרים היום")';
     var messages = [], noPhone = [];

@@ -22,12 +22,17 @@
     return String(va == null ? '' : va).localeCompare(String(vb == null ? '' : vb), 'he');
   }
 
+  // גזירת שכבה (ט/י/יא/יב) מתוך כיתה (ט1 → ט). מחזיר '' אם אין התאמה.
+  function deriveGrade(className) {
+    var letters = String(className || '').replace(/[0-9\s\-'"׳״.]/g, '');
+    return U.GRADES.indexOf(letters) !== -1 ? letters : '';
+  }
+
   // הגדרת השדות לכל אוסף
   function fieldDefs(coll) {
     if (coll === 'students') return [
       { key: 'name', label: 'שם התלמיד', type: 'text', required: true, col: true },
-      { key: 'grade', label: 'שכבה', type: 'select', options: U.GRADES, col: true },
-      { key: 'className', label: 'כיתה', type: 'text', col: true },
+      { key: 'className', label: 'כיתה', type: 'text', col: true, hint: 'לדוגמה: ט1 (השכבה נגזרת אוטומטית)' },
       { key: 'phone', label: 'טלפון', type: 'text', required: true, col: true },
       { key: 'active', label: 'פעיל', type: 'bool', col: true, def: true },
       { key: 'notes', label: 'הערות', type: 'text' }
@@ -51,8 +56,7 @@
         values: ['staff', 'leader'], col: true, def: 'staff' },
       { key: 'phone', label: 'טלפון', type: 'text', required: true, col: true },
       { key: 'email', label: 'אימייל להתחברות', type: 'text', required: true, col: true },
-      { key: 'homeroom', label: 'מחנך', type: 'bool', col: true, def: false },
-      { key: 'homeroomClass', label: 'כיתת מחנך', type: 'text', col: true },
+      { key: 'homeroomClass', label: 'כיתת מחנך', type: 'text', col: true, hint: 'מלאו כיתה (ט1) רק אם הוא מחנך; ריק = אינו מחנך' },
       { key: 'active', label: 'פעיל', type: 'bool', col: true, def: true }
     ];
     if (coll === 'transports') return [
@@ -186,7 +190,10 @@
         input = U.el('input', { type: d.type === 'number' ? 'number' : 'text', value: model[d.key] == null ? '' : model[d.key] });
       }
       inputs[d.key] = input;
-      return U.el('div', { class: 'field' }, [U.el('label', { text: d.label + (d.required ? ' *' : '') }), input]);
+      return U.el('div', { class: 'field' }, [
+        U.el('label', { text: d.label + (d.required ? ' *' : '') }), input,
+        d.hint ? U.el('div', { class: 'muted', style: 'font-size:12px;margin-top:2px;', text: d.hint }) : null
+      ]);
     }));
 
     Modal.open((editing ? 'עריכת' : 'הוספת') + ' ' + collTitle(sub), body, [
@@ -204,6 +211,11 @@
           out[d.key] = v;
         });
         if (!ok) { alert('נא למלא את שדות החובה'); return; }
+        // גזירת שכבה מהכיתה (רק אם הוזנה כיתה) — כדי לתחזק שדה אחד בלבד
+        if (sub === 'students') {
+          var g = deriveGrade(out.className);
+          if (g) out.grade = g;
+        }
         Store.upsert(sub, out);
         close();
         App.render();
