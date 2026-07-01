@@ -367,8 +367,7 @@
     root.appendChild(U.el('div', { class: 'kpi-grid' }, [
       kpi('💵', money(totalIncome), 'סה"כ הכנסות (חיוב, מצטבר)', 'good'),
       kpi('✅', money(collected), 'סה"כ נגבה', 'info'),
-      kpi('💰', money(totalDebt), 'סה"כ חובות פתוחים', totalDebt > 0 ? 'bad' : 'good'),
-      kpi('🧮', money(totalIncome - collected), 'יתרת גבייה צפויה', 'warn')
+      kpi('🧮', money(totalDebt), 'יתרת גבייה צפויה (חובות פתוחים)', totalDebt > 0 ? 'warn' : 'good')
     ]));
 
     var sitesIncome = Object.keys(billed).map(function (id) {
