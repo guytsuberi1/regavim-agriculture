@@ -303,8 +303,14 @@
 
   function siteSection(card) {
     var site = card.siteId ? Store.getById('sites', card.siteId) : null;
+    // סידור לפי כיתות: שכבה (ט→יב), אחר כך כיתה (ט1/ט2) ואז שם
     var students = (card.students || []).slice().sort(function (a, b) {
-      return ((b.teamLeader ? 1 : 0) - (a.teamLeader ? 1 : 0)) || ((b.wentToWork ? 1 : 0) - (a.wentToWork ? 1 : 0));
+      var sa = Store.getById('students', a.studentId) || {}, sb = Store.getById('students', b.studentId) || {};
+      var ga = U.GRADES.indexOf(sa.grade), gb = U.GRADES.indexOf(sb.grade);
+      if (ga !== gb) return (ga < 0 ? 99 : ga) - (gb < 0 ? 99 : gb);
+      var ca = sa.className || '', cb = sb.className || '';
+      if (ca !== cb) return ca.localeCompare(cb, 'he');
+      return (sa.name || '').localeCompare(sb.name || '', 'he');
     });
     var went = students.filter(function (s) { return s.wentToWork; }).length;
     var hasPlan = card.targetWorkers !== '' && card.targetWorkers != null;
