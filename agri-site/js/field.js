@@ -116,12 +116,41 @@
       metaParts.length ? U.el('div', { class: 'fsh-meta', text: metaParts.join('  ·  ') }) : null
     ]));
 
-    var ordered = (card.students || []).slice().sort(function (a, b) { return (b.teamLeader ? 1 : 0) - (a.teamLeader ? 1 : 0); });
+    // סידור התלמידים לפי צוותים (ראש צוות תחילה, ואז לפי כיתה); מי שאינו בצוות — בסוף
+    var TU = global.TeamUtil;
+    var teams = TU ? TU.allTeams() : [];
+    function teamRankOf(sid) {
+      var t = TU ? TU.teamOfStudent(sid) : null;
+      if (!t) return { ti: 9999, pos: 9999, label: 'ללא צוות', id: '__none' };
+      var ti = teams.indexOf(t); if (ti < 0) ti = 9998;
+      var seq = TU.orderedStudentIds(t); var pos = seq.indexOf(sid); if (pos < 0) pos = 9000;
+      return { ti: ti, pos: pos, label: TU.teamLabel(t), id: t.id };
+    }
+    function gcmp(a, b) {
+      var sa = Store.getById('students', a.studentId) || {}, sb = Store.getById('students', b.studentId) || {};
+      var ga = U.GRADES.indexOf(sa.grade), gb = U.GRADES.indexOf(sb.grade);
+      if (ga !== gb) return (ga < 0 ? 99 : ga) - (gb < 0 ? 99 : gb);
+      return (sa.name || '').localeCompare(sb.name || '', 'he');
+    }
+    var ordered = (card.students || []).slice().sort(function (a, b) {
+      var ra = teamRankOf(a.studentId), rb = teamRankOf(b.studentId);
+      if (ra.ti !== rb.ti) return ra.ti - rb.ti;
+      if (ra.pos !== rb.pos) return ra.pos - rb.pos;
+      return gcmp(a, b);
+    });
+    var anyTeam = ordered.some(function (st) { return teamRankOf(st.studentId).id !== '__none'; });
 
     root.appendChild(U.el('div', { class: 'frate-legend muted', text: 'ציון לכל תלמיד: 5 = גבוה · 1 = נמוך' }));
 
     var list = U.el('div', { class: 'field-students' });
-    ordered.forEach(function (st) { list.appendChild(buildStudentRow(st)); });
+    var curTeam = null;
+    ordered.forEach(function (st) {
+      if (anyTeam) {
+        var r = teamRankOf(st.studentId);
+        if (r.id !== curTeam) { curTeam = r.id; list.appendChild(U.el('div', { class: 'field-team-head', text: '👥 ' + r.label })); }
+      }
+      list.appendChild(buildStudentRow(st));
+    });
     if (!ordered.length) {
       list.appendChild(U.el('div', { class: 'card empty field-empty-ph', style: 'margin:0;' }, 'אין תלמידים משובצים — אפשר להוסיף תלמיד שעבד למטה.'));
     }
