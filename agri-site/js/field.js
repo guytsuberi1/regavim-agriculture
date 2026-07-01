@@ -90,6 +90,9 @@
         sel = others.concat(mine);
       }
       if (sel.length) d.dailyAbsent[fieldDate] = sel; else delete d.dailyAbsent[fieldDate];
+      // נעדר יורד גם משיבוץ קיים לאותו יום
+      var absSet = {}; (sel || []).forEach(function (id) { absSet[id] = true; });
+      (dayOf().cards || []).forEach(function (c) { c.students = (c.students || []).filter(function (s) { return !absSet[s.studentId]; }); });
       Store.save(); App.render();
     }, opts);
   }

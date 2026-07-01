@@ -415,6 +415,10 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
 .rep-grade-head { color: var(--green-dark); margin: 18px 0 6px; font-size: 16px; }
 .debt-status-sel { font-size: 12px; padding: 4px 6px; max-width: 130px; }
 
+/* קבוצת צוות משובצת בכרטיס אתר (סידור יומי) — רקע מובחן + תיוג */
+.sc-team.is-team { background: #eef6ee; border: 1px solid #cfe6cf; border-radius: 8px; padding: 4px 6px; margin: 5px 0; }
+.sc-team-tag { background: #2E7D32; color: #fff; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9px; margin-inline-end: 4px; }
+
 /* כותרת צוות ברשימת מצב-שטח */
 .field-team-head { font-weight: 700; color: #1b5e20; background: #eef5ee; border: 1px solid #d6e6d6; border-radius: 8px; padding: 5px 10px; margin: 12px 0 4px; font-size: 13px; }
 

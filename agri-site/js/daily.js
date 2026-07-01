@@ -3,6 +3,7 @@
   'use strict';
   var U = global.U;
   var curDate = U.todayISO();
+  var boardScroll = 0; // שמירת מיקום הגלילה האופקית של לוח האתרים בין רינדורים
 
   function getDay(iso) {
     var data = Store.get();
@@ -78,7 +79,11 @@
     } else {
       var board = U.el('div', { class: 'day-board' });
       day.cards.forEach(function (card) { board.appendChild(buildCard(day, card)); });
+      board.addEventListener('scroll', function () { boardScroll = board.scrollLeft; });
       root.appendChild(board);
+      // שחזור מיקום הגלילה האופקית אחרי רינדור מחדש (מונע "קפיצה" ימינה אחרי גרירה)
+      board.scrollLeft = boardScroll;
+      requestAnimationFrame(function () { board.scrollLeft = boardScroll; });
     }
 
     // מאגר התלמידים — מגירה תחתונה קבועה; גוררים את הקצה העליון כדי להגדיל אותה מעל האתרים
@@ -247,12 +252,13 @@
         grip.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text/plain', 'team:' + g.team.id); e.dataTransfer.effectAllowed = 'move'; });
         var gh = U.el('div', { class: 'sc-team-head' }, [
           grip,
-          U.el('span', { class: 'sc-team-title', text: '⭐ ' + global.TeamUtil.teamLabel(g.team) }),
+          U.el('span', { class: 'sc-team-tag', text: 'צוות' }),
+          U.el('span', { class: 'sc-team-title', text: global.TeamUtil.teamLabel(g.team) }),
           U.el('span', { class: 'muted', style: 'font-size:11px;', text: '(' + g.items.length + ')' })
         ]);
         var ulT = U.el('ul', { class: 'sc-students' });
         sortLeadersFirst(g.items).forEach(function (st) { ulT.appendChild(buildStudentLi(st)); });
-        body.appendChild(U.el('div', { class: 'sc-team' }, [gh, ulT]));
+        body.appendChild(U.el('div', { class: 'sc-team is-team' }, [gh, ulT]));
       });
 
       if (looseItems.length) {
@@ -534,6 +540,9 @@
     pickStudents('נעדרים ליום ' + U.gregLabel(curDate), d.dailyAbsent[curDate], function (sel) {
       d.dailyAbsent[curDate] = sel;
       if (!sel.length) delete d.dailyAbsent[curDate];
+      // נעדר יורד גם משיבוץ קיים (גם אם סומן אחרי שכבר שובץ)
+      var absSet = {}; sel.forEach(function (id) { absSet[id] = true; });
+      getDay(curDate).cards.forEach(function (c) { c.students = (c.students || []).filter(function (s) { return !absSet[s.studentId]; }); });
       Store.save(); App.render();
     });
   }
@@ -589,10 +598,13 @@
       U.el('button', { class: 'btn small ' + (groupMode === 'teams' ? 'accent' : 'secondary'), onclick: function () { setPoolGroupMode('teams'); App.render(); } }, 'לפי צוותים'),
       U.el('button', { class: 'btn small ' + (groupMode === 'grades' ? 'accent' : 'secondary'), onclick: function () { setPoolGroupMode('grades'); App.render(); } }, 'לפי כיתות')
     ]);
+    var dragHelp = groupMode === 'grades'
+      ? 'גררו תלמיד בודד, או כיתה שלמה מהכותרת ⠿, לאתר. גרירה לכאן מבטלת שיבוץ.'
+      : 'גררו תלמיד בודד, או צוות שלם מהכותרת ⠿, לאתר. גרירה לכאן מבטלת שיבוץ.';
     var head = U.el('div', { style: 'display:flex;align-items:center;gap:10px;flex-wrap:wrap;' }, [
       U.el('h3', { style: 'margin:0;color:var(--green-dark);', text: '👥 מאגר תלמידים' }),
       modeToggle,
-      U.el('span', { class: 'muted', text: 'גררו תלמיד (או צוות שלם מהכותרת ⠿ במצב "לפי צוותים") לאתר. גרירה לכאן מבטלת שיבוץ.' })
+      U.el('span', { class: 'muted', text: dragHelp })
     ]);
     pool.appendChild(head);
 
@@ -663,31 +675,31 @@
         groupsWrap.appendChild(U.el('div', { class: 'muted', text: 'אין תלמידים. הוסיפו תלמידים ב"נתוני בסיס".' }));
       }
     } else {
-      var teams = global.TeamUtil.allTeams().map(function (t) {
+      var groups = global.TeamUtil.allTeams().map(function (t) {
         var ids = global.TeamUtil.orderedStudentIds(t).filter(function (id) {
           var s = Store.getById('students', id); return s && show(id, s.grade);
         });
-        return { team: t, ids: ids };
+        return { type: 'team', team: t, ids: ids };
       }).filter(function (e) { return e.ids.length; });
-      // צוותים שכל חבריהם כבר משובצים יורדים לתחתית המאגר, שלא יפריעו לשיבוץ הנותרים
-      teams.sort(function (a, b) {
+
+      // תלמידים ללא צוות — משתתפים באותו מיון כמו הצוותים (לא נתקעים בסוף)
+      var noTeam = (Store.get().students || []).filter(function (s) {
+        return s.active !== false && show(s.id, s.grade) && !global.TeamUtil.teamOfStudent(s.id);
+      });
+      if (noTeam.length) groups.push({ type: 'loose', students: noTeam, ids: noTeam.map(function (s) { return s.id; }) });
+
+      // קבוצות שכל חבריהן כבר משובצים יורדות לתחתית — כולל "ללא צוות"
+      groups.sort(function (a, b) {
         var aa = a.ids.every(function (id) { return assigned[id]; }) ? 1 : 0;
         var bb = b.ids.every(function (id) { return assigned[id]; }) ? 1 : 0;
         return aa - bb;
       });
-      teams.forEach(function (e) {
-        groupsWrap.appendChild(buildTeamGroup(day, e.team, e.ids, assigned));
+      groups.forEach(function (e) {
+        if (e.type === 'team') groupsWrap.appendChild(buildTeamGroup(day, e.team, e.ids, assigned));
+        else groupsWrap.appendChild(buildLooseGroup(e.students, assigned));
       });
 
-      // תלמידים ללא צוות
-      var noTeam = (Store.get().students || []).filter(function (s) {
-        return s.active !== false && show(s.id, s.grade) && !global.TeamUtil.teamOfStudent(s.id);
-      });
-      if (noTeam.length) {
-        groupsWrap.appendChild(buildLooseGroup(noTeam, assigned));
-      }
-
-      if (!teams.length && !noTeam.length) {
+      if (!groups.length) {
         groupsWrap.appendChild(U.el('div', { class: 'muted', text: 'אין תלמידים. הוסיפו תלמידים ב"נתוני בסיס" וצוותים ב"צוותים".' }));
       }
     }
@@ -923,7 +935,7 @@
       var stu = Store.getById('students', st.studentId);
       var nm = stu ? stu.name + (stu.grade ? ' (' + stu.grade + ')' : '') : '⚠';
       var bg = (stu && chipGradeColors[stu.grade]) ? chipGradeColors[stu.grade] : '#fff';
-      return U.el('li', { style: 'padding:3px 9px;font-size:12.5px;background:' + bg + ';border:1px solid rgba(80,60,30,.12);border-radius:6px;margin:3px 0;color:#3a2e22;' + (st.teamLeader ? 'font-weight:700;' : ''), text: (st.teamLeader ? '⭐ ' : '') + nm });
+      return U.el('li', { style: 'padding:3px 9px;font-size:12.5px;background:' + bg + ';border:1px solid rgba(80,60,30,.12);border-radius:6px;margin:3px 0;color:#3a2e22;', text: (st.teamLeader ? '⭐ ' : '') + nm });
     }
     var byTeam = {}, order = [], loose = [];
     (card.students || []).forEach(function (st) {
@@ -968,7 +980,7 @@
     frame.appendChild(U.el('div', { style: 'text-align:center;margin-bottom:4px;' }, [
       U.el('div', { style: 'font-size:40px;line-height:1;', text: '🌱' }),
       U.el('div', { style: 'font-weight:800;font-size:30px;color:#5b4636;margin-top:2px;', text: 'רגבים בנימין' }),
-      U.el('div', { style: 'font-size:13.5px;color:#2f6b3d;font-weight:600;', text: 'ישיבה חינוכית חקלאית · מבית רוח הגולן' })
+      U.el('div', { style: 'font-size:13.5px;color:#2f6b3d;font-weight:600;', text: 'עמל, תורה וחלוציות בנחלת אבות' })
     ]));
     frame.appendChild(U.el('div', { style: 'text-align:center;margin:9px 0;color:#2f6b3d;font-weight:700;font-size:15px;letter-spacing:1px;', text: '✦  סידור עבודה יומי  ✦' }));
     // פס תאריך ירוק
