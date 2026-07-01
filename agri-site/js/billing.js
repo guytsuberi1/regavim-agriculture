@@ -44,25 +44,27 @@
     var adjAll = adjFor(mk, siteEntry.site ? siteEntry.site.id : '_');
     var rate = siteEntry.site ? U.num(siteEntry.site.hourlyRate) : 0;
     var travelPay = siteEntry.site ? U.num(siteEntry.site.travelPay) : 0;
-    var totHours = 0, workPay = 0, travelTot = 0, days = 0;
+    var totHours = 0, workPay = 0, travelTot = 0, days = 0, dayDiscounts = 0;
     Object.keys(siteEntry.days).sort().forEach(function (iso) {
-      var eff = effective(siteEntry.days[iso], adjAll[iso]);
+      var adj = adjAll[iso] || {};
+      var eff = effective(siteEntry.days[iso], adj);
       var th = eff.workers * eff.hours;
       totHours += th;
       workPay += th * rate;
       if (eff.travel && eff.workers > 0) travelTot += travelPay;
+      dayDiscounts += U.num(adj.discount);
       days++;
     });
-    var discount = U.num(adjAll._discount);
+    var monthDiscount = U.num(adjAll._discount); // הנחה כללית לחודש (אופציונלי / תאימות לאחור)
+    var discount = dayDiscounts + monthDiscount;
     var discountNote = adjAll._discountNote || '';
-    return { totHours: totHours, workPay: workPay, travelTot: travelTot, discount: discount, discountNote: discountNote, total: workPay + travelTot - discount, days: days, rate: rate, travelPay: travelPay };
+    return { totHours: totHours, workPay: workPay, travelTot: travelTot, discount: discount, dayDiscounts: dayDiscounts, monthDiscount: monthDiscount, discountNote: discountNote, total: workPay + travelTot - discount, days: days, rate: rate, travelPay: travelPay };
   }
 
   function render(root) {
     var head = U.el('div', { class: 'page-head' }, [
       U.el('h2', { text: 'דרישת תשלום חודשית' }),
       monthInput(),
-      U.el('span', { class: 'tag', text: U.monthLabel(curMonth) }),
       U.el('div', { class: 'spacer' }),
       U.el('button', { class: 'btn accent', onclick: exportExcel }, '⬇ ייצוא לגבייה (אקסל)')
     ]);
@@ -124,13 +126,16 @@
       var eff = effective(dd, adj);
       var th = eff.workers * eff.hours;
       var dayTravel = (eff.travel && eff.workers > 0) ? t.travelPay : 0;
-      var dayTotal = th * t.rate + dayTravel;
+      var dayDisc = U.num(adj.discount);
+      var dayTotal = th * t.rate + dayTravel - dayDisc;
 
       var wInp = U.el('input', { type: 'number', value: adj.workersOverride !== undefined && adj.workersOverride !== '' ? adj.workersOverride : dd.workers, style: 'width:60px;' });
       wInp.addEventListener('change', function () { setAdj(id, iso, 'workersOverride', wInp.value); App.render(); });
       var hInp = U.el('input', { type: 'number', step: '0.5', value: adj.hoursOverride !== undefined && adj.hoursOverride !== '' ? adj.hoursOverride : dd.hours, style: 'width:60px;' });
       hInp.addEventListener('change', function () { setAdj(id, iso, 'hoursOverride', hInp.value); App.render(); });
-      var noteInp = U.el('input', { type: 'text', value: adj.note || '', placeholder: 'הערה / התאמה', style: 'width:100%;' });
+      var discInpDay = U.el('input', { type: 'number', value: adj.discount !== undefined && adj.discount !== '' ? adj.discount : '', placeholder: '0', style: 'width:70px;', title: 'הנחה ליום זה (₪)' });
+      discInpDay.addEventListener('change', function () { setAdj(id, iso, 'discount', discInpDay.value); App.render(); });
+      var noteInp = U.el('input', { type: 'text', value: adj.note || '', placeholder: 'הערה / סיבת הנחה', style: 'width:100%;' });
       noteInp.addEventListener('change', function () { setAdj(id, iso, 'note', noteInp.value); });
 
       return U.el('tr', null, [
@@ -140,13 +145,14 @@
         U.el('td', { class: 'center', text: th }),
         U.el('td', { class: 'center', text: t.rate }),
         U.el('td', { class: 'center', text: Math.round(dayTravel) }),
+        U.el('td', { class: 'center' }, [discInpDay]),
         U.el('td', { class: 'center', html: '<b>' + Math.round(dayTotal) + '</b>' }),
         U.el('td', null, [noteInp])
       ]);
     });
 
     var table = U.el('table', { class: 'grid' }, [
-      U.el('thead', null, [U.el('tr', null, ['תאריך', 'כמות עובדים', 'מס\' שעות', 'סה"כ שעות', 'שכר שעתי', 'עלות נסיעות', 'סה"כ יומי', 'הערה'].map(function (h) { return U.el('th', { text: h }); }))]),
+      U.el('thead', null, [U.el('tr', null, ['תאריך', 'כמות עובדים', 'מס\' שעות', 'סה"כ שעות', 'שכר שעתי', 'עלות נסיעות', 'הנחה', 'סה"כ יומי', 'הערה'].map(function (h) { return U.el('th', { text: h }); }))]),
       U.el('tbody', null, rows)
     ]);
 
@@ -156,18 +162,26 @@
       (t.discount ? ' · הנחה: ' + Math.round(t.discount) + ' ₪' : '') +
       ' · סה"כ: ' + Math.round(t.total) + ' ₪');
 
-    // הנחה מקומית + הערה (ברמת החודש) — מסונכרן לאקסל ולסיכום החקלאי
+    // הנחה כללית לחודש (אופציונלי) + הערה — בנוסף להנחות היומיות שבטבלה
     var discInp = U.el('input', { type: 'number', value: adjAll._discount || '', placeholder: '0', style: 'width:90px;' });
     discInp.addEventListener('change', function () { setAdjMonth(id, '_discount', discInp.value); App.render(); });
     var discNote = U.el('input', { type: 'text', value: adjAll._discountNote || '', placeholder: 'הערה להנחה (תוצג לחקלאי)', style: 'flex:1;min-width:200px;' });
     discNote.addEventListener('change', function () { setAdjMonth(id, '_discountNote', discNote.value); });
     var discRow = U.el('div', { style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;' }, [
-      U.el('label', { style: 'font-weight:600;', text: 'הנחה (₪):' }), discInp, discNote
+      U.el('label', { style: 'font-weight:600;', text: 'הנחה כללית לחודש (אופציונלי, ₪):' }), discInp, discNote
+    ]);
+
+    var exportBtn = U.el('button', {
+      class: 'btn small secondary no-print', title: 'ייצוא פירוט אישי לחקלאי זה (אקסל)',
+      onclick: function () { exportSiteExcel(id); }
+    }, '⬇ ייצוא פירוט אישי');
+    var cardHead = U.el('div', { style: 'display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px;' }, [
+      U.el('h3', { style: 'margin:0;flex:1;', text: s.name + (s.location ? ' · ' + s.location : '') }),
+      exportBtn
     ]);
 
     return U.el('div', { class: 'card', style: 'margin-bottom:16px;' }, [
-      U.el('h3', { style: 'margin-top:0;', text: s.name + (s.location ? ' · ' + s.location : '') }),
-      info, table, discRow
+      cardHead, info, table, discRow
     ]);
   }
 
@@ -242,52 +256,69 @@
 
     // ---- גיליון לכל חקלאי (רק ימים שעבדו) ----
     var usedNames = {};
-    siteIds.forEach(function (id) {
-      var e = bySite[id], s = e.site || { name: 'אתר' }, adjAll = adjFor(curMonth, id), t = siteTotals(e, curMonth);
-      var aoa = [[s.name || 'אתר'],
-        ['פירוט', 'תאריך', 'כמות עובדים', 'מס\' שעות', 'סה"כ שעות', 'עלות נסיעות', 'סה"כ יומי']];
-      Object.keys(e.days).sort().forEach(function (iso) {
-        var eff = effective(e.days[iso], adjAll[iso]);
-        var th = eff.workers * eff.hours;
-        var travAmt = (eff.travel && eff.workers > 0) ? t.travelPay : 0;
-        aoa.push([(adjAll[iso] && adjAll[iso].note) || '', parseInt(iso.split('-')[2], 10), eff.workers, eff.hours, th, travAmt, Math.round(th * t.rate + travAmt)]);
-      });
-      var nDays = aoa.length - 2;
-      aoa.push([]);
-      var totalsRows = [
-        ['סה"כ שעות עבודה', t.totHours],
-        ['תשלום שעתי', t.rate],
-        ['תשלום עבודה', Math.round(t.workPay)],
-        ['תשלום נסיעות', Math.round(t.travelTot)]
-      ];
-      if (t.discount) totalsRows.push(['הנחה', Math.round(t.discount)]);
-      if (t.discountNote) totalsRows.push(['הערת הנחה', t.discountNote]);
-      totalsRows.push(['סה"כ לתשלום', Math.round(t.total)]);
-      totalsRows.forEach(function (r) { aoa.push(r); });
-
-      var ws = XLSX.utils.aoa_to_sheet(aoa);
-      ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }];
-      ws['!cols'] = [{ wch: 22 }, { wch: 8 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }];
-      setStyle(ws, 0, 0, ST.title);
-      for (var hc = 0; hc < 7; hc++) setStyle(ws, 1, hc, ST.head);
-      for (var dr = 0; dr < nDays; dr++) {
-        for (var dc = 0; dc < 7; dc++) setStyle(ws, 2 + dr, dc, ST.cell, (dc === 5 || dc === 6) ? MONEY : null);
-      }
-      var tbase = aoa.length - totalsRows.length;
-      for (var tr = 0; tr < totalsRows.length; tr++) {
-        setStyle(ws, tbase + tr, 0, ST.label);
-        var isNote = totalsRows[tr][0] === 'הערת הנחה';
-        setStyle(ws, tbase + tr, 1, ST.total, (!isNote && tr >= 1) ? MONEY : null);
-      }
-      // שם גיליון חוקי (≤31 תווים, ייחודי)
-      var nm = (s.name || 'אתר').replace(/[\\\/\?\*\[\]:]/g, ' ').slice(0, 28);
-      var bn = nm, i = 2;
-      while (usedNames[nm]) { nm = bn.slice(0, 26) + ' ' + (i++); }
-      usedNames[nm] = true;
-      XLSX.utils.book_append_sheet(wb, ws, nm);
-    });
+    siteIds.forEach(function (id) { appendFarmerSheet(wb, id, bySite[id], usedNames); });
 
     XLSX.writeFile(wb, 'דרישת-תשלום-' + curMonth + '.xlsx');
+  }
+
+  // בונה גיליון-אקסל מעוצב לחקלאי בודד ומצרף לחוברת (משותף לייצוא הכללי ולייצוא האישי)
+  function appendFarmerSheet(wb, id, entry, usedNames) {
+    var s = entry.site || { name: 'אתר' }, adjAll = adjFor(curMonth, id), t = siteTotals(entry, curMonth);
+    var aoa = [[s.name || 'אתר'],
+      ['פירוט', 'תאריך', 'כמות עובדים', 'מס\' שעות', 'סה"כ שעות', 'עלות נסיעות', 'הנחה', 'סה"כ יומי']];
+    Object.keys(entry.days).sort().forEach(function (iso) {
+      var adj = adjAll[iso] || {};
+      var eff = effective(entry.days[iso], adj);
+      var th = eff.workers * eff.hours;
+      var travAmt = (eff.travel && eff.workers > 0) ? t.travelPay : 0;
+      var dDisc = U.num(adj.discount);
+      aoa.push([adj.note || '', parseInt(iso.split('-')[2], 10), eff.workers, eff.hours, th, travAmt, dDisc || '', Math.round(th * t.rate + travAmt - dDisc)]);
+    });
+    var nDays = aoa.length - 2;
+    aoa.push([]);
+    var totalsRows = [
+      ['סה"כ שעות עבודה', t.totHours],
+      ['תשלום שעתי', t.rate],
+      ['תשלום עבודה', Math.round(t.workPay)],
+      ['תשלום נסיעות', Math.round(t.travelTot)]
+    ];
+    if (t.discount) totalsRows.push(['הנחה', Math.round(t.discount)]);
+    if (t.discountNote) totalsRows.push(['הערת הנחה', t.discountNote]);
+    totalsRows.push(['סה"כ לתשלום', Math.round(t.total)]);
+    totalsRows.forEach(function (r) { aoa.push(r); });
+
+    var ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }];
+    ws['!cols'] = [{ wch: 22 }, { wch: 8 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 12 }];
+    setStyle(ws, 0, 0, ST.title);
+    for (var hc = 0; hc < 8; hc++) setStyle(ws, 1, hc, ST.head);
+    for (var dr = 0; dr < nDays; dr++) {
+      for (var dc = 0; dc < 8; dc++) setStyle(ws, 2 + dr, dc, ST.cell, (dc === 5 || dc === 6 || dc === 7) ? MONEY : null);
+    }
+    var tbase = aoa.length - totalsRows.length;
+    for (var tr = 0; tr < totalsRows.length; tr++) {
+      setStyle(ws, tbase + tr, 0, ST.label);
+      var isNote = totalsRows[tr][0] === 'הערת הנחה';
+      setStyle(ws, tbase + tr, 1, ST.total, (!isNote && tr >= 1) ? MONEY : null);
+    }
+    // שם גיליון חוקי (≤31 תווים, ייחודי)
+    var nm = (s.name || 'אתר').replace(/[\\\/\?\*\[\]:]/g, ' ').slice(0, 28);
+    var bn = nm, i = 2;
+    while (usedNames[nm]) { nm = bn.slice(0, 26) + ' ' + (i++); }
+    usedNames[nm] = true;
+    XLSX.utils.book_append_sheet(wb, ws, nm);
+  }
+
+  // ---------- ייצוא פירוט אישי לחקלאי בודד (לשליחה אישית) ----------
+  function exportSiteExcel(id) {
+    var bySite = computeMonth(curMonth);
+    if (!bySite[id]) { alert('אין נתוני עבודה לחקלאי זה בחודש הנבחר.'); return; }
+    var wb = XLSX.utils.book_new();
+    wb.Workbook = { Views: [{ RTL: true }] };
+    appendFarmerSheet(wb, id, bySite[id], {});
+    var s = bySite[id].site || { name: 'אתר' };
+    var safe = (s.name || 'אתר').replace(/[\\\/\?\*\[\]:]/g, ' ').trim();
+    XLSX.writeFile(wb, 'פירוט-' + safe + '-' + curMonth + '.xlsx');
   }
 
   // ---------- עזר ציבורי: חישוב חיוב-עבודה לשימוש חוזר (מודול החובות) ----------
