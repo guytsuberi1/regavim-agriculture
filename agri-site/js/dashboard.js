@@ -121,7 +121,7 @@
   // ---------- רכיבי UI ----------
   function deltaBadge(cur, prev) {
     if (cur == null || prev == null) return null;
-    if (prev === 0) return cur > 0 ? { txt: 'חדש', cls: 'up' } : null;
+    if (prev === 0) return null; // אין נתוני תקופה קודמת — בלי באדג' "חדש"
     var pct = (cur - prev) / Math.abs(prev) * 100;
     if (Math.abs(pct) < 0.5) return { txt: '≈', cls: 'flat' };
     return { txt: (pct > 0 ? '+' : '') + Math.round(pct) + '%', cls: pct > 0 ? 'up' : 'down' };
@@ -143,7 +143,9 @@
     var badge = deltaBadge(cur, prev);
     // invert: מדד ש"פחות = טוב" (למשל היעדרויות) — עלייה תסומן באדום ולא בירוק
     if (invert && badge && (badge.cls === 'up' || badge.cls === 'down')) badge.cls = (badge.cls === 'up' ? 'down' : 'up');
-    return kpi(icon, cur == null ? '—' : fmt(cur), label, tone, prev == null ? null : ('היה ' + fmt(prev) + ' ' + prevWord()), badge);
+    // אין תקופה קודמת (null או 0 נתונים) — בלי כיתוב "היה..." ובלי באדג'
+    var sub = (prev == null || prev === 0) ? null : ('היה ' + fmt(prev) + ' ' + prevWord());
+    return kpi(icon, cur == null ? '—' : fmt(cur), label, tone, sub, badge);
   }
   function panel(title, bodyNode, extraClass) {
     return U.el('section', { class: 'dash-panel ' + (extraClass || '') }, [
