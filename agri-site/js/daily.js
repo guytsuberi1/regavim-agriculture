@@ -252,7 +252,6 @@
         grip.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text/plain', 'team:' + g.team.id); e.dataTransfer.effectAllowed = 'move'; });
         var gh = U.el('div', { class: 'sc-team-head' }, [
           grip,
-          U.el('span', { class: 'sc-team-tag', text: 'צוות' }),
           U.el('span', { class: 'sc-team-title', text: global.TeamUtil.teamLabel(g.team) }),
           U.el('span', { class: 'muted', style: 'font-size:11px;', text: '(' + g.items.length + ')' })
         ]);

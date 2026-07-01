@@ -415,8 +415,6 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
 .rep-grade-head { color: var(--green-dark); margin: 18px 0 6px; font-size: 16px; }
 .debt-status-sel { font-size: 12px; padding: 4px 6px; max-width: 130px; }
 
-/* קבוצת צוות משובצת בכרטיס אתר (סידור יומי) — תיוג בלבד, ללא רקע */
-.sc-team-tag { background: #2E7D32; color: #fff; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9px; margin-inline-end: 4px; }
 
 /* כותרות נושא במבט-על של הדשבורד */
 .dash-sec { font-weight: 700; color: var(--green-dark); font-size: 14px; margin: 18px 0 8px; }
