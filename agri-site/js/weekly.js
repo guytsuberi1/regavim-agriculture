@@ -170,13 +170,11 @@
       U.el('h2', { text: viewMode === 'month' ? 'תכנון חודשי' : 'תכנון שבועי' }),
       modeToggle
     ].concat(nav).concat([
-      U.el('button', { class: 'btn secondary small', title: 'שינוי מיקום לתחזית מזג האוויר', onclick: chooseLocation }, '📍 ' + getLoc().name),
+      U.el('button', { class: 'btn secondary ico no-print', title: 'מיקום לתחזית מזג האוויר: ' + getLoc().name + ' (לחצו לשינוי)', onclick: chooseLocation }, '📍'),
       U.el('div', { class: 'spacer' }),
-      U.el('button', { class: 'btn secondary', onclick: function () { editWeekList('weeklyDuty', 'תורנים שבועיים'); } }, '🧹 תורנים' + countSuffix('weeklyDuty')),
-      U.el('button', { class: 'btn secondary', onclick: function () { editWeekList('weeklySick', 'חולים השבוע'); } }, '🤒 חולים' + countSuffix('weeklySick')),
-      U.el('button', { class: 'btn accent', onclick: exportImage }, '🖼 ייצוא תמונה'),
-      U.el('button', { class: 'btn accent', onclick: exportExcel }, '⬇ ייצוא אקסל'),
-      U.el('button', { class: 'btn', onclick: sendHomeroomReminder }, '📩 תזכורת למחנכים')
+      U.el('button', { class: 'btn secondary ico no-print', title: 'תורנים שבועיים' + countSuffix('weeklyDuty'), onclick: function () { editWeekList('weeklyDuty', 'תורנים שבועיים'); } }, '🧹'),
+      U.el('button', { class: 'btn secondary ico no-print', title: 'חולים השבוע' + countSuffix('weeklySick'), onclick: function () { editWeekList('weeklySick', 'חולים השבוע'); } }, '🤒'),
+      U.el('button', { class: 'btn secondary ico no-print', title: 'ייצוא תמונה', onclick: exportImage }, '🖼')
     ]));
     root.appendChild(head);
 
@@ -221,36 +219,6 @@
       wrap.appendChild(cell);
     }
     return wrap;
-  }
-
-  // נרמול טלפון לפורמט 0XXXXXXXXX (כמו ב-daily.js)
-  function smsPhoneW(phone) {
-    var d = String(phone || '').replace(/\D/g, '');
-    if (d.indexOf('972') === 0) d = '0' + d.slice(3);
-    if (d.length === 9 && d.charAt(0) !== '0') d = '0' + d;
-    return d.length >= 9 ? d : null;
-  }
-  // שליחת תזכורת ידנית למחנכים למילוי הנעדרים היומיים (דרך 019)
-  function sendHomeroomReminder() {
-    var teachers = (Store.get().staff || []).filter(function (s) { return s.homeroom && s.active !== false; });
-    if (!teachers.length) { alert('לא הוגדרו מחנכים. סמנו "מחנך" לאיש צוות תחת "נתוני בסיס".'); return; }
-    var text = 'תזכורת: נא למלא את רשימת הנעדרים של היום.\nכניסה למערכת: https://chaklaut.rgvb.org.il\n("מצב שטח" ← "נעדרים היום")';
-    var messages = [], noPhone = [];
-    teachers.forEach(function (t) {
-      var ph = smsPhoneW(t.phone);
-      if (ph) messages.push({ phone: ph, text: text });
-      else noPhone.push(t.name);
-    });
-    if (!messages.length) { alert('אין למחנכים מספרי טלפון תקינים.'); return; }
-    if (!confirm('לשלוח תזכורת SMS ל-' + messages.length + ' מחנכים?' +
-      (noPhone.length ? '\n(' + noPhone.length + ' ללא טלפון יידלגו)' : '') +
-      '\n\n⚠️ שליחת SMS עולה כסף בחשבון 019.')) return;
-    Store.sendSms(messages).then(function (res) {
-      alert('✓ נשלחו: ' + (res.sent || 0) + ' · נכשלו: ' + (res.failed || 0) +
-        ((res.errors && res.errors.length) ? '\n\nשגיאה לדוגמה:\n' + res.errors[0] : ''));
-    }).catch(function (e) {
-      alert('✗ שגיאה בשליחה: ' + ((e && e.message) ? e.message : e));
-    });
   }
 
   function countSuffix(key) {
@@ -347,13 +315,11 @@
 
     var siteSel = optSelect('sites', model.siteId, 'בחר אתר…');
     var workersInp = U.el('input', { type: 'number', value: model.workers || '', placeholder: 'כמות עובדים', style: 'width:100%;' });
-    var groupSel = U.el('select', { style: 'width:100%;' }, ['', 'A', 'B', 'C'].map(function (g) { return U.el('option', { value: g }, g || '(ללא קבוצה)'); }));
-    groupSel.value = model.group || '';
     var transSel = optSelect('transports', model.transportId, '(ללא הסעה)');
     var noteInp = U.el('input', { type: 'text', value: model.note || '', placeholder: 'הערה (בגרות / חג / וכו\')', style: 'width:100%;' });
 
     var bodyChildren = [
-      field('אתר', siteSel), field('כמות עובדים', workersInp), field('קבוצה', groupSel),
+      field('אתר', siteSel), field('כמות עובדים', workersInp),
       field('הסעה', transSel), field('הערה', noteInp)
     ];
 
@@ -391,7 +357,7 @@
     var buttons = [{ label: 'ביטול', class: 'secondary' }];
     if (existing) buttons.push({ label: 'מחיקה', class: 'danger', onClick: function (close) { removeItem(iso, idx); close(); } });
     buttons.push({ label: 'שמירה', onClick: function (close) {
-      var out = { siteId: siteSel.value || '', workers: workersInp.value === '' ? '' : U.num(workersInp.value), group: groupSel.value, transportId: transSel.value || '', note: noteInp.value };
+      var out = { siteId: siteSel.value || '', workers: workersInp.value === '' ? '' : U.num(workersInp.value), group: model.group || '', transportId: transSel.value || '', note: noteInp.value };
       var data = Store.get();
       var targets = [iso];
       if (!existing && datesMode) {
@@ -431,25 +397,6 @@
   }
 
   function field(label, input) { return U.el('div', { class: 'field' }, [U.el('label', { text: label }), input]); }
-
-  function exportExcel() {
-    var plan = Store.get().weeklyPlan;
-    var aoa = [['תכנון שבועי — רגבים בנימין'], [], ['תאריך', 'יום', 'תאריך עברי', 'אתר', 'כמות', 'קבוצה', 'הסעה', 'הערה']];
-    for (var i = 0; i < 7; i++) {
-      var iso = U.addDays(weekStart, i);
-      var items = plan[iso] || [];
-      if (!items.length) { aoa.push([U.gregLabel(iso), U.weekdayName(iso), U.hebrewDate(iso), '', '', '', '', '']); continue; }
-      items.forEach(function (it) {
-        var site = it.siteId ? Store.getById('sites', it.siteId) : null;
-        var trans = it.transportId ? Store.getById('transports', it.transportId) : null;
-        aoa.push([U.gregLabel(iso), U.weekdayName(iso), U.hebrewDate(iso), site ? site.name : '', it.workers, it.group, trans ? trans.name : '', it.note]);
-      });
-    }
-    var ws = XLSX.utils.aoa_to_sheet(aoa);
-    var wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'תכנון');
-    XLSX.writeFile(wb, 'תכנון-שבועי-' + weekStart + '.xlsx');
-  }
 
   // ---------- ייצוא תמונה של התכנון השבועי (ימים, תאריכים, אתרים + דרך הגעה; ללא הערות) ----------
   function exportImage() {

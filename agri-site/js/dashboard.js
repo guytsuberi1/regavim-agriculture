@@ -86,6 +86,35 @@
     return out;
   }
 
+  // ---------- תזכורת SMS למחנכים למילוי נעדרים (הועבר מהתכנון השבועי) ----------
+  function smsPhone(phone) {
+    var d = String(phone || '').replace(/\D/g, '');
+    if (d.indexOf('972') === 0) d = '0' + d.slice(3);
+    if (d.length === 9 && d.charAt(0) !== '0') d = '0' + d;
+    return d.length >= 9 ? d : null;
+  }
+  function sendHomeroomReminder() {
+    var teachers = (Store.get().staff || []).filter(function (s) { return s.homeroom && s.active !== false; });
+    if (!teachers.length) { alert('לא הוגדרו מחנכים. סמנו "מחנך" לאיש צוות תחת "נתוני בסיס".'); return; }
+    var text = 'תזכורת: נא למלא את רשימת הנעדרים של היום.\nכניסה למערכת: https://chaklaut.rgvb.org.il\n("מצב שטח" ← "נעדרים היום")';
+    var messages = [], noPhone = [];
+    teachers.forEach(function (t) {
+      var ph = smsPhone(t.phone);
+      if (ph) messages.push({ phone: ph, text: text });
+      else noPhone.push(t.name);
+    });
+    if (!messages.length) { alert('אין למחנכים מספרי טלפון תקינים.'); return; }
+    if (!confirm('לשלוח תזכורת SMS ל-' + messages.length + ' מחנכים?' +
+      (noPhone.length ? '\n(' + noPhone.length + ' ללא טלפון יידלגו)' : '') +
+      '\n\n⚠️ שליחת SMS עולה כסף בחשבון 019.')) return;
+    Store.sendSms(messages).then(function (res) {
+      alert('✓ נשלחו: ' + (res.sent || 0) + ' · נכשלו: ' + (res.failed || 0) +
+        ((res.errors && res.errors.length) ? '\n\nשגיאה לדוגמה:\n' + res.errors[0] : ''));
+    }).catch(function (e) {
+      alert('✗ שגיאה בשליחה: ' + ((e && e.message) ? e.message : e));
+    });
+  }
+
   // ---------- רכיבי UI ----------
   function deltaBadge(cur, prev) {
     if (cur == null || prev == null) return null;
@@ -209,7 +238,9 @@
       dInp,
       U.el('button', { class: 'btn secondary small', onclick: function () { dashDate = U.addDays(dashDate, 1); App.render(); } }, 'מחר ←'),
       U.el('button', { class: 'btn secondary small', onclick: function () { dashDate = U.todayISO(); App.render(); } }, 'היום'),
-      U.el('span', { class: 'tag', text: U.weekdayName(dashDate) + ' · ' + U.gregLabel(dashDate) })
+      U.el('span', { class: 'tag', text: U.weekdayName(dashDate) + ' · ' + U.gregLabel(dashDate) }),
+      U.el('div', { class: 'spacer' }),
+      U.el('button', { class: 'btn small', title: 'שליחת SMS למחנכים למילוי הנעדרים היומיים', onclick: sendHomeroomReminder }, '📩 תזכורת למחנכים')
     ]));
 
     var day = (Store.get().days || {})[dashDate];
