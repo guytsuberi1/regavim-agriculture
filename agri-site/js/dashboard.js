@@ -241,6 +241,7 @@
       U.el('div', { class: 'spacer' }),
       U.el('button', { class: 'btn small', title: 'שליחת SMS למחנכים למילוי הנעדרים היומיים', onclick: sendHomeroomReminder }, '📩 תזכורת למחנכים')
     ]));
+    root.appendChild(U.el('div', { class: 'muted', style: 'font-size:12.5px;margin-bottom:10px;', text: 'מוצגים רק תלמידים הטעונים תשומת לב: לא יצאו · לא סומנו · ציון 1 או 5.' }));
 
     var day = (Store.get().days || {})[dashDate];
     var cards = (day && day.cards) ? day.cards : [];
@@ -291,9 +292,12 @@
       ])
     ]);
 
-    var list = students.length
-      ? U.el('div', { class: 'ds-students' }, students.map(studentRow))
-      : U.el('div', { class: 'muted', style: 'padding:6px 2px;', text: 'אין תלמידים משובצים.' });
+    // מציגים רק תלמידים הטעונים טיפול: לא יצאו / לא סומנו / ציון קיצוני (1 או 5)
+    var flagged = students.filter(function (s) { return !s.wentToWork || s.rating === 1 || s.rating === 5; });
+    var list;
+    if (!students.length) list = U.el('div', { class: 'muted', style: 'padding:6px 2px;', text: 'אין תלמידים משובצים.' });
+    else if (!flagged.length) list = U.el('div', { style: 'padding:6px 2px;color:#166534;font-size:13px;', text: '✓ כל התלמידים יצאו לעבודה — אין טעון טיפול.' });
+    else list = U.el('div', { class: 'ds-students' }, flagged.map(studentRow));
 
     var kids = [head, list];
     if (card.fieldNote) kids.push(U.el('div', { class: 'fieldnote', style: 'margin-top:8px;' }, [U.el('div', { class: 'fn-text', text: '📝 ' + card.fieldNote })]));
