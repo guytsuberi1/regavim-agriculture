@@ -311,49 +311,54 @@
     var list;
     if (!students.length) list = U.el('div', { class: 'muted', style: 'padding:6px 2px;', text: 'אין תלמידים משובצים.' });
     else if (!flagged.length) list = U.el('div', { style: 'padding:6px 2px;color:#166534;font-size:13px;', text: '✓ כל התלמידים יצאו לעבודה — אין טעון טיפול.' });
-    else list = U.el('div', { class: 'ds-students' }, flagged.map(studentRow));
+    else list = studentTable(flagged);
 
     var kids = [head, list];
     if (card.fieldNote) kids.push(U.el('div', { class: 'fieldnote', style: 'margin-top:8px;' }, [U.el('div', { class: 'fn-text', text: '📝 ' + card.fieldNote })]));
     return U.el('div', { class: 'card ds-site' }, kids);
   }
 
-  function absEditor(studentId) {
-    var info = (global.ReportsUtil && ReportsUtil.getAbs) ? ReportsUtil.getAbs(dashDate, studentId) : { approved: false, reason: '' };
-    var sel = U.el('select', { class: 'ds-appr' }, [U.el('option', { value: '0' }, 'לא באישור'), U.el('option', { value: '1' }, 'באישור')]);
-    sel.value = info.approved ? '1' : '0';
-    var note = U.el('input', { type: 'text', class: 'ds-reason', value: info.reason || '', placeholder: 'סיבה / הערה' });
-    function persist() { if (global.ReportsUtil && ReportsUtil.setAbs) ReportsUtil.setAbs(dashDate, studentId, { approved: sel.value === '1', reason: note.value }); }
-    sel.addEventListener('change', persist); note.addEventListener('change', persist);
-    return U.el('div', { class: 'ds-absedit' }, [sel, note]);
+  // טבלה מסודרת עם כותרות עמודות: תלמיד · סטטוס · ציון · אישור · סיבה/הערה
+  function studentTable(sts) {
+    return U.el('div', { class: 'tbl-scroll' }, [U.el('table', { class: 'grid ds-table' }, [
+      U.el('thead', null, [U.el('tr', null,
+        ['תלמיד', 'סטטוס', 'ציון', 'אישור', 'סיבה / הערה'].map(function (h) { return U.el('th', { text: h }); }))]),
+      U.el('tbody', null, sts.map(studentTr))
+    ])]);
   }
 
-  function studentRow(st) {
-    var stu = Store.getById('students', st.studentId) || { name: '⚠ נמחק', grade: '' };
-    var name = stu.name + (stu.grade ? ' (' + stu.grade + ')' : '');
-    var statusCls = st.wentToWork ? 'went' : (st.absent ? 'absent' : 'none');
-    var statusTxt = st.wentToWork ? '✓ יצא' : (st.absent ? '✕ לא יצא' : '— לא סומן');
-    var right = [U.el('span', { class: 'ds-status ' + statusCls, text: statusTxt })];
-    if (st.wentToWork && st.rating) right.push(U.el('span', { class: 'ds-rate', text: '⭐ ' + st.rating }));
-    var row = U.el('div', { class: 'ds-student' }, [
-      U.el('span', { class: 'ds-name', text: (st.teamLeader ? '⭐ ' : '') + name }),
-      U.el('span', { class: 'ds-right' }, right)
+  function studentTr(st) {
+    var stu = Store.getById('students', st.studentId) || { name: '⚠ נמחק', grade: '', className: '' };
+    var cls = stu.className || stu.grade || '';
+    var name = (st.teamLeader ? '⭐ ' : '') + stu.name + (cls ? ' (' + cls + ')' : '');
+    var went = st.wentToWork, absent = st.absent;
+    var statusCls = went ? 'went' : (absent ? 'absent' : 'none');
+    var statusTxt = went ? '✓ יצא' : (absent ? '✕ לא יצא' : '— לא סומן');
+
+    var apprTd = U.el('td', { class: 'center' }), reasonTd = U.el('td');
+    if (!went) {
+      var info = (global.ReportsUtil && ReportsUtil.getAbs) ? ReportsUtil.getAbs(dashDate, st.studentId) : { approved: false, reason: '' };
+      var sel = U.el('select', { class: 'ds-appr' }, [U.el('option', { value: '0' }, 'לא באישור'), U.el('option', { value: '1' }, 'באישור')]);
+      sel.value = info.approved ? '1' : '0';
+      var note = U.el('input', { type: 'text', class: 'ds-reason', value: info.reason || '', placeholder: 'סיבה / הערה' });
+      function persist() { if (global.ReportsUtil && ReportsUtil.setAbs) ReportsUtil.setAbs(dashDate, st.studentId, { approved: sel.value === '1', reason: note.value }); }
+      sel.addEventListener('change', persist); note.addEventListener('change', persist);
+      apprTd.appendChild(sel); reasonTd.appendChild(note);
+    }
+    return U.el('tr', null, [
+      U.el('td', { text: name }),
+      U.el('td', { class: 'center' }, [U.el('span', { class: 'ds-status ' + statusCls, text: statusTxt })]),
+      U.el('td', { class: 'center', text: (went && st.rating) ? ('⭐ ' + st.rating) : '' }),
+      apprTd,
+      reasonTd
     ]);
-    if (!st.wentToWork) row.appendChild(absEditor(st.studentId));
-    return row;
   }
 
   function generalAbsentSection(ids) {
-    var rows = ids.map(function (id) {
-      var stu = Store.getById('students', id) || { name: '⚠', grade: '' };
-      return U.el('div', { class: 'ds-student' }, [
-        U.el('span', { class: 'ds-name', text: stu.name + (stu.grade ? ' (' + stu.grade + ')' : '') }),
-        absEditor(id)
-      ]);
-    });
+    var sts = ids.map(function (id) { return { studentId: id, wentToWork: false, absent: true }; });
     return U.el('div', { class: 'card ds-site' }, [
       U.el('div', { class: 'ds-site-head' }, [U.el('div', { class: 'ds-site-name', text: '🚫 נעדרים כלליים (היום)' })]),
-      U.el('div', { class: 'ds-students' }, rows)
+      studentTable(sts)
     ]);
   }
 

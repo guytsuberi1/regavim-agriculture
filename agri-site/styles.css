@@ -418,6 +418,11 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
 /* קבוצת צוות משובצת בכרטיס אתר (סידור יומי) — תיוג בלבד, ללא רקע */
 .sc-team-tag { background: #2E7D32; color: #fff; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9px; margin-inline-end: 4px; }
 
+/* טבלת סיכום יומי בדשבורד */
+.ds-table td, .ds-table th { vertical-align: middle; }
+.ds-table td .ds-reason { width: 100%; min-width: 130px; }
+.ds-table td .ds-appr { width: 100%; }
+
 /* כותרת צוות ברשימת מצב-שטח */
 .field-team-head { font-weight: 700; color: #1b5e20; background: #eef5ee; border: 1px solid #d6e6d6; border-radius: 8px; padding: 5px 10px; margin: 12px 0 4px; font-size: 13px; }
 
