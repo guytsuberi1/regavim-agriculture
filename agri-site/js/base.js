@@ -90,6 +90,7 @@
       headBtns.push(U.el('button', { class: 'btn secondary ico', title: showArchive ? 'חזרה לפעילים' : 'ארכיון', onclick: function () { showArchive = !showArchive; App.render(); } }, showArchive ? '↩' : '📦'));
       if (!showArchive) {
         if (sub === 'students') headBtns.push(U.el('button', { class: 'btn secondary ico', title: 'איחוד כפילויות', onclick: mergeDuplicateStudents }, '🧹'));
+        if (sub === 'students') headBtns.push(U.el('button', { class: 'btn secondary ico', title: 'מילוי כיתה לפי שכבה (ט→ט1)', onclick: fillClassFromGrade }, '🏷️'));
         headBtns.push(U.el('button', { class: 'btn secondary ico', title: 'אקסל לדוגמה', onclick: function () { if (global.ImportExcel) global.ImportExcel.downloadTemplate(sub); } }, '📄'));
         headBtns.push(U.el('button', { class: 'btn secondary ico', title: 'ייבוא מאקסל', onclick: openImport }, '📥'));
         headBtns.push(U.el('button', { class: 'btn', onclick: function () { openForm(null); } }, '+ הוספה'));
@@ -164,6 +165,19 @@
     item.active = false; Store.save(); App.render();
   }
   function restore(item) { item.active = true; Store.save(); App.render(); }
+
+  // מילוי חד-פעמי של "כיתה" לתלמידים קיימים לפי השכבה שלהם (ט→ט1). ממלא רק כיתות ריקות.
+  function fillClassFromGrade() {
+    var students = (Store.get().students || []);
+    var targets = students.filter(function (s) {
+      return s.active !== false && s.grade && !(s.className && String(s.className).trim());
+    });
+    if (!targets.length) { alert('אין תלמידים למילוי — לכולם כבר יש כיתה, או שאין להם שכבה.'); return; }
+    if (!confirm('למלא כיתה ל-' + targets.length + ' תלמידים לפי השכבה שלהם?\n(ט→ט1, י→י1, יא→יא1, יב→יב1)\nניתן לשנות ידנית אחר כך (ט2 וכו\').')) return;
+    targets.forEach(function (s) { s.className = s.grade + '1'; });
+    Store.save(); App.render();
+    alert('מולאו ' + targets.length + ' כיתות. עדכנו ידנית תלמידים שצריכים כיתה אחרת.');
+  }
 
   function openForm(item) {
     var defs = fieldDefs(sub);
