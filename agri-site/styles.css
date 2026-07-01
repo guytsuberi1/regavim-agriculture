@@ -309,10 +309,9 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
 .sc-del { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 17px; line-height: 1; padding: 2px 7px; border-radius: 6px; }
 .sc-del:hover { color: var(--danger); background: #fdecea; }
 .site-card .sc-team .sc-students { margin: 2px 0 0; }
-.staff-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
-.staff-chip { display: inline-flex; align-items: center; gap: 6px; background: #f1f5f9; border: 1px solid #e2e8f0; color: #334155; border-radius: 999px; padding: 3px 10px; font-size: 12.5px; font-weight: 600; }
-.staff-chip-x { background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 14px; padding: 0; line-height: 1; display: flex; align-items: center; }
-.staff-chip-x:hover { color: #dc2626; }
+.staff-list { margin: 4px 0 0; }
+.staff-badge { background: #e0e7ff; color: #3730a3; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 9px; white-space: nowrap; }
+.staff-badge.leader { background: #fde68a; color: #92400e; }
 
 /* ---------- מודאל ---------- */
 .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; z-index: 100; }

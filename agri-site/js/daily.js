@@ -338,21 +338,42 @@
       U.el('label', { text: 'אנשי צוות', style: 'margin:0;' }),
       U.el('button', { class: 'btn small secondary no-print', title: 'בחירת אנשי צוות', onclick: function () { openAddStaff(day, card); } }, '+ הוסף')
     ]));
-    var chips = U.el('div', { class: 'staff-chips' });
-    card.staffIds.forEach(function (id) {
-      var p = Store.getById('staff', id);
-      chips.appendChild(U.el('span', { class: 'staff-chip' }, [
-        U.el('span', { text: p ? p.name : '(נמחק)' }),
-        U.el('button', { class: 'staff-chip-x no-print', title: 'הסר', onclick: function () {
-          card.staffIds = card.staffIds.filter(function (x) { return x !== id; });
-          card.staffId = card.staffIds[0] || null;
-          Store.save(); App.render();
-        } }, '✕')
-      ]));
-    });
-    if (!card.staffIds.length) chips.appendChild(U.el('span', { class: 'muted', style: 'font-size:12px;', text: 'לא שובצו' }));
-    wrap.appendChild(chips);
+    if (card.staffIds.length) {
+      var ul = U.el('ul', { class: 'sc-students staff-list' });
+      card.staffIds.forEach(function (id) { ul.appendChild(buildStaffLi(day, card, id)); });
+      wrap.appendChild(ul);
+    } else {
+      wrap.appendChild(U.el('div', { class: 'muted', style: 'font-size:12px;', text: 'לא שובצו' }));
+    }
     return wrap;
+  }
+
+  // פריט איש-צוות בכרטיס — באותו פורמט כמו תלמיד: תיוג + שם + גרירה בין אתרים
+  function buildStaffLi(day, card, id) {
+    var p = Store.getById('staff', id);
+    var isLeader = p && p.role === 'leader';
+    var badge = U.el('span', { class: 'staff-badge' + (isLeader ? ' leader' : ''), text: isLeader ? 'ראש צוות' : 'צוות' });
+    var li = U.el('li', { class: 'staff-li', draggable: 'true' }, [
+      U.el('div', { style: 'flex:1;display:flex;align-items:center;gap:7px;' }, [badge, U.el('span', { text: p ? p.name : '(נמחק)' })]),
+      U.el('button', { class: 'sc-del no-print', title: 'הסר', onclick: function () {
+        card.staffIds = card.staffIds.filter(function (x) { return x !== id; });
+        card.staffId = card.staffIds[0] || null;
+        Store.save(); App.render();
+      } }, '×')
+    ]);
+    li.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text/plain', 'staff:' + id); e.dataTransfer.effectAllowed = 'move'; });
+    return li;
+  }
+
+  // העברת איש צוות לאתר (איש צוות = אתר אחד ביום): מסירים מכל אתר אחר ומוסיפים כאן
+  function placeStaff(day, card, staffId) {
+    day.cards.forEach(function (c) {
+      if (c.staffIds) c.staffIds = c.staffIds.filter(function (x) { return x !== staffId; });
+      if (c.staffId === staffId) c.staffId = (c.staffIds && c.staffIds[0]) || null;
+    });
+    if (!card.staffIds) card.staffIds = card.staffId ? [card.staffId] : [];
+    if (card.staffIds.indexOf(staffId) === -1) card.staffIds.push(staffId);
+    card.staffId = card.staffIds[0] || null;
   }
 
   // בחירת אנשי צוות מרובים — רשימה עם תיבות סימון (כמו הוספת חברים לצוות)
@@ -497,6 +518,7 @@
     }
     else if (payload.indexOf('grade:') === 0) assignGradeToCard(day, card, payload.slice(6));
     else if (payload.indexOf('student:') === 0) { placeStudent(day, card, payload.slice(8), false); Store.save(); App.render(); }
+    else if (payload.indexOf('staff:') === 0) { placeStaff(day, card, payload.slice(6)); Store.save(); App.render(); }
   }
 
   // ---------- מאגר התלמידים בתחתית (מחולק לצוותים) ----------
