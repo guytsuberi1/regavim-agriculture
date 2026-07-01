@@ -351,8 +351,7 @@
   // פריט איש-צוות בכרטיס — באותו פורמט כמו תלמיד: תיוג + שם + גרירה בין אתרים
   function buildStaffLi(day, card, id) {
     var p = Store.getById('staff', id);
-    var isLeader = p && p.role === 'leader';
-    var badge = U.el('span', { class: 'staff-badge' + (isLeader ? ' leader' : ''), text: isLeader ? 'ראש צוות' : 'צוות' });
+    var badge = U.el('span', { class: 'staff-badge', text: 'צוות' });
     var li = U.el('li', { class: 'staff-li', draggable: 'true' }, [
       U.el('div', { style: 'flex:1;display:flex;align-items:center;gap:7px;' }, [badge, U.el('span', { text: p ? p.name : '(נמחק)' })]),
       U.el('button', { class: 'sc-del no-print', title: 'הסר', onclick: function () {
