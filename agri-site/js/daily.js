@@ -539,8 +539,9 @@
   }
 
   // בורר תלמידים גנרי (שומר סימונים תוך כדי חיפוש) — לשימוש בנעדרים/תורנים/חולים
-  function pickStudents(title, preselectedIds, onSave) {
+  function pickStudents(title, preselectedIds, onSave, opts) {
     var students = activeList('students');
+    if (opts && typeof opts.filter === 'function') students = students.filter(opts.filter);
     var selected = {};
     (preselectedIds || []).forEach(function (id) { selected[id] = true; });
     var search = U.el('input', { type: 'text', placeholder: 'חיפוש…', style: 'width:100%;margin-bottom:8px;' });
@@ -549,6 +550,7 @@
     function updateCount() { countEl.textContent = 'נבחרו: ' + Object.keys(selected).filter(function (k) { return selected[k]; }).length; }
     function build(filter) {
       U.clear(listBox);
+      if (!students.length) { listBox.appendChild(U.el('div', { class: 'muted', style: 'padding:10px;', text: 'אין תלמידים להצגה.' })); return; }
       U.GRADES.concat(['']).forEach(function (g) {
         var grp = students.filter(function (s) { return (s.grade || '') === g && (!filter || s.name.indexOf(filter) !== -1); });
         if (!grp.length) return;

@@ -70,14 +70,28 @@
   }
 
   // נעדרים יומיים — הצוות/המחנך מסמן מי לא הגיע (אותה רשימה שהרכז רואה בסידור)
+  // מחנך עם "כיתת מחנך" מוגדרת רואה ומעדכן רק את תלמידי כיתתו; שאר הכיתות נשמרות כמות שהן.
   function openAbsentField() {
     var d = Store.get();
     if (!d.dailyAbsent) d.dailyAbsent = {};
     if (!global.PickStudents) { alert('בורר התלמידים אינו זמין'); return; }
-    global.PickStudents('נעדרים ליום ' + U.gregLabel(fieldDate), d.dailyAbsent[fieldDate] || [], function (sel) {
+    var me = myStaffId() ? Store.getById('staff', myStaffId()) : null;
+    var cls = (me && me.homeroom && me.homeroomClass) ? String(me.homeroomClass).trim() : '';
+    function clsOf(id) { var st = Store.getById('students', id); return st ? String(st.className || '').trim() : ''; }
+
+    var title = cls ? ('נעדרים · כיתה ' + cls + ' · ' + U.gregLabel(fieldDate)) : ('נעדרים ליום ' + U.gregLabel(fieldDate));
+    var opts = cls ? { filter: function (s) { return String(s.className || '').trim() === cls; } } : null;
+
+    global.PickStudents(title, d.dailyAbsent[fieldDate] || [], function (sel) {
+      if (cls) {
+        // שמירת נעדרים של כיתות אחרות (שהמחנך לא רואה) + הבחירה של כיתתו
+        var others = (d.dailyAbsent[fieldDate] || []).filter(function (id) { return clsOf(id) !== cls; });
+        var mine = sel.filter(function (id) { return others.indexOf(id) === -1; });
+        sel = others.concat(mine);
+      }
       if (sel.length) d.dailyAbsent[fieldDate] = sel; else delete d.dailyAbsent[fieldDate];
       Store.save(); App.render();
-    });
+    }, opts);
   }
 
   function renderSiteList(root, day) {

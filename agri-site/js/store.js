@@ -10,9 +10,9 @@
     return {
       meta: { version: 1, lastModified: new Date().toISOString() },
       settings: { schoolName: 'רגבים בנימין', defaultHours: 8 },
-      students: [],     // { id, name, grade, active, notes }
+      students: [],     // { id, name, grade, className, phone, active, notes }
       sites: [],        // { id, name, location, contactName, phone, email, hourlyRate, travelPay, defaultHours, defaultTransportId, active, notes }
-      staff: [],        // { id, name, role: 'staff'|'leader', phone, active }
+      staff: [],        // { id, name, role: 'staff'|'leader', phone, email, homeroom, homeroomClass, active }
       transports: [],   // { id, name, capacity, active }
       teams: [],        // { id, leaderStudentId, memberIds: [studentId,...] }  (ראש צוות = תלמיד י"ב)
       weeklyPlan: {},   // { 'YYYY-MM-DD': [ { siteId, workers, group, transportId, note } ] }

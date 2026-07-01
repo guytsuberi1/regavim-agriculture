@@ -26,7 +26,8 @@
   function fieldDefs(coll) {
     if (coll === 'students') return [
       { key: 'name', label: 'שם התלמיד', type: 'text', required: true, col: true },
-      { key: 'grade', label: 'כיתה', type: 'select', options: U.GRADES, col: true },
+      { key: 'grade', label: 'שכבה', type: 'select', options: U.GRADES, col: true },
+      { key: 'className', label: 'כיתה', type: 'text', col: true },
       { key: 'phone', label: 'טלפון', type: 'text', required: true, col: true },
       { key: 'active', label: 'פעיל', type: 'bool', col: true, def: true },
       { key: 'notes', label: 'הערות', type: 'text' }
@@ -51,6 +52,7 @@
       { key: 'phone', label: 'טלפון', type: 'text', required: true, col: true },
       { key: 'email', label: 'אימייל להתחברות', type: 'text', required: true, col: true },
       { key: 'homeroom', label: 'מחנך', type: 'bool', col: true, def: false },
+      { key: 'homeroomClass', label: 'כיתת מחנך', type: 'text', col: true },
       { key: 'active', label: 'פעיל', type: 'bool', col: true, def: true }
     ];
     if (coll === 'transports') return [
