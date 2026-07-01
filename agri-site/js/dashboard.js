@@ -203,7 +203,6 @@
 
     var cur = computeRange(rangeOf(period, 0));
     var prev = computeRange(rangeOf(period, -1));
-    var totalDebt = global.DebtUtil ? DebtUtil.totalOutstanding() : 0;
     var attTone = cur.attPct == null ? 'neutral' : (cur.attPct >= 75 ? 'good' : (cur.attPct >= 50 ? 'warn' : 'bad'));
 
     root.appendChild(U.el('div', { class: 'kpi-grid' }, [
@@ -212,9 +211,7 @@
       metricKpi('🗓️', 'ימי עבודה', cur.workDays, prev.workDays, function (v) { return String(v); }, 'neutral'),
       metricKpi('⏱️', 'שעות עבודה', cur.hours, prev.hours, function (v) { return Math.round(v).toLocaleString('he-IL'); }, 'neutral'),
       metricKpi('⭐', 'ציון ממוצע', cur.ratingAvg, prev.ratingAvg, function (v) { return v.toFixed(1); }, 'purple'),
-      metricKpi('💵', 'הכנסות (' + periodWord() + ')', cur.income, prev.income, money, 'good'),
-      metricKpi('✅', 'נגבה (' + periodWord() + ')', cur.collected, prev.collected, money, 'info'),
-      kpi('💰', money(totalDebt), 'חובות פתוחים (נכון להיום)', totalDebt > 0 ? 'bad' : 'good')
+      metricKpi('💵', 'הכנסות (' + periodWord() + ')', cur.income, prev.income, money, 'good')
     ]));
 
     // מגמות — 6 התקופות האחרונות
