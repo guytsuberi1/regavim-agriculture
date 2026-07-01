@@ -204,10 +204,12 @@
     var cur = computeRange(rangeOf(period, 0));
     var prev = computeRange(rangeOf(period, -1));
     var attTone = cur.attPct == null ? 'neutral' : (cur.attPct >= 75 ? 'good' : (cur.attPct >= 50 ? 'warn' : 'bad'));
+    var curAvg = cur.workDays ? cur.manDays / cur.workDays : null;
+    var prevAvg = prev.workDays ? prev.manDays / prev.workDays : null;
 
     root.appendChild(U.el('div', { class: 'kpi-grid' }, [
       metricKpi('🚜', 'אחוז יציאה לעבודה', cur.attPct, prev.attPct, function (v) { return Math.round(v) + '%'; }, attTone),
-      metricKpi('👷', 'יציאות לעבודה (ימי-עובד)', cur.manDays, prev.manDays, function (v) { return Math.round(v).toLocaleString('he-IL'); }, 'info'),
+      metricKpi('👷', 'ממוצע תלמידים ליום עבודה', curAvg, prevAvg, function (v) { return v.toFixed(1); }, 'info'),
       metricKpi('🗓️', 'ימי עבודה', cur.workDays, prev.workDays, function (v) { return String(v); }, 'neutral'),
       metricKpi('⏱️', 'שעות עבודה', cur.hours, prev.hours, function (v) { return Math.round(v).toLocaleString('he-IL'); }, 'neutral'),
       metricKpi('⭐', 'ציון ממוצע', cur.ratingAvg, prev.ratingAvg, function (v) { return v.toFixed(1); }, 'purple'),
