@@ -39,12 +39,14 @@
   function computeRange(r) {
     var days = Store.get().days || {};
     var manDays = 0, workDays = 0, absUnap = 0, hours = 0, rSum = 0, rCnt = 0, income = 0;
+    var activeSet = {};
     Object.keys(days).forEach(function (iso) {
       if (!inRange(iso, r)) return;
       var cards = days[iso].cards || [];
       if (cards.some(function (c) { return c.siteId || (c.students && c.students.length); })) workDays++;
       var went = global.ReportsUtil ? ReportsUtil.wentOn(iso) : {};
       manDays += Object.keys(went).length;
+      Object.keys(went).forEach(function (id) { activeSet[id] = true; });
       if (global.ReportsUtil) {
         ReportsUtil.nonAttendanceOn(iso).forEach(function (x) {
           if (!ReportsUtil.getAbs(iso, x.studentId).approved) absUnap++;
@@ -63,6 +65,7 @@
     var attTotal = manDays + absUnap;
     return {
       workDays: workDays, manDays: manDays, hours: hours, income: income,
+      absUnap: absUnap, activeStudents: Object.keys(activeSet).length,
       attPct: attTotal ? (manDays / attTotal * 100) : null,
       ratingAvg: rCnt ? (rSum / rCnt) : null,
       collected: (Store.get().debtEntries || []).filter(function (e) {
@@ -136,8 +139,11 @@
       ])
     ]);
   }
-  function metricKpi(icon, label, cur, prev, fmt, tone) {
-    return kpi(icon, cur == null ? '—' : fmt(cur), label, tone, prev == null ? null : ('היה ' + (prev == null ? '—' : fmt(prev)) + ' ' + prevWord()), deltaBadge(cur, prev));
+  function metricKpi(icon, label, cur, prev, fmt, tone, invert) {
+    var badge = deltaBadge(cur, prev);
+    // invert: מדד ש"פחות = טוב" (למשל היעדרויות) — עלייה תסומן באדום ולא בירוק
+    if (invert && badge && (badge.cls === 'up' || badge.cls === 'down')) badge.cls = (badge.cls === 'up' ? 'down' : 'up');
+    return kpi(icon, cur == null ? '—' : fmt(cur), label, tone, prev == null ? null : ('היה ' + fmt(prev) + ' ' + prevWord()), badge);
   }
   function panel(title, bodyNode, extraClass) {
     return U.el('section', { class: 'dash-panel ' + (extraClass || '') }, [
@@ -206,14 +212,22 @@
     var attTone = cur.attPct == null ? 'neutral' : (cur.attPct >= 75 ? 'good' : (cur.attPct >= 50 ? 'warn' : 'bad'));
     var curAvg = cur.workDays ? cur.manDays / cur.workDays : null;
     var prevAvg = prev.workDays ? prev.manDays / prev.workDays : null;
+    var curHoursAvg = cur.workDays ? cur.hours / cur.workDays : null;
+    var prevHoursAvg = prev.workDays ? prev.hours / prev.workDays : null;
+    var curIncAvg = cur.workDays ? cur.income / cur.workDays : null;
+    var prevIncAvg = prev.workDays ? prev.income / prev.workDays : null;
 
     root.appendChild(U.el('div', { class: 'kpi-grid' }, [
       metricKpi('🚜', 'אחוז יציאה לעבודה', cur.attPct, prev.attPct, function (v) { return Math.round(v) + '%'; }, attTone),
       metricKpi('👷', 'ממוצע תלמידים ליום עבודה', curAvg, prevAvg, function (v) { return v.toFixed(1); }, 'info'),
+      metricKpi('🧑‍🌾', 'תלמידים פעילים', cur.activeStudents, prev.activeStudents, function (v) { return String(v); }, 'info'),
+      metricKpi('🚫', 'היעדרויות ללא אישור', cur.absUnap, prev.absUnap, function (v) { return Math.round(v).toLocaleString('he-IL'); }, 'warn', true),
       metricKpi('🗓️', 'ימי עבודה', cur.workDays, prev.workDays, function (v) { return String(v); }, 'neutral'),
       metricKpi('⏱️', 'שעות עבודה', cur.hours, prev.hours, function (v) { return Math.round(v).toLocaleString('he-IL'); }, 'neutral'),
+      metricKpi('🕐', 'ממוצע שעות ליום עבודה', curHoursAvg, prevHoursAvg, function (v) { return v.toFixed(1); }, 'neutral'),
       metricKpi('⭐', 'ציון ממוצע', cur.ratingAvg, prev.ratingAvg, function (v) { return v.toFixed(1); }, 'purple'),
-      metricKpi('💵', 'הכנסות (' + periodWord() + ')', cur.income, prev.income, money, 'good')
+      metricKpi('💵', 'הכנסות (' + periodWord() + ')', cur.income, prev.income, money, 'good'),
+      metricKpi('💸', 'הכנסה ממוצעת ליום עבודה', curIncAvg, prevIncAvg, money, 'good')
     ]));
 
     // מגמות — 6 התקופות האחרונות
