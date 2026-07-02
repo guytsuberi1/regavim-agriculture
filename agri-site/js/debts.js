@@ -63,6 +63,14 @@
     return 'color:#2563eb;';
   }
 
+  // רינדור עם שמירת מיקום הגלילה (מונע קפיצה לראש הדף בעדכונים בתוך הדף)
+  function renderKeepScroll() {
+    var y = window.scrollY;
+    App.render();
+    window.scrollTo(0, y);
+    requestAnimationFrame(function () { window.scrollTo(0, y); });
+  }
+
   // ---------- גישה לנתונים ----------
   function records() { return Store.get().debtRecords || []; }
   function entries() { return Store.get().debtEntries || []; }
@@ -187,7 +195,7 @@
       ssel.value = (keys.length === 1) ? keys[0] : '';
       ssel.addEventListener('change', function () {
         a.recs.forEach(function (r) { r.status = ssel.value; });
-        Store.save(); App.render();
+        Store.save(); renderKeepScroll();
       });
       statusCell = ssel;
     } else if (a.billed) {
@@ -235,7 +243,7 @@
       return U.el('option', { value: a.siteId }, siteOf(a.siteId).name + ' — ' + money(a.balance));
     }));
     sel.value = selectedSiteId;
-    sel.addEventListener('change', function () { selectedSiteId = sel.value; App.render(); });
+    sel.addEventListener('change', function () { selectedSiteId = sel.value; renderKeepScroll(); });
     wrap.appendChild(U.el('div', { class: 'no-print' }, [U.el('label', { style: 'font-weight:600;color:var(--green-dark);margin-inline-end:8px;', text: 'בחר חקלאי:' }), sel]));
 
     var agg = null;
