@@ -1260,35 +1260,16 @@
     });
     if (!proposals.length) { alert('לא נמצאו שיבוצים מתאימים.'); return; }
 
-    previewAutoAssign(day, proposals, teams.length, siteSlots);
-  }
-
-  function previewAutoAssign(day, proposals, teamCount, siteSlots) {
-    var body = U.el('div', null, [U.el('p', { class: 'muted', style: 'margin:0 0 8px;', text: 'הצעת שיבוץ אוטומטי (' + proposals.length + ' צוותים) — הקריטריון: כמה הצוות עבד באתר בעבר. בדקו ואשרו:' })]);
+    // שיבוץ ישיר (ללא תצוגה מקדימה)
     proposals.forEach(function (p) {
-      var siteName = p.card.siteId ? ((Store.getById('sites', p.card.siteId) || {}).name || '(אתר)') : '(אתר)';
-      var names = p.members.map(function (id) { var s = Store.getById('students', id); return s ? s.name : ''; }).filter(Boolean).join(', ');
-      var reason = 'קרבה: ' + p.aff + ' ימי-עבודה קודמים באתר · עומס החודש: ' + p.load + (p.rate ? ' · ציון ' + p.rate.toFixed(1) : '');
-      body.appendChild(U.el('div', { style: 'border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px;' }, [
-        U.el('div', { style: 'font-weight:700;color:var(--green-dark);', text: '⭐ ' + global.TeamUtil.teamLabel(p.team) + ' → ' + siteName + ' (' + p.members.length + ')' }),
-        U.el('div', { class: 'muted', style: 'font-size:12px;', text: names }),
-        U.el('div', { class: 'muted', style: 'font-size:12px;', text: reason })
-      ]));
+      p.members.forEach(function (id) { placeStudent(day, p.card, id, id === p.team.leaderStudentId); });
     });
-    var unfilled = siteSlots.filter(function (sl) { return sl.remaining > 0; });
-    if (unfilled.length) body.appendChild(U.el('div', { style: 'font-size:12px;margin-top:6px;color:#b45309;', text: '⚠ ' + unfilled.length + ' אתרים עדיין חסרים עובדים — השלימו ידנית.' }));
-    var unassigned = teamCount - proposals.length;
-    if (unassigned > 0) body.appendChild(U.el('div', { class: 'muted', style: 'font-size:12px;', text: unassigned + ' צוותים לא שובצו (אין מספיק מקום).' }));
-
-    Modal.open('🤖 שיבוץ אוטומטי', body, [
-      { label: 'ביטול', class: 'secondary' },
-      { label: 'שבץ ' + proposals.length + ' צוותים', onClick: function (close) {
-        proposals.forEach(function (p) {
-          p.members.forEach(function (id) { placeStudent(day, p.card, id, id === p.team.leaderStudentId); });
-        });
-        Store.save(); close(); App.render();
-      } }
-    ]);
+    Store.save(); App.render();
+    var unfilled = siteSlots.filter(function (sl) { return sl.remaining > 0; }).length;
+    var unassigned = teams.length - proposals.length;
+    alert('שובצו ' + proposals.length + ' צוותים אוטומטית.' +
+      (unfilled ? '\n⚠ ' + unfilled + ' אתרים עדיין חסרים עובדים.' : '') +
+      (unassigned > 0 ? '\n' + unassigned + ' צוותים לא שובצו (אין מספיק מקום).' : ''));
   }
 
   global.DailyView = { render: render };
