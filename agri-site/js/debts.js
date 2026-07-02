@@ -139,13 +139,7 @@
     root.appendChild(U.el('h3', { style: 'color:var(--green-dark);margin:6px 0;', text: 'טבלה מסכמת' }));
     var aggs = allAggs.filter(aggPassesFilter).sort(function (a, b) { return b.balance - a.balance; });
     if (!aggs.length) {
-      root.appendChild(U.el('div', { class: 'card empty' }, [
-        U.el('div', { text: 'אין חובות להצגה.' }),
-        U.el('div', { class: 'empty-actions' }, [
-          U.el('button', { class: 'btn', onclick: function () { openRecord(null, ''); } }, '+ חוב חדש'),
-          U.el('button', { class: 'btn secondary', onclick: importDebtsExcel }, '📥 ייבוא מאקסל')
-        ])
-      ]));
+      root.appendChild(U.el('div', { class: 'card empty' }, 'אין חובות להצגה. הוסיפו "חוב חדש" או ייבאו נתוני פתיחה.'));
     } else {
       var shownTotal = 0;
       var tbody = U.el('tbody');

@@ -76,14 +76,7 @@
     root.appendChild(buildTotals(day));
 
     if (!day.cards.length) {
-      root.appendChild(U.el('div', { class: 'card empty no-print' }, [
-        U.el('div', { text: 'אין אתרים ליום זה.' }),
-        U.el('div', { class: 'empty-actions' }, [
-          U.el('button', { class: 'btn', onclick: addCard }, '+ הוסף אתר'),
-          U.el('button', { class: 'btn secondary', title: 'טעינת האתרים מהתכנון השבועי של יום זה', onclick: loadFromWeekly }, '📥 טען מהתכנון השבועי'),
-          U.el('button', { class: 'btn secondary', title: 'שכפול הסידור מהיום האחרון שיש בו נתונים', onclick: dupPrev }, '📋 שכפל יום קודם')
-        ])
-      ]));
+      root.appendChild(U.el('div', { class: 'card empty no-print' }, 'אין אתרים ליום זה — אתרים מהתכנון השבועי ייטענו אוטומטית, או לחצו "+ הוסף אתר".'));
     } else {
       var board = U.el('div', { class: 'day-board' });
       day.cards.forEach(function (card) { board.appendChild(buildCard(day, card)); });
