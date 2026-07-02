@@ -58,7 +58,7 @@
   // צבע יתרה — רמזור מדורג: ירוק=שולם/אפס · כתום=חוב · אדום בוהק=חוב גבוה · כחול=זכות
   function balStyle(bal) {
     if (Math.abs(bal) < 0.005) return 'color:#15803d;';
-    if (bal >= 5000) return 'color:#dc2626;background:#fee2e2;padding:1px 8px;border-radius:8px;';
+    if (bal >= 5000) return 'color:#dc2626;';
     if (bal > 0) return 'color:#b45309;';
     return 'color:#2563eb;';
   }
