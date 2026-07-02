@@ -244,9 +244,13 @@
     ].map(function (p) {
       return U.el('button', { class: 'btn small ' + (period === p[0] ? 'accent' : 'secondary'), onclick: function () { period = p[0]; App.render(); } }, p[1]);
     }));
+    var r0 = rangeOf(period, 0);
     root.appendChild(U.el('div', { style: 'display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;' }, [
       U.el('span', { class: 'muted', text: 'תצוגה לפי:' }), seg,
-      U.el('span', { class: 'tag', text: rangeOf(period, 0).start + ' — ' + rangeOf(period, 0).end })
+      U.el('span', { class: 'range-chip', title: r0.start + ' עד ' + r0.end }, [
+        U.el('span', { class: 'rc-ic', text: '📅' }),
+        U.el('span', { style: 'direction:rtl;', text: U.gregLabel(r0.start) + ' – ' + U.gregLabel(r0.end) + ' · ' + r0.start.slice(0, 4) })
+      ])
     ]));
 
     var cur = computeRange(rangeOf(period, 0));
@@ -308,7 +312,7 @@
       U.el('button', { class: 'btn secondary small', onclick: function () { dashDate = U.todayISO(); App.render(); } }, 'היום'),
       U.el('span', { class: 'tag', text: U.weekdayName(dashDate) + ' · ' + U.gregLabel(dashDate) }),
       U.el('div', { class: 'spacer' }),
-      U.el('a', { class: 'btn small', href: 'https://wa.me/?text=' + encodeURIComponent(dailyAttentionMessage()), target: '_blank', rel: 'noopener', style: 'background:#25D366;color:#fff;border:0;', title: 'שליחת סיכום היום בוואטסאפ' }, '💬 סיכום לוואטסאפ'),
+      U.el('a', { class: 'btn small ico', href: 'https://wa.me/?text=' + encodeURIComponent(dailyAttentionMessage()), target: '_blank', rel: 'noopener', style: 'background:#25D366;color:#fff;border:0;', title: 'שליחת סיכום היום בוואטסאפ', html: U.WA_SVG }),
       U.el('button', { class: 'btn small', title: 'שליחת SMS למחנכים למילוי הנעדרים היומיים', onclick: sendHomeroomReminder }, '📩 תזכורת למחנכים')
     ]));
     root.appendChild(U.el('div', { class: 'muted', style: 'font-size:12.5px;margin-bottom:10px;', text: 'מוצגים רק תלמידים הטעונים תשומת לב: לא יצאו · לא סומנו · ציון 1 או 5.' }));

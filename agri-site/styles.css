@@ -462,6 +462,10 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
 .dp-lbl { font-size: 12px; color: var(--muted); margin-top: 4px; }
 
 
+/* צ'יפ טווח תאריכים (מבט-על) */
+.range-chip { display: inline-flex; align-items: center; gap: 7px; background: var(--card); border: 1px solid var(--border); border-radius: 999px; padding: 5px 14px; font-size: 13px; font-weight: 600; color: var(--green-dark); box-shadow: var(--shadow); }
+.range-chip .rc-ic { opacity: .8; font-size: 14px; }
+
 /* כותרות נושא במבט-על של הדשבורד */
 .dash-sec { font-weight: 700; color: var(--green-dark); font-size: 14px; margin: 18px 0 8px; }
 .dash-sec:first-of-type { margin-top: 6px; }
