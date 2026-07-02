@@ -183,13 +183,16 @@
       U.clear(tbody);
       var sorted = rows.slice();
       if (st.col >= 0) sorted.sort(function (a, b) { return cellCmp(a[st.col], b[st.col], headers[st.col]) * st.dir; });
-      sorted.forEach(function (r) { tbody.appendChild(U.el('tr', null, r.map(function (c, i) { return U.el('td', { class: i === 0 ? '' : 'center', text: c }); }))); });
+      sorted.forEach(function (r) { tbody.appendChild(U.el('tr', null, r.map(function (c, i) { return U.el('td', { class: (i === 0 ? '' : 'center') + (st.col === i ? ' sorted-col' : ''), text: c }); }))); });
     }
     var thRow = U.el('tr', null, headers.map(function (h, i) {
       var th = U.el('th', { class: 'sortable', title: 'מיון לפי ' + h, text: h });
       th.addEventListener('click', function () {
         if (st.col === i) st.dir = -st.dir; else { st.col = i; st.dir = 1; }
-        Array.prototype.forEach.call(thRow.children, function (x, xi) { x.textContent = headers[xi] + (st.col === xi ? (st.dir === 1 ? ' ▲' : ' ▼') : ''); });
+        Array.prototype.forEach.call(thRow.children, function (x, xi) {
+          x.textContent = headers[xi] + (st.col === xi ? (st.dir === 1 ? ' ▲' : ' ▼') : '');
+          x.classList.toggle('sorted-col', st.col === xi);
+        });
         fill();
       });
       return th;
@@ -327,20 +330,38 @@
     return wrap;
   }
 
-  // השוואת כיתות (#16) — שורה לכל שכבה, מוצג לפני הסינון
+  // השוואת כיתות (#16) — גרף + טבלה, מוצג לפני הסינון
   function classComparison(rep) {
     var byG = {};
     rep.forEach(function (r) { var g = r.grade || ''; (byG[g] = byG[g] || []).push(r); });
     var order = U.GRADES.filter(function (g) { return byG[g]; });
     if (order.length < 2) return null; // אין טעם בהשוואה עם כיתה אחת
-    var rows = order.map(function (g) {
+    var GRADE_COLORS = { 'ט': '#2563eb', 'י': '#16a34a', 'יא': '#d97706', 'יב': '#7c3aed' };
+    var stats = order.map(function (g) {
       var list = byG[g], work = 0, absU = 0, rSum = 0, rCnt = 0;
       list.forEach(function (r) { work += r.work; absU += r.absUnapproved; rSum += r.ratingSum; rCnt += r.ratingCount; });
-      var total = work + absU, pct = total ? Math.round(work / total * 100) : null;
-      return ['כיתה ' + g, list.length, pct == null ? '—' : pct + '%', rCnt ? (rSum / rCnt).toFixed(1) : '—', work, absU];
+      var total = work + absU;
+      return { g: g, n: list.length, pct: total ? Math.round(work / total * 100) : null, avg: rCnt ? (rSum / rCnt).toFixed(1) : '—', work: work, absU: absU };
+    });
+
+    // גרף אחוז יציאה לפי כיתה — בצבעי תגי הכיתות
+    var chart = U.el('div', { class: 'cls-chart' }, stats.map(function (s2) {
+      return U.el('div', { class: 'cls-row' }, [
+        U.el('span', { class: 'grade-badge gb' + U.GRADES.indexOf(s2.g), text: s2.g }),
+        U.el('div', { class: 'cls-track', title: 'כיתה ' + s2.g + ': ' + (s2.pct == null ? '—' : s2.pct + '% יציאה') }, [
+          U.el('div', { class: 'cls-fill', style: 'width:' + (s2.pct == null ? 0 : s2.pct) + '%;background:' + GRADE_COLORS[s2.g] + ';' })
+        ]),
+        U.el('span', { class: 'cls-val', text: s2.pct == null ? '—' : s2.pct + '%' })
+      ]);
+    }));
+
+    var rows = stats.map(function (s2) {
+      return ['כיתה ' + s2.g, s2.n, s2.pct == null ? '—' : s2.pct + '%', s2.avg, s2.work, s2.absU];
     });
     return U.el('div', { style: 'margin-bottom:16px;' }, [
       U.el('h3', { style: 'color:var(--green-dark);margin:0 0 8px;', text: '📊 השוואת כיתות' }),
+      U.el('div', { class: 'muted', style: 'font-size:12px;margin-bottom:4px;', text: 'אחוז יציאה לעבודה לפי כיתה:' }),
+      chart,
       sortableTable(['כיתה', 'תלמידים', 'אחוז יציאה', 'ציון ממוצע', 'ימי עבודה', 'היעדרויות בלי אישור'], rows)
     ]);
   }
