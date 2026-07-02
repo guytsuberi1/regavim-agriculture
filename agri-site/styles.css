@@ -218,7 +218,17 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
 .day-total { background: var(--green-light); color: var(--green-dark); border-radius: 6px; padding: 3px 6px; font-size: 12px; font-weight: 700; margin-bottom: 5px; text-align: center; }
 
 /* הדגשת כרטיס אתר בזמן גרירה מעליו */
-.site-card.drag-over { outline: 2px dashed var(--green); outline-offset: -3px; }
+.site-card.drag-over { outline: 2px solid var(--green); outline-offset: -3px; background: #f2f9f2; box-shadow: 0 0 0 4px rgba(46,125,50,.14); }
+
+/* הבהוב אישור ירוק לתלמיד ששובץ הרגע */
+@keyframes just-in { 0% { background: #bbf7d0; } 100% { background: transparent; } }
+.sc-students li.just-in { animation: just-in 1.4s ease-out; }
+
+/* בורר אתר בהקשה (שיבוץ ללא גרירה) */
+.assign-list { display: flex; flex-direction: column; gap: 7px; }
+.assign-pick { display: flex; align-items: center; gap: 10px; width: 100%; text-align: right; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px; font-size: 14.5px; cursor: pointer; }
+.assign-pick:hover { border-color: var(--green); background: var(--green-light); }
+.assign-pick.unassign { color: var(--danger); justify-content: center; font-weight: 600; }
 /* ראש צוות בתוך כרטיס אתר */
 .site-card .sc-students li.leader { background: #fff8e1; font-weight: 600; }
 .site-card .sc-students li[draggable] { cursor: grab; }
@@ -229,7 +239,11 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
 .week-day { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 8px; min-height: 150px; display: flex; flex-direction: column; }
 .week-day h4 { margin: 0 0 4px; font-size: 14px; color: var(--green-dark); }
 .week-day .heb { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
-.plan-item { background: var(--green-light); border-radius: 6px; padding: 4px 6px; font-size: 12px; margin-bottom: 4px; position: relative; }
+.plan-item { background: var(--green-light); border-radius: 6px; padding: 5px 8px; font-size: 12px; margin-bottom: 6px; position: relative; }
+
+/* היום הנוכחי בלוח השבועי/חודשי */
+.week-day.today { border: 2px solid var(--green); }
+.week-day.today h4::after { content: 'היום'; background: var(--green); color: #fff; border-radius: 8px; font-size: 10px; font-weight: 700; padding: 1px 7px; margin-inline-start: 6px; vertical-align: 2px; }
 .plan-item .grp { font-weight: 700; color: var(--accent); }
 .plan-item .x { position: absolute; left: 4px; top: 2px; cursor: pointer; color: var(--danger); font-size: 12px; }
 .week-day .wx-line { margin: 4px 0; padding: 0 7px; height: 26px; border-radius: 7px; font-size: 11.5px; background: #eaf3fb; color: #1c4f7a; display: flex; align-items: center; justify-content: center; white-space: nowrap; overflow: hidden; box-sizing: border-box; }

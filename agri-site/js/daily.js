@@ -5,6 +5,40 @@
   var curDate = U.todayISO();
   var boardScroll = 0; // שמירת מיקום הגלילה האופקית של לוח האתרים בין רינדורים
 
+  // מי שובץ הרגע (להבהוב אישור ירוק אחרי הרינדור) — studentId -> cardId
+  var justAssigned = {}, justAssignedAt = 0;
+  function markAssigned(ids, cardId) {
+    justAssigned = {};
+    ids.forEach(function (id) { justAssigned[id] = cardId; });
+    justAssignedAt = Date.now();
+  }
+
+  // בורר אתר בהקשה — שיבוץ ללא גרירה (חיוני בנייד, נוח גם בעכבר).
+  // onPick(card) ; card=null פירושו "החזר למאגר".
+  function chooseCardFor(title, opts, onPick) {
+    var day = getDay(curDate);
+    if (!day.cards.length) { U.toast('אין אתרים ליום זה.', 'info'); return; }
+    var body = U.el('div', { class: 'assign-list' });
+    var closeFn = null;
+    day.cards.forEach(function (c) {
+      var site = c.siteId ? Store.getById('sites', c.siteId) : null;
+      var n = (c.students || []).length;
+      var target = (c.targetWorkers !== '' && c.targetWorkers != null) ? U.num(c.targetWorkers) : null;
+      var b = U.el('button', { class: 'assign-pick' }, [
+        U.el('span', { style: 'flex:1;font-weight:600;', text: site ? site.name : '(אתר)' }),
+        U.el('span', { class: 'muted', style: 'font-size:12px;', text: '👥 ' + n + (target != null ? ' / ' + target : '') })
+      ]);
+      b.addEventListener('click', function () { if (closeFn) closeFn(); onPick(c); });
+      body.appendChild(b);
+    });
+    if (opts && opts.allowUnassign) {
+      var back = U.el('button', { class: 'assign-pick unassign' }, '↩ החזר למאגר');
+      back.addEventListener('click', function () { if (closeFn) closeFn(); onPick(null); });
+      body.appendChild(back);
+    }
+    closeFn = Modal.open(title, body, [{ label: 'ביטול', class: 'secondary' }]);
+  }
+
   function getDay(iso) {
     var data = Store.get();
     if (!data.days[iso]) data.days[iso] = { cards: [] };
@@ -204,11 +238,25 @@
           st.note ? U.el('div', { class: 'muted', style: 'font-size:11px;', text: '📝 ' + st.note }) : null
         ])
       ]);
-      var li = U.el('li', { class: (st.teamLeader ? 'leader ' : ''), draggable: 'true' }, [
+      var li = U.el('li', { class: (st.teamLeader ? 'leader ' : ''), draggable: 'true', title: 'גררו לאתר אחר, או הקישו להעברה' }, [
         nameCell,
         U.el('button', { class: 'sc-del no-print', title: 'הסר תלמיד', onclick: function () { removeStudent(card, st.studentId); } }, '×')
       ]);
       li.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text/plain', 'student:' + st.studentId); e.dataTransfer.effectAllowed = 'move'; });
+      // הבהוב אישור ירוק למי ששובץ הרגע
+      if (justAssigned[st.studentId] === card.id && Date.now() - justAssignedAt < 1800) li.classList.add('just-in');
+      // הקשה = העברה לאתר אחר / החזרה למאגר (נייד)
+      li.addEventListener('click', function (e) {
+        if (e.target.closest && e.target.closest('.sc-del')) return;
+        var s2 = Store.getById('students', st.studentId);
+        chooseCardFor('העברה — ' + (s2 ? s2.name : ''), { allowUnassign: true }, function (target) {
+          if (!target) { unassignStudent(day, st.studentId); U.toast((s2 ? s2.name : '') + ' הוחזר למאגר'); return; }
+          if (target.id === card.id) return;
+          placeStudent(day, target, st.studentId, st.teamLeader);
+          markAssigned([st.studentId], target.id);
+          Store.save(); App.render();
+        });
+      });
       return li;
     }
     // מיון: ראש צוות ראשון, ואז לפי כיתה (ט→יב) ואז שם
@@ -256,8 +304,15 @@
 
       teamOrder.forEach(function (tid) {
         var g = byTeam[tid];
-        var grip = U.el('span', { class: 'grip no-print', draggable: 'true', title: 'גרירת הצוות לאתר אחר או חזרה למאגר', text: '⠿' });
+        var grip = U.el('span', { class: 'grip no-print', draggable: 'true', title: 'גררו את הצוות לאתר אחר, או הקישו להעברה', text: '⠿' });
         grip.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text/plain', 'team:' + g.team.id); e.dataTransfer.effectAllowed = 'move'; });
+        grip.addEventListener('click', function () {
+          chooseCardFor('העברת צוות — ' + global.TeamUtil.teamLabel(g.team), { allowUnassign: true }, function (target) {
+            if (!target) { unassignTeam(day, g.team.id); U.toast('הצוות הוחזר למאגר'); return; }
+            if (target.id === card.id) return;
+            assignTeamToCard(day, target, g.team.id);
+          });
+        });
         var gh = U.el('div', { class: 'sc-team-head' }, [
           grip,
           U.el('span', { class: 'sc-team-title', text: global.TeamUtil.teamLabel(g.team) }),
@@ -465,6 +520,7 @@
 
   function addStudentToCard(day, card, studentId) {
     placeStudent(day, card, studentId, false);
+    markAssigned([studentId], card.id);
     Store.save(); App.render();
   }
 
@@ -474,6 +530,7 @@
     if (!team) return;
     var ids = global.TeamUtil.orderedStudentIds(team);
     ids.forEach(function (id) { placeStudent(day, card, id, id === team.leaderStudentId); });
+    markAssigned(ids, card.id);
     Store.save(); App.render();
   }
 
@@ -504,7 +561,9 @@
     }).map(function (s) { return s.id; });
   }
   function assignGradeToCard(day, card, grade) {
-    gradeStudentIds(grade).forEach(function (id) { placeStudent(day, card, id, false); });
+    var ids = gradeStudentIds(grade);
+    ids.forEach(function (id) { placeStudent(day, card, id, false); });
+    markAssigned(ids, card.id);
     Store.save(); App.render();
   }
   function unassignGrade(day, grade) {
@@ -532,7 +591,7 @@
       assignTeamToCard(day, card, teamId);
     }
     else if (payload.indexOf('grade:') === 0) assignGradeToCard(day, card, payload.slice(6));
-    else if (payload.indexOf('student:') === 0) { placeStudent(day, card, payload.slice(8), false); Store.save(); App.render(); }
+    else if (payload.indexOf('student:') === 0) { var sid = payload.slice(8); placeStudent(day, card, sid, false); markAssigned([sid], card.id); Store.save(); App.render(); }
     else if (payload.indexOf('staff:') === 0) { placeStaff(day, card, payload.slice(6)); Store.save(); App.render(); }
   }
 
@@ -673,26 +732,46 @@
     var groupsWrap = U.el('div', { class: 'pool-groups' });
     groupsWrap.style.height = getPoolHeight() + 'px';
 
-    // לוגיקת גרירת הידית לשינוי גובה
-    resizer.addEventListener('mousedown', function (e) {
-      e.preventDefault();
-      var startY = e.clientY;
+    // לוגיקת גרירת הידית לשינוי גובה (עכבר + מגע)
+    function startResize(startY) {
       var startH = groupsWrap.getBoundingClientRect().height;
       document.body.style.userSelect = 'none';
-      function onMove(ev) {
-        var nh = startH + (startY - ev.clientY); // גרירה מעלה = גדל
+      function apply(clientY) {
+        var nh = startH + (startY - clientY); // גרירה מעלה = גדל
         nh = Math.max(60, Math.min(Math.round(window.innerHeight * 0.8), nh));
         groupsWrap.style.height = nh + 'px';
       }
+      function finish() {
+        document.body.style.userSelect = '';
+        setPoolHeight(parseInt(groupsWrap.style.height, 10));
+      }
+      return { apply: apply, finish: finish };
+    }
+    resizer.addEventListener('mousedown', function (e) {
+      e.preventDefault();
+      var r = startResize(e.clientY);
+      function onMove(ev) { r.apply(ev.clientY); }
       function onUp() {
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
-        document.body.style.userSelect = '';
-        setPoolHeight(parseInt(groupsWrap.style.height, 10));
+        r.finish();
       }
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
     });
+    resizer.addEventListener('touchstart', function (e) {
+      if (!e.touches.length) return;
+      e.preventDefault();
+      var r = startResize(e.touches[0].clientY);
+      function onMove(ev) { if (ev.touches.length) { ev.preventDefault(); r.apply(ev.touches[0].clientY); } }
+      function onEnd() {
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('touchend', onEnd);
+        r.finish();
+      }
+      document.addEventListener('touchmove', onMove, { passive: false });
+      document.addEventListener('touchend', onEnd);
+    }, { passive: false });
 
     // תלמידים שיורדים מהמאגר היום: תורנים/חולים שבועיים + נעדרים יומיים
     var excluded = excludedSet();
@@ -768,17 +847,33 @@
   function studentChip(id, assigned) {
     var s = Store.getById('students', id);
     if (!s) return null;
-    var chip = U.el('div', { class: 'chip' + (assigned[id] ? ' assigned' : ''), draggable: 'true' }, [
+    var chip = U.el('div', { class: 'chip' + (assigned[id] ? ' assigned' : ''), draggable: 'true', title: 'גררו לאתר, או הקישו לבחירת אתר' }, [
       s.grade ? gradeBadge(s.grade) : null,
       U.el('span', { text: s.name })
     ]);
     chip.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text/plain', 'student:' + id); e.dataTransfer.effectAllowed = 'move'; });
+    // הקשה = שיבוץ ללא גרירה (נייד)
+    chip.addEventListener('click', function () {
+      var day = getDay(curDate);
+      chooseCardFor('שיבוץ — ' + s.name, { allowUnassign: !!assigned[id] }, function (card) {
+        if (!card) { unassignStudent(day, id); U.toast(s.name + ' הוחזר למאגר'); return; }
+        placeStudent(day, card, id, false);
+        markAssigned([id], card.id);
+        Store.save(); App.render();
+      });
+    });
     return chip;
   }
 
   function buildTeamGroup(day, team, ids, assigned) {
-    var grip = U.el('span', { class: 'grip', draggable: 'true', title: 'גרור צוות שלם', text: '⠿' });
+    var grip = U.el('span', { class: 'grip', draggable: 'true', title: 'גררו צוות שלם לאתר, או הקישו לבחירת אתר', text: '⠿' });
     grip.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text/plain', 'team:' + team.id); e.dataTransfer.effectAllowed = 'move'; });
+    grip.addEventListener('click', function () {
+      chooseCardFor('שיבוץ צוות — ' + global.TeamUtil.teamLabel(team), { allowUnassign: true }, function (card) {
+        if (!card) { unassignTeam(day, team.id); U.toast('הצוות הוחזר למאגר'); return; }
+        assignTeamToCard(day, card, team.id);
+      });
+    });
 
     var allAssigned = ids.every(function (id) { return assigned[id]; });
     var header = U.el('div', { class: 'pg-head' + (allAssigned ? ' all-assigned' : '') }, [
@@ -805,8 +900,15 @@
   function buildGradeGroup(grade, students, assigned) {
     var headChildren = [];
     if (grade) {
-      var grip = U.el('span', { class: 'grip', draggable: 'true', title: 'גרור כיתה שלמה', text: '⠿' });
+      var grip = U.el('span', { class: 'grip', draggable: 'true', title: 'גררו כיתה שלמה לאתר, או הקישו לבחירת אתר', text: '⠿' });
       grip.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text/plain', 'grade:' + grade); e.dataTransfer.effectAllowed = 'move'; });
+      grip.addEventListener('click', function () {
+        var day = getDay(curDate);
+        chooseCardFor('שיבוץ כיתה ' + grade, { allowUnassign: true }, function (card) {
+          if (!card) { unassignGrade(day, grade); U.toast('כיתה ' + grade + ' הוחזרה למאגר'); return; }
+          assignGradeToCard(day, card, grade);
+        });
+      });
       headChildren.push(grip);
     }
     headChildren.push(U.el('span', { class: 'pg-title', text: grade ? 'כיתה ' + grade : 'ללא כיתה' }));
@@ -1268,10 +1370,15 @@
     });
     if (!proposals.length) { alert('לא נמצאו שיבוצים מתאימים.'); return; }
 
-    // שיבוץ ישיר (ללא תצוגה מקדימה)
+    // שיבוץ ישיר (ללא תצוגה מקדימה) + סימון להבהוב אישור
+    justAssigned = {};
     proposals.forEach(function (p) {
-      p.members.forEach(function (id) { placeStudent(day, p.card, id, id === p.team.leaderStudentId); });
+      p.members.forEach(function (id) {
+        placeStudent(day, p.card, id, id === p.team.leaderStudentId);
+        justAssigned[id] = p.card.id;
+      });
     });
+    justAssignedAt = Date.now();
     Store.save(); App.render();
     var unfilled = siteSlots.filter(function (sl) { return sl.remaining > 0; }).length;
     var unassigned = teams.length - proposals.length;

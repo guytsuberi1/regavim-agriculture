@@ -235,8 +235,15 @@
     });
   }
 
+  // גוון קבוע לאתר (לפס צבע מזהה בפריטי התכנון)
+  function siteHue(id) {
+    var h = 0;
+    for (var i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 360;
+    return h;
+  }
+
   function buildDay(iso, items) {
-    var cell = U.el('div', { class: 'week-day' });
+    var cell = U.el('div', { class: 'week-day' + (iso === U.todayISO() ? ' today' : '') });
     cell.appendChild(U.el('h4', { text: U.weekdayName(iso) }));
     cell.appendChild(U.el('div', { class: 'heb', text: U.hebrewDate(iso) + ' · ' + U.gregLabel(iso) }));
 
@@ -264,7 +271,7 @@
       var site = it.siteId ? Store.getById('sites', it.siteId) : null;
       var label = (site ? site.name : '(אתר)') + (it.workers ? ' · ' + it.workers : '');
       var trans = it.transportId ? Store.getById('transports', it.transportId) : null;
-      var item = U.el('div', { class: 'plan-item' }, [
+      var item = U.el('div', { class: 'plan-item', style: (it.siteId ? 'border-inline-start:4px solid hsl(' + siteHue(it.siteId) + ',45%,45%);' : '') }, [
         it.group ? U.el('span', { class: 'grp', text: it.group + ' ' }) : null,
         U.el('span', { text: label }),
         trans ? U.el('div', { class: 'muted', style: 'font-size:11px;', text: '🚌 ' + trans.name }) : null,
