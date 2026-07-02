@@ -29,11 +29,26 @@
     ]));
 
     var ids = (d.weeklyDuty && d.weeklyDuty[kWeek]) || [];
-    var names = ids.map(function (id) { var s = Store.getById('students', id); return s ? studentLabel(s) : null; }).filter(Boolean);
+    var duty = ids.map(function (id) { return Store.getById('students', id); }).filter(Boolean);
+
+    // תורנים כצ'יפים עם תג כיתה (כמו במאגר התלמידים בסידור)
+    var chipsEl;
+    if (duty.length) {
+      chipsEl = U.el('div', { style: 'display:flex;flex-wrap:wrap;gap:6px;margin:10px 0;' }, duty.map(function (s) {
+        var gi = U.GRADES.indexOf(s.grade || '');
+        return U.el('span', { class: 'chip', style: 'cursor:default;' }, [
+          (s.grade || s.className) ? U.el('span', { class: 'grade-badge gb' + (gi < 0 ? 'x' : gi), text: s.className || s.grade }) : null,
+          U.el('span', { text: s.name })
+        ]);
+      }));
+    } else {
+      chipsEl = U.el('div', { class: 'muted', style: 'margin:10px 0;', text: 'עדיין לא הוגדרו תורנים לשבוע זה.' });
+    }
 
     root.appendChild(U.el('div', { class: 'card' }, [
       U.el('p', { class: 'muted', text: 'בחרו את תורני המטבח לשבוע זה. הם יורדים אוטומטית ממאגר העבודה החקלאית לכל השבוע.' }),
-      U.el('div', { style: 'margin:8px 0;font-weight:600;', text: names.length ? ('תורנים (' + names.length + '): ' + names.join(', ')) : 'עדיין לא הוגדרו תורנים לשבוע זה.' }),
+      duty.length ? U.el('div', { style: 'font-weight:600;', text: 'תורנים (' + duty.length + '):' }) : null,
+      chipsEl,
       U.el('button', { class: 'btn', onclick: edit }, '✏️ עריכת תורני מטבח')
     ]));
 
