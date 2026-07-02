@@ -5,6 +5,10 @@
   var fieldDate = U.todayISO();
   var fieldCardId = null;
   var lastAutoKey = null; // מונע פתיחה-אוטומטית חוזרת לאחר חזרה לרשימה
+  var progressHook = null; // עדכון חי של פס ההתקדמות אחרי כל סימון
+
+  // משוב מישושי קצר בסימון (נייד)
+  function buzz() { try { if (navigator.vibrate) navigator.vibrate(15); } catch (e) {} }
 
   function dayOf() {
     var d = Store.get();
@@ -133,16 +137,23 @@
       metaParts.length ? U.el('div', { class: 'fsh-meta', text: metaParts.join('  ·  ') }) : null
     ]));
 
-    // חיווי השלמת דיווח — כמה נותרו לסימון
-    (function () {
+    // פס התקדמות דיווח חי — מתעדכן מיד עם כל סימון
+    var progWrap = U.el('div', { class: 'fprog' });
+    function updateProgress() {
       var all = (card.students || []);
-      var marked = all.filter(function (s) { return s.wentToWork || s.absent; }).length;
-      var left = all.length - marked;
+      U.clear(progWrap);
       if (!all.length) return;
-      root.appendChild(left === 0
-        ? U.el('div', { class: 'field-report done', text: '✓ הדיווח הושלם — כל התלמידים סומנו' })
-        : U.el('div', { class: 'field-report wait', text: '⏳ נותרו ' + left + ' תלמידים לסימון' }));
-    })();
+      var marked = all.filter(function (s) { return s.wentToWork || s.absent; }).length;
+      var pct = Math.round(marked / all.length * 100);
+      var done = marked === all.length;
+      progWrap.appendChild(U.el('div', { class: 'fprog-track' }, [
+        U.el('div', { class: 'fprog-fill' + (done ? ' done' : ''), style: 'width:' + pct + '%;' })
+      ]));
+      progWrap.appendChild(U.el('div', { class: 'fprog-lbl' + (done ? ' done' : ''), text: done ? '✓ הדיווח הושלם — כל התלמידים סומנו' : 'סומנו ' + marked + ' מתוך ' + all.length + ' תלמידים' }));
+    }
+    progressHook = updateProgress;
+    updateProgress();
+    root.appendChild(progWrap);
 
     // סידור התלמידים לפי צוותים (ראש צוות תחילה, ואז לפי כיתה); מי שאינו בצוות — בסוף
     var TU = global.TeamUtil;
@@ -244,6 +255,7 @@
           Store.save();
           var ph = listEl.querySelector('.field-empty-ph'); if (ph) ph.parentNode.removeChild(ph);
           listEl.appendChild(buildStudentRow(entry));
+          if (progressHook) progressHook();
           build();
         });
         listBox.appendChild(b);
@@ -276,12 +288,14 @@
     wentBtn.addEventListener('click', function () {
       st.wentToWork = !st.wentToWork;
       if (st.wentToWork) st.absent = false;
-      syncWent(); Store.save();
+      buzz(); syncWent(); Store.save();
+      if (progressHook) progressHook();
     });
     absentBtn.addEventListener('click', function () {
       st.absent = !st.absent;
       if (st.absent) st.wentToWork = false;
-      syncWent(); Store.save();
+      buzz(); syncWent(); Store.save();
+      if (progressHook) progressHook();
     });
     var wentGrp = U.el('div', { class: 'fwent-grp' }, [wentBtn, absentBtn]);
 
@@ -291,7 +305,7 @@
       b.addEventListener('click', function () {
         st.rating = (st.rating === n ? null : n);
         rbtns.forEach(function (x, i) { x.classList.toggle('on', st.rating === i + 1); });
-        Store.save();
+        buzz(); Store.save();
       });
       return b;
     });

@@ -297,15 +297,23 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
 .field-student.done { border-color: var(--green); background: #f3fbf4; }
 .field-student .fstu-name { font-size: 15px; font-weight: 600; margin-bottom: 7px; }
 .field-student .fstu-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.fbtn { font-size: 14px; font-weight: 700; padding: 8px 14px; border-radius: 9px; border: 2px solid var(--border); background: #fff; cursor: pointer; min-width: 76px; }
+.fbtn { font-size: 15px; font-weight: 700; padding: 10px 16px; border-radius: 9px; border: 2px solid var(--border); background: #fff; cursor: pointer; min-width: 84px; min-height: 46px; }
 .fbtn.went.on { background: var(--green); color: #fff; border-color: var(--green); }
 .fbtn.absent.on { background: var(--danger); color: #fff; border-color: var(--danger); }
 .fwent-grp { display: flex; gap: 7px; flex-wrap: wrap; }
 .field-student.absent { border-color: var(--danger); background: #fdecea; }
 .frate-wrap { display: flex; align-items: center; gap: 7px; }
 .frate { display: flex; gap: 5px; }
-.frbtn { width: 34px; height: 34px; border-radius: 8px; border: 2px solid var(--border); background: #fff; font-size: 15px; font-weight: 700; cursor: pointer; color: var(--text); }
+.frbtn { width: 44px; height: 44px; border-radius: 8px; border: 2px solid var(--border); background: #fff; font-size: 16px; font-weight: 700; cursor: pointer; color: var(--text); }
 .frbtn.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* פס התקדמות דיווח (מצב שטח) */
+.fprog { margin-bottom: 10px; }
+.fprog-track { height: 10px; background: #fef3c7; border-radius: 6px; overflow: hidden; }
+.fprog-fill { height: 100%; background: #d97706; border-radius: 6px; transition: width .3s ease; }
+.fprog-fill.done { background: #16a34a; }
+.fprog-lbl { font-size: 13px; font-weight: 700; color: #92400e; margin-top: 4px; }
+.fprog-lbl.done { color: #166534; }
 .fstu-note { width: 100%; margin-top: 7px; padding: 7px 10px; font-size: 13px; border: 1px solid var(--border); border-radius: 8px; }
 .fadd-btn { margin-top: 12px; width: 100%; }
 .frate-legend { font-size: 12px; margin: 2px 0 8px; }
