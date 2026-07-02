@@ -63,6 +63,7 @@
       U.el('button', { class: 'btn secondary ico', title: 'ייצוא תמונה', onclick: exportImage }, '📷'),
       U.el('button', { class: 'btn secondary ico', title: 'שליחה בוואטסאפ', style: 'color:#25D366;', onclick: openWhatsApp, html: U.WA_SVG }),
       U.el('button', { class: 'btn secondary ico', title: 'שליחת SMS לכולם', onclick: sendAllSms }, '📩'),
+      U.el('button', { class: 'btn secondary', title: 'שיבוץ צוותים אוטומטי לפי היסטוריה', onclick: autoAssign }, '🤖 שבץ אוטומטית'),
       U.el('button', { class: 'btn', onclick: addCard }, '+ הוסף אתר')
     ]);
     root.appendChild(head);
@@ -1173,6 +1174,121 @@
         }
       }
     });
+  }
+
+  // ---------- שיבוץ אוטומטי צוותי לפי היסטוריה (#8) ----------
+  // בונה מפות היסטוריה: כמה עבד כל תלמיד בכל אתר, עומס החודש, וממוצע ציון לפי אתר.
+  // מחריג את היום הנוכחי מהספירה (הוא בתהליך תכנון).
+  function historyCounts() {
+    var days = Store.get().days || {};
+    var perSite = {}, monthLoad = {}, ratingSum = {}, ratingCnt = {};
+    var mk = U.monthKey(curDate);
+    Object.keys(days).forEach(function (iso) {
+      if (iso === curDate) return;
+      var inMonth = U.monthKey(iso) === mk;
+      (days[iso].cards || []).forEach(function (c) {
+        if (!c.siteId) return;
+        (c.students || []).forEach(function (s) {
+          if (!s.wentToWork) return;
+          (perSite[s.studentId] = perSite[s.studentId] || {});
+          perSite[s.studentId][c.siteId] = (perSite[s.studentId][c.siteId] || 0) + 1;
+          if (inMonth) monthLoad[s.studentId] = (monthLoad[s.studentId] || 0) + 1;
+          if (s.rating) {
+            var k = s.studentId + '|' + c.siteId;
+            ratingSum[k] = (ratingSum[k] || 0) + U.num(s.rating);
+            ratingCnt[k] = (ratingCnt[k] || 0) + 1;
+          }
+        });
+      });
+    });
+    return { perSite: perSite, monthLoad: monthLoad, ratingSum: ratingSum, ratingCnt: ratingCnt };
+  }
+
+  function autoAssign() {
+    var day = getDay(curDate);
+    var TU = global.TeamUtil;
+    if (!TU) { alert('מודול הצוותים אינו זמין.'); return; }
+    var excluded = excludedSet();
+    var already = assignedSet(day);
+
+    // אתרים עם "רצוי" ומקום פנוי
+    var siteSlots = day.cards.filter(function (c) {
+      return c.siteId && c.targetWorkers !== '' && c.targetWorkers != null && U.num(c.targetWorkers) > 0;
+    }).map(function (c) {
+      return { card: c, remaining: U.num(c.targetWorkers) - (c.students || []).length };
+    }).filter(function (x) { return x.remaining > 0; });
+    if (!siteSlots.length) { alert('אין אתרים עם "רצוי" ומקום פנוי. הגדירו "רצוי" לאתרים בסידור.'); return; }
+
+    // צוותים פנויים: אף חבר לא משובץ ידנית, ויש לפחות חבר אחד לא-מוחרג
+    var teams = TU.allTeams().map(function (t) {
+      var members = TU.orderedStudentIds(t).filter(function (id) { var s = Store.getById('students', id); return s && s.active !== false; });
+      var avail = members.filter(function (id) { return !excluded[id] && !already[id]; });
+      var anyAssigned = members.some(function (id) { return already[id]; });
+      return { team: t, members: avail, skip: anyAssigned || !avail.length };
+    }).filter(function (e) { return !e.skip; });
+    if (!teams.length) { alert('אין צוותים פנויים לשיבוץ (כולם כבר משובצים או מוחרגים).'); return; }
+
+    var H = historyCounts();
+    function affinity(m, siteId) { return m.reduce(function (a, id) { return a + ((H.perSite[id] || {})[siteId] || 0); }, 0); }
+    function load(m) { return m.reduce(function (a, id) { return a + (H.monthLoad[id] || 0); }, 0); }
+    function ratingAt(m, siteId) {
+      var sum = 0, cnt = 0;
+      m.forEach(function (id) { var k = id + '|' + siteId; sum += H.ratingSum[k] || 0; cnt += H.ratingCnt[k] || 0; });
+      return cnt ? sum / cnt : 0;
+    }
+
+    var pairs = [];
+    teams.forEach(function (te, ti) {
+      siteSlots.forEach(function (sl) {
+        pairs.push({ ti: ti, sl: sl, aff: affinity(te.members, sl.card.siteId), load: load(te.members), rate: ratingAt(te.members, sl.card.siteId) });
+      });
+    });
+    // מיון: קרבה↓, עומס↑, ציון↓
+    pairs.sort(function (a, b) {
+      if (a.aff !== b.aff) return b.aff - a.aff;
+      if (a.load !== b.load) return a.load - b.load;
+      return b.rate - a.rate;
+    });
+
+    var teamDone = {}, proposals = [];
+    pairs.forEach(function (p) {
+      if (teamDone[p.ti] || p.sl.remaining <= 0) return;
+      var te = teams[p.ti];
+      teamDone[p.ti] = true;
+      p.sl.remaining -= te.members.length; // ייתכן שלילי (צוות אטומי — חריגה מותרת)
+      proposals.push({ team: te.team, members: te.members, card: p.sl.card, aff: p.aff, load: p.load, rate: p.rate });
+    });
+    if (!proposals.length) { alert('לא נמצאו שיבוצים מתאימים.'); return; }
+
+    previewAutoAssign(day, proposals, teams.length, siteSlots);
+  }
+
+  function previewAutoAssign(day, proposals, teamCount, siteSlots) {
+    var body = U.el('div', null, [U.el('p', { class: 'muted', style: 'margin:0 0 8px;', text: 'הצעת שיבוץ אוטומטי (' + proposals.length + ' צוותים) — הקריטריון: כמה הצוות עבד באתר בעבר. בדקו ואשרו:' })]);
+    proposals.forEach(function (p) {
+      var siteName = p.card.siteId ? ((Store.getById('sites', p.card.siteId) || {}).name || '(אתר)') : '(אתר)';
+      var names = p.members.map(function (id) { var s = Store.getById('students', id); return s ? s.name : ''; }).filter(Boolean).join(', ');
+      var reason = 'קרבה: ' + p.aff + ' ימי-עבודה קודמים באתר · עומס החודש: ' + p.load + (p.rate ? ' · ציון ' + p.rate.toFixed(1) : '');
+      body.appendChild(U.el('div', { style: 'border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px;' }, [
+        U.el('div', { style: 'font-weight:700;color:var(--green-dark);', text: '⭐ ' + global.TeamUtil.teamLabel(p.team) + ' → ' + siteName + ' (' + p.members.length + ')' }),
+        U.el('div', { class: 'muted', style: 'font-size:12px;', text: names }),
+        U.el('div', { class: 'muted', style: 'font-size:12px;', text: reason })
+      ]));
+    });
+    var unfilled = siteSlots.filter(function (sl) { return sl.remaining > 0; });
+    if (unfilled.length) body.appendChild(U.el('div', { style: 'font-size:12px;margin-top:6px;color:#b45309;', text: '⚠ ' + unfilled.length + ' אתרים עדיין חסרים עובדים — השלימו ידנית.' }));
+    var unassigned = teamCount - proposals.length;
+    if (unassigned > 0) body.appendChild(U.el('div', { class: 'muted', style: 'font-size:12px;', text: unassigned + ' צוותים לא שובצו (אין מספיק מקום).' }));
+
+    Modal.open('🤖 שיבוץ אוטומטי', body, [
+      { label: 'ביטול', class: 'secondary' },
+      { label: 'שבץ ' + proposals.length + ' צוותים', onClick: function (close) {
+        proposals.forEach(function (p) {
+          p.members.forEach(function (id) { placeStudent(day, p.card, id, id === p.team.leaderStudentId); });
+        });
+        Store.save(); close(); App.render();
+      } }
+    ]);
   }
 
   global.DailyView = { render: render };
