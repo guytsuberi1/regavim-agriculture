@@ -128,17 +128,24 @@
   function buildTable() {
     var data = Store.get();
     var defs = fieldDefs(sub).filter(function (d) { return d.col && d.key !== 'active'; });
-    var rows = (data[sub] || []).filter(function (it) { return showArchive ? it.active === false : it.active !== false; });
+    var allRows = (data[sub] || []).filter(function (it) { return showArchive ? it.active === false : it.active !== false; });
+    var rows = allRows;
     if (searchTerm) {
       var q = searchTerm.toLowerCase();
-      rows = rows.filter(function (it) {
+      rows = allRows.filter(function (it) {
         return defs.some(function (d) { return String(it[d.key] == null ? '' : it[d.key]).toLowerCase().indexOf(q) !== -1; });
       });
     }
+    var countNote = searchTerm
+      ? U.el('div', { class: 'muted', style: 'font-size:12.5px;margin:-4px 0 8px;', text: 'נמצאו ' + rows.length + ' מתוך ' + allRows.length })
+      : null;
 
     if (!rows.length) {
-      return U.el('div', { class: 'card empty' },
-        searchTerm ? 'לא נמצאו תוצאות לחיפוש.' : (showArchive ? 'הארכיון ריק.' : 'אין עדיין רשומות. לחצו "הוספה" או "ייבוא מאקסל".'));
+      return U.el('div', null, [
+        countNote,
+        U.el('div', { class: 'card empty' },
+          searchTerm ? 'לא נמצאו תוצאות לחיפוש.' : (showArchive ? 'הארכיון ריק.' : 'אין עדיין רשומות. לחצו "הוספה" או "ייבוא מאקסל".'))
+      ]);
     }
 
     var sdef = sortKey ? defs.filter(function (d) { return d.key === sortKey; })[0] : null;
@@ -172,7 +179,7 @@
       return U.el('tr', null, tds);
     });
 
-    return U.el('table', { class: 'grid' }, [U.el('thead', null, [thead]), U.el('tbody', null, tbody)]);
+    return U.el('div', null, [countNote, U.el('table', { class: 'grid' }, [U.el('thead', null, [thead]), U.el('tbody', null, tbody)])]);
   }
 
   // העברה לארכיון / שחזור — שומר את כל המידע ההיסטורי (לא מוחק)
@@ -243,7 +250,7 @@
     });
     if (editing) model.id = item.id;
 
-    var inputs = {};
+    var inputs = {}, errEls = {};
     var body = U.el('div', null, defs.map(function (d) {
       var input;
       if (d.type === 'select') {
@@ -259,9 +266,19 @@
         input = U.el('input', { type: d.type === 'number' ? 'number' : 'text', value: model[d.key] == null ? '' : model[d.key] });
       }
       inputs[d.key] = input;
+      var err = null;
+      if (d.required) {
+        err = U.el('div', { class: 'field-err' });
+        errEls[d.key] = err;
+        // ולידציה חיה — הסימון האדום נעלם ברגע שממלאים
+        input.addEventListener('input', function () {
+          if (String(input.value || '').trim() !== '') { input.classList.remove('invalid'); err.textContent = ''; }
+        });
+      }
       return U.el('div', { class: 'field' }, [
         U.el('label', { text: d.label + (d.required ? ' *' : '') }), input,
-        d.hint ? U.el('div', { class: 'muted', style: 'font-size:12px;margin-top:2px;', text: d.hint }) : null
+        d.hint ? U.el('div', { class: 'muted', style: 'font-size:12px;margin-top:2px;', text: d.hint }) : null,
+        err
       ]);
     }));
 
@@ -271,15 +288,20 @@
         // בעריכה — שומרים על שדות קיימים שאינם בטופס (כמו defaultTransportId) כדי לא לאבד אותם
         var out = {};
         if (editing) { for (var key in item) { if (Object.prototype.hasOwnProperty.call(item, key)) out[key] = item[key]; } out.id = model.id; }
-        var ok = true;
+        var firstBad = null;
         defs.forEach(function (d) {
           var inp = inputs[d.key];
           var v = d.type === 'bool' ? inp.checked : inp.value;
           if (d.type === 'number') v = v === '' ? '' : U.num(v);
-          if (d.required && (v === '' || v == null)) ok = false;
+          var bad = d.required && (v === '' || v == null || String(v).trim() === '');
+          if (d.required && errEls[d.key]) {
+            inp.classList.toggle('invalid', bad);
+            errEls[d.key].textContent = bad ? 'שדה חובה' : '';
+          }
+          if (bad && !firstBad) firstBad = inp;
           out[d.key] = v;
         });
-        if (!ok) { alert('נא למלא את שדות החובה'); return; }
+        if (firstBad) { firstBad.focus(); return; }
         // גזירת שכבה מהכיתה (רק אם הוזנה כיתה) — כדי לתחזק שדה אחד בלבד
         if (sub === 'students') {
           var g = deriveGrade(out.className);
