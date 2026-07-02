@@ -527,7 +527,7 @@
       renderTable(['תאריך', 'אתר', 'יצא?', 'ציון', 'אישור', 'סיבה/הערה'], rows, 'אין פעילות לתלמיד בטווח שנבחר.')
     ]);
     wrap.appendChild(U.el('div', { class: 'no-print', style: 'margin-bottom:8px;' }, [
-      U.el('button', { class: 'btn secondary', title: 'שמירת הכרטיס כתמונה לשליחה להורים/מחנך', onclick: function () { exportStudentCard(report, stu); } }, '🖼 ייצוא כרטיס (תמונה)')
+      U.el('button', { class: 'btn secondary ico', title: 'ייצוא כרטיס התלמיד כתמונה', onclick: function () { exportStudentCard(report, stu); } }, '📷')
     ]));
     wrap.appendChild(report);
     return wrap;
