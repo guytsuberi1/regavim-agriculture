@@ -432,6 +432,12 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
 .rep-grade-head { color: var(--green-dark); margin: 18px 0 6px; font-size: 16px; }
 .debt-status-sel { font-size: 12px; padding: 4px 6px; max-width: 130px; }
 
+/* פס התקדמות גבייה (כרטיס חקלאי בחובות) */
+.debt-progress { margin-top: 10px; }
+.dp-track { height: 9px; background: #fee2e2; border-radius: 6px; overflow: hidden; }
+.dp-fill { height: 100%; background: #16a34a; border-radius: 6px; transition: width .4s ease; }
+.dp-lbl { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
 
 /* כותרות נושא במבט-על של הדשבורד */
 .dash-sec { font-weight: 700; color: var(--green-dark); font-size: 14px; margin: 18px 0 8px; }

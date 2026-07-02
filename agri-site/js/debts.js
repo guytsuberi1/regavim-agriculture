@@ -55,6 +55,14 @@
     });
   }
 
+  // צבע יתרה: ירוק=שולם/אפס · אדום=חוב · אדום כהה=חוב גבוה · כחול=זכות
+  function balStyle(bal) {
+    if (Math.abs(bal) < 0.005) return 'color:#15803d;';
+    if (bal >= 5000) return 'color:#7f1d1d;';
+    if (bal > 0) return 'color:#dc2626;';
+    return 'color:#2563eb;';
+  }
+
   // ---------- גישה לנתונים ----------
   function records() { return Store.get().debtRecords || []; }
   function entries() { return Store.get().debtEntries || []; }
@@ -195,7 +203,7 @@
       U.el('td', null, [nameBtn]),
       U.el('td', { text: s.contactName || '' }),
       U.el('td', null, [U.el('span', { text: s.phone || '' }), (a.balance > 0.005 ? waDebtBtn(s, a.balance) : null)]),
-      U.el('td', { class: 'center', html: '<b>' + money(a.balance) + '</b>' }),
+      U.el('td', { class: 'center', html: '<b style="' + balStyle(a.balance) + '">' + money(a.balance) + '</b>' }),
       U.el('td', null, [statusCell]),
       U.el('td', { text: Object.keys(a.handlers).join(', ') }),
       U.el('td', { text: Object.keys(a.years).join(', ') }),
@@ -246,8 +254,22 @@
       U.el('h3', { style: 'margin:0;color:var(--green-dark);', text: s.name }),
       U.el('span', { class: 'muted', text: [s.contactName, s.phone].filter(Boolean).join(' · ') }),
       U.el('div', { class: 'spacer' }),
-      U.el('span', { class: 'tag', html: 'יתרה: <b>' + money(agg.balance) + '</b>' })
+      U.el('span', { class: 'tag', html: 'יתרה: <b style="' + balStyle(agg.balance) + '">' + money(agg.balance) + '</b>' })
     ]));
+
+    // פס התקדמות גבייה — כמה מסך החוב/החיוב כבר שולם
+    (function () {
+      var esAll = entriesForSite(siteId);
+      var charged = agg.recs.reduce(function (a, r) { return a + U.num(r.openingDebt); }, 0)
+        + sumKind(esAll, 'charge') + (agg.billed ? U.num(agg.billed.total) : 0);
+      var reduced = sumKind(esAll, 'payment') + sumKind(esAll, 'credit');
+      if (charged <= 0.005) return;
+      var pct = Math.max(0, Math.min(100, reduced / charged * 100));
+      card.appendChild(U.el('div', { class: 'debt-progress' }, [
+        U.el('div', { class: 'dp-track' }, [U.el('div', { class: 'dp-fill', style: 'width:' + pct.toFixed(0) + '%;' })]),
+        U.el('div', { class: 'dp-lbl', text: 'נגבה ' + money(reduced) + ' מתוך ' + money(charged) + ' (' + Math.round(pct) + '%)' })
+      ]));
+    })();
 
     // כרטיסי חוב ידניים
     agg.recs.forEach(function (rec) {
