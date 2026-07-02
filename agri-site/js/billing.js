@@ -175,9 +175,15 @@
       class: 'btn small secondary no-print', title: 'ייצוא פירוט אישי לחקלאי זה (אקסל)',
       onclick: function () { exportSiteExcel(id); }
     }, '⬇ ייצוא פירוט אישי');
+    var wn = waNumber(s.phone);
+    var waBtn = U.el('a', {
+      class: 'btn small no-print', target: '_blank', rel: 'noopener',
+      href: (wn ? 'https://wa.me/' + wn : 'https://wa.me/') + '?text=' + encodeURIComponent(waSiteMessage(s, t)),
+      style: 'background:#25D366;color:#fff;border:0;', title: 'שליחת סיכום החודש לחקלאי בוואטסאפ' + (wn ? '' : ' (אין מספר — בחרו ידנית)')
+    }, '💬 וואטסאפ');
     var cardHead = U.el('div', { style: 'display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px;' }, [
       U.el('h3', { style: 'margin:0;flex:1;', text: s.name + (s.location ? ' · ' + s.location : '') }),
-      exportBtn
+      waBtn, exportBtn
     ]);
 
     return U.el('div', { class: 'card', style: 'margin-bottom:16px;' }, [
@@ -307,6 +313,27 @@
     while (usedNames[nm]) { nm = bn.slice(0, 26) + ' ' + (i++); }
     usedNames[nm] = true;
     XLSX.utils.book_append_sheet(wb, ws, nm);
+  }
+
+  // ---------- שליחת סיכום חודשי לחקלאי בוואטסאפ ----------
+  function waNumber(phone) {
+    var d = String(phone || '').replace(/\D/g, '');
+    if (!d) return null;
+    if (d.indexOf('972') === 0) return d;
+    if (d.charAt(0) === '0') return '972' + d.slice(1);
+    if (d.length === 9) return '972' + d;
+    return d;
+  }
+  function waSiteMessage(s, t) {
+    var lines = ['שלום ' + (s.contactName || s.name) + ',',
+      'דרישת תשלום לחודש ' + U.monthLabel(curMonth) + ':',
+      'סה"כ שעות עבודה: ' + t.totHours,
+      'תשלום עבודה: ' + Math.round(t.workPay) + ' ₪',
+      'תשלום נסיעות: ' + Math.round(t.travelTot) + ' ₪'];
+    if (t.discount) lines.push('הנחה: ' + Math.round(t.discount) + ' ₪');
+    lines.push('*סה"כ לתשלום: ' + Math.round(t.total) + ' ₪*');
+    lines.push('תודה, רגבים בנימין');
+    return lines.join('\n');
   }
 
   // ---------- ייצוא פירוט אישי לחקלאי בודד (לשליחה אישית) ----------

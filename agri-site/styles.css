@@ -420,6 +420,22 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
 .dash-sec { font-weight: 700; color: var(--green-dark); font-size: 14px; margin: 18px 0 8px; }
 .dash-sec:first-of-type { margin-top: 6px; }
 
+/* דוח תלמיד לייצוא/הדפסה */
+.stu-report { background: #fff; padding: 16px; border-radius: 12px; }
+.stu-report-title { text-align: center; margin-bottom: 12px; }
+
+/* חיווי חוסרים בכרטיס אתר (סידור יומי) */
+.sc-warn { color: #b91c1c; background: #fee2e2; border-radius: 6px; padding: 2px 8px; font-size: 12px; font-weight: 600; margin-top: 4px; display: inline-block; }
+
+/* חיווי דיווח (דשבורד + מצב שטח) */
+.ds-report { font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px; }
+.ds-report.done, .field-report.done { background: #dcfce7; color: #166534; }
+.ds-report.wait, .field-report.wait { background: #fef3c7; color: #92400e; }
+.field-report { display: inline-block; font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 8px; margin-bottom: 8px; }
+
+/* הערת שטח שטופלה */
+.fn-handled { opacity: .55; }
+
 /* טבלת סיכום יומי בדשבורד */
 .ds-table td, .ds-table th { vertical-align: middle; }
 .ds-table td .ds-reason { width: 100%; min-width: 130px; }

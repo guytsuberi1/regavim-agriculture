@@ -318,11 +318,31 @@
       }
     }
     gradeFilter.addEventListener('change', rebuild);
+    var cmp = classComparison(rep);
+    if (cmp) wrap.appendChild(cmp);
     wrap.appendChild(U.el('div', { class: 'field' }, [U.el('label', { text: 'סינון כיתה' }), gradeFilter]));
     wrap.appendChild(summaryWrap);
     wrap.appendChild(tableWrap);
     rebuild();
     return wrap;
+  }
+
+  // השוואת כיתות (#16) — שורה לכל שכבה, מוצג לפני הסינון
+  function classComparison(rep) {
+    var byG = {};
+    rep.forEach(function (r) { var g = r.grade || ''; (byG[g] = byG[g] || []).push(r); });
+    var order = U.GRADES.filter(function (g) { return byG[g]; });
+    if (order.length < 2) return null; // אין טעם בהשוואה עם כיתה אחת
+    var rows = order.map(function (g) {
+      var list = byG[g], work = 0, absU = 0, rSum = 0, rCnt = 0;
+      list.forEach(function (r) { work += r.work; absU += r.absUnapproved; rSum += r.ratingSum; rCnt += r.ratingCount; });
+      var total = work + absU, pct = total ? Math.round(work / total * 100) : null;
+      return ['כיתה ' + g, list.length, pct == null ? '—' : pct + '%', rCnt ? (rSum / rCnt).toFixed(1) : '—', work, absU];
+    });
+    return U.el('div', { style: 'margin-bottom:16px;' }, [
+      U.el('h3', { style: 'color:var(--green-dark);margin:0 0 8px;', text: '📊 השוואת כיתות' }),
+      sortableTable(['כיתה', 'תלמידים', 'אחוז יציאה', 'ציון ממוצע', 'ימי עבודה', 'היעדרויות בלי אישור'], rows)
+    ]);
   }
 
   // ---------- דוח אתרים ----------
@@ -465,20 +485,43 @@
     var team = global.TeamUtil ? global.TeamUtil.teamOfStudent(cardStudentId) : null;
     var teamName = team ? global.TeamUtil.teamLabel(team) : '—';
 
-    wrap.appendChild(statRow([
-      statCardR(pct == null ? '—' : pct + '%', 'אחוז יציאה', pctCol[0], pctCol[1]),
-      statCardR(work, 'ימים שיצא'),
-      statCardR(hoursSum, 'סה"כ שעות'),
-      statCardR(rCnt ? (rSum / rCnt).toFixed(1) : '—', 'ציון ממוצע'),
-      statCardR(absApproved, 'לא יצא — באישור'),
-      statCardR(absUnapproved, 'לא יצא — בלי אישור')
+    var stu = Store.getById('students', cardStudentId) || { name: '', grade: '', className: '' };
+    var report = U.el('div', { class: 'stu-report' }, [
+      U.el('div', { class: 'stu-report-title' }, [
+        U.el('div', { style: 'font-weight:800;font-size:18px;color:var(--green-dark);', text: '🌱 דוח תלמיד — ' + stu.name + ((stu.className || stu.grade) ? ' · ' + (stu.className || stu.grade) : '') }),
+        U.el('div', { class: 'muted', style: 'font-size:13px;', text: 'רגבים בנימין · ' + U.gregLabel(fromDate) + ' – ' + U.gregLabel(toDate) })
+      ]),
+      statRow([
+        statCardR(pct == null ? '—' : pct + '%', 'אחוז יציאה', pctCol[0], pctCol[1]),
+        statCardR(work, 'ימים שיצא'),
+        statCardR(hoursSum, 'סה"כ שעות'),
+        statCardR(rCnt ? (rSum / rCnt).toFixed(1) : '—', 'ציון ממוצע'),
+        statCardR(absApproved, 'לא יצא — באישור'),
+        statCardR(absUnapproved, 'לא יצא — בלי אישור')
+      ]),
+      U.el('div', { class: 'spot-row', style: 'margin-bottom:14px;' }, [
+        spot('🏆', 'חקלאי שעבד אצלו הכי הרבה', topSiteName, topSiteN ? topSiteN + ' ימים' : null, 'good'),
+        spot('👥', 'צוות', teamName, null, 'info')
+      ]),
+      renderTable(['תאריך', 'אתר', 'יצא?', 'ציון', 'אישור', 'סיבה/הערה'], rows, 'אין פעילות לתלמיד בטווח שנבחר.')
+    ]);
+    wrap.appendChild(U.el('div', { class: 'no-print', style: 'margin-bottom:8px;' }, [
+      U.el('button', { class: 'btn secondary', title: 'שמירת הכרטיס כתמונה לשליחה להורים/מחנך', onclick: function () { exportStudentCard(report, stu); } }, '🖼 ייצוא כרטיס (תמונה)')
     ]));
-    wrap.appendChild(U.el('div', { class: 'spot-row', style: 'margin-bottom:14px;' }, [
-      spot('🏆', 'חקלאי שעבד אצלו הכי הרבה', topSiteName, topSiteN ? topSiteN + ' ימים' : null, 'good'),
-      spot('👥', 'צוות', teamName, null, 'info')
-    ]));
-    wrap.appendChild(renderTable(['תאריך', 'אתר', 'יצא?', 'ציון', 'אישור', 'סיבה/הערה'], rows, 'אין פעילות לתלמיד בטווח שנבחר.'));
+    wrap.appendChild(report);
     return wrap;
+  }
+
+  function exportStudentCard(node, stu) {
+    if (typeof global.html2canvas === 'undefined') { alert('רכיב הייצוא עדיין נטען — נסו שוב בעוד רגע.'); return; }
+    global.html2canvas(node, { scale: 2, backgroundColor: '#ffffff' }).then(function (canvas) {
+      canvas.toBlob(function (blob) {
+        var url = URL.createObjectURL(blob), a = document.createElement('a');
+        a.href = url; a.download = 'דוח-תלמיד-' + (stu.name || '') + '.png';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      });
+    }).catch(function (e) { alert('שגיאה בייצוא התמונה: ' + e.message); });
   }
 
   // ---------- ייצוא אקסל ----------

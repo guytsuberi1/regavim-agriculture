@@ -114,6 +114,8 @@
       applyRole(); // קביעת טאבים לפי הרשאה (מנהל / מצב-שטח בלבד)
       // איחוד חד-פעמי של תכנון שבועי ↔ סידור יומי (ללא מחיקות)
       if (global.Sync) { Sync.mergeAll(); }
+      // גיבוי אוטומטי תקופתי (אם עבר מספיק זמן מהגיבוי האחרון)
+      if (global.SettingsView && SettingsView.autoSnapshot) { try { SettingsView.autoSnapshot(); } catch (e) {} }
       // הדגשת הטאב הפעיל הנכון
       U.$all('#tabs button').forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-tab') === current); });
       render();

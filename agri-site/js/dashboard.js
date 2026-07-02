@@ -10,6 +10,41 @@
   function money(n) { return '₪' + Math.round(U.num(n)).toLocaleString('he-IL'); }
   function inRange(iso, r) { return iso >= r.start && iso <= r.end; }
 
+  // אתר "דווח" = יש בו תלמידים וכולם סומנו (יצא / לא יצא)
+  function cardReported(card) {
+    var s = card.students || [];
+    return s.length > 0 && s.every(function (x) { return x.wentToWork || x.absent; });
+  }
+
+  // ---------- סיכום יומי לוואטסאפ (הטעונים טיפול) ----------
+  function dailyAttentionMessage() {
+    var day = (Store.get().days || {})[dashDate], cards = (day && day.cards) || [];
+    var parts = ['*סיכום יומי — ' + U.weekdayName(dashDate) + ' (' + U.gregLabel(dashDate) + ')*', ''];
+    var any = false;
+    cards.forEach(function (c) {
+      var site = c.siteId ? ((Store.getById('sites', c.siteId) || {}).name || '(אתר)') : '(אתר)';
+      var flagged = (c.students || []).filter(function (s) { return !s.wentToWork || s.rating === 1 || s.rating === 5; });
+      if (!flagged.length) return;
+      any = true;
+      parts.push('📍 *' + site + '*');
+      flagged.forEach(function (s) {
+        var stu = Store.getById('students', s.studentId) || { name: '?' };
+        var cls = stu.className || stu.grade || '';
+        var status = s.wentToWork ? ('ציון ' + s.rating) : (s.absent ? 'לא יצא' : 'לא סומן');
+        parts.push('· ' + stu.name + (cls ? ' (' + cls + ')' : '') + ' — ' + status);
+      });
+      parts.push('');
+    });
+    var gen = ((Store.get().dailyAbsent || {})[dashDate] || []);
+    if (gen.length) {
+      parts.push('🚫 *נעדרים כלליים:*');
+      gen.forEach(function (id) { var stu = Store.getById('students', id); if (stu) parts.push('· ' + stu.name); });
+      any = true;
+    }
+    if (!any) parts.push('✓ אין תלמידים הטעונים טיפול היום.');
+    return parts.join('\n');
+  }
+
   // ---------- טווחי תקופה ----------
   function rangeOf(p, offset) {
     var today = U.todayISO();
@@ -81,11 +116,15 @@
       (days[iso].cards || []).forEach(function (c) {
         if (c.fieldNote && String(c.fieldNote).trim()) {
           var site = c.siteId ? ((Store.getById('sites', c.siteId) || {}).name || '(אתר)') : '(אתר)';
-          out.push({ date: iso, site: site, note: c.fieldNote, by: c.fieldNoteBy || '' });
+          out.push({ date: iso, site: site, note: c.fieldNote, by: c.fieldNoteBy || '', card: c, handled: !!c.fieldNoteHandled });
         }
       });
     });
-    out.sort(function (a, b) { return a.date < b.date ? 1 : (a.date > b.date ? -1 : 0); });
+    // לא-מטופלות תחילה, ובתוך כל קבוצה החדשות למעלה
+    out.sort(function (a, b) {
+      if (a.handled !== b.handled) return a.handled ? 1 : -1;
+      return a.date < b.date ? 1 : (a.date > b.date ? -1 : 0);
+    });
     return out;
   }
 
@@ -268,6 +307,7 @@
       U.el('button', { class: 'btn secondary small', onclick: function () { dashDate = U.todayISO(); App.render(); } }, 'היום'),
       U.el('span', { class: 'tag', text: U.weekdayName(dashDate) + ' · ' + U.gregLabel(dashDate) }),
       U.el('div', { class: 'spacer' }),
+      U.el('a', { class: 'btn small', href: 'https://wa.me/?text=' + encodeURIComponent(dailyAttentionMessage()), target: '_blank', rel: 'noopener', style: 'background:#25D366;color:#fff;border:0;', title: 'שליחת סיכום היום בוואטסאפ' }, '💬 סיכום לוואטסאפ'),
       U.el('button', { class: 'btn small', title: 'שליחת SMS למחנכים למילוי הנעדרים היומיים', onclick: sendHomeroomReminder }, '📩 תזכורת למחנכים')
     ]));
     root.appendChild(U.el('div', { class: 'muted', style: 'font-size:12.5px;margin-bottom:10px;', text: 'מוצגים רק תלמידים הטעונים תשומת לב: לא יצאו · לא סומנו · ציון 1 או 5.' }));
@@ -323,6 +363,7 @@
       U.el('div', { class: 'ds-site-name', text: site ? site.name : '(אתר)' }),
       U.el('div', { class: 'ds-site-meta' }, [
         U.el('span', { class: 'tw-counter ' + cls, text: hasPlan ? ('ביצוע ' + went + ' / תכנון ' + planned) : ('יצאו ' + went + ' / ' + students.length) }),
+        students.length ? U.el('span', { class: 'ds-report ' + (cardReported(card) ? 'done' : 'wait'), text: cardReported(card) ? '✓ דווח' : '⏳ בהמתנה לדיווח' }) : null,
         staff ? U.el('span', { class: 'muted', style: 'font-size:12px;', text: '👤 ' + staff }) : null
       ])
     ]);
@@ -386,18 +427,24 @@
   // ---------- הערות מהשטח ----------
   function renderNotes(root) {
     var notes = fieldNotes();
+    var open = notes.filter(function (n) { return !n.handled; }).length;
     var box = U.el('div', { class: 'fieldnotes' });
     if (!notes.length) box.appendChild(U.el('div', { class: 'dash-empty', text: 'אין הערות מהשטח עדיין.' }));
     else notes.forEach(function (n) {
-      box.appendChild(U.el('div', { class: 'fieldnote' }, [
+      var toggle = U.el('button', {
+        class: 'btn small ' + (n.handled ? 'secondary' : ''),
+        onclick: function () { n.card.fieldNoteHandled = !n.card.fieldNoteHandled; Store.save(); App.render(); }
+      }, n.handled ? '↩ החזר לטיפול' : '✓ טופל');
+      box.appendChild(U.el('div', { class: 'fieldnote' + (n.handled ? ' fn-handled' : '') }, [
         U.el('div', { class: 'fn-top' }, [
           U.el('span', { class: 'fn-site', text: n.site + (n.by ? ' · ' + n.by : '') }),
           U.el('span', { class: 'fn-date', text: U.gregLabel(n.date) })
         ]),
-        U.el('div', { class: 'fn-text', text: n.note })
+        U.el('div', { class: 'fn-text', text: n.note }),
+        U.el('div', { style: 'margin-top:6px;text-align:left;' }, [toggle])
       ]));
     });
-    root.appendChild(panel('📝 הערות מהשטח (' + notes.length + ')', box));
+    root.appendChild(panel('📝 הערות מהשטח (' + open + ' פתוחות)', box));
   }
 
   // ---------- נתונים כספיים ----------

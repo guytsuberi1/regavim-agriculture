@@ -80,6 +80,30 @@
       U.el('button', { class: 'btn secondary small', onclick: function () { fileInput.click(); } }, '⬆ שחזור מקובץ')
     ]));
     backup.appendChild(fileInput);
+
+    // ---- גיבוי אוטומטי תקופתי (#26) — snapshots במכשיר ----
+    maybeAutoSnapshot();
+    var autoChk = U.el('input', { type: 'checkbox', checked: data.settings.autoBackup !== false });
+    autoChk.addEventListener('change', function () { data.settings.autoBackup = autoChk.checked; Store.save(); App.render(); });
+    var daysInp = U.el('input', { type: 'number', min: '1', value: U.num(data.settings.autoBackupDays, 7) || 7, style: 'width:64px;' });
+    daysInp.addEventListener('change', function () { data.settings.autoBackupDays = Math.max(1, U.num(daysInp.value, 7)); Store.save(); });
+    backup.appendChild(U.el('hr', { style: 'margin:12px 0;border:0;border-top:1px solid var(--border);' }));
+    backup.appendChild(U.el('div', { style: 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;' }, [
+      U.el('label', { style: 'display:inline-flex;gap:6px;align-items:center;cursor:pointer;font-weight:600;' }, [autoChk, U.el('span', { text: 'גיבוי אוטומטי' })]),
+      U.el('span', { class: 'muted', text: 'כל' }), daysInp, U.el('span', { class: 'muted', text: 'ימים (4 האחרונים נשמרים במכשיר)' })
+    ]));
+    var snaps = getSnapshots();
+    if (snaps.length) {
+      var listWrap = U.el('div');
+      snaps.slice().reverse().forEach(function (sn) {
+        listWrap.appendChild(U.el('div', { style: 'display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;' }, [
+          U.el('span', { style: 'flex:1;font-size:13px;', text: '📅 ' + U.gregLabel(sn.date) + ' · ' + Math.round((sn.size || 0) / 1024) + 'KB' }),
+          U.el('button', { class: 'btn small secondary', onclick: function () { restoreSnapshot(sn); } }, 'שחזר'),
+          U.el('button', { class: 'btn small secondary', title: 'הורדה לקובץ', onclick: function () { downloadSnapshot(sn); } }, '⬇')
+        ]));
+      });
+      backup.appendChild(U.el('div', { style: 'margin-top:6px;' }, [U.el('div', { class: 'muted', style: 'font-size:12px;margin-bottom:2px;', text: 'גיבויים אוטומטיים שמורים:' }), listWrap]));
+    }
     root.appendChild(backup);
 
     // ---- אזור סכנה ----
@@ -114,5 +138,41 @@
     return box;
   }
 
-  global.SettingsView = { render: render };
+  // ---------- גיבוי אוטומטי: snapshots ב-localStorage ----------
+  function getSnapshots() { try { return JSON.parse(localStorage.getItem('agri_snapshots')) || []; } catch (e) { return []; } }
+  function saveSnapshots(a) { try { localStorage.setItem('agri_snapshots', JSON.stringify(a)); } catch (e) { /* מכסה מלאה */ } }
+  function maybeAutoSnapshot() {
+    var d = (global.Store && Store.get) ? Store.get() : null;
+    if (!d || !d.settings || d.settings.autoBackup === false) return;
+    var days = U.num(d.settings.autoBackupDays, 7) || 7;
+    var snaps = getSnapshots();
+    var today = U.todayISO();
+    if (snaps.length) {
+      var last = snaps[snaps.length - 1];
+      var diff = (U.fromISO(today) - U.fromISO(last.date)) / 86400000;
+      if (diff < days) return;
+    }
+    var json;
+    try { json = JSON.stringify(d); } catch (e) { return; }
+    snaps.push({ date: today, size: json.length, json: json });
+    while (snaps.length > 4) snaps.shift();
+    saveSnapshots(snaps);
+  }
+  function restoreSnapshot(sn) {
+    if (!confirm('לשחזר גיבוי מתאריך ' + U.gregLabel(sn.date) + '?\nכל הנתונים הנוכחיים יוחלפו.')) return;
+    try {
+      var obj = JSON.parse(sn.json);
+      Store.replaceAll(obj); Store.save();
+      alert('הגיבוי שוחזר בהצלחה.'); App.render();
+    } catch (e) { alert('שגיאה בשחזור: ' + (e.message || e)); }
+  }
+  function downloadSnapshot(sn) {
+    var blob = new Blob([sn.json], { type: 'application/json' });
+    var url = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = url; a.download = 'גיבוי-' + sn.date + '.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  global.SettingsView = { render: render, autoSnapshot: maybeAutoSnapshot };
 })(window);

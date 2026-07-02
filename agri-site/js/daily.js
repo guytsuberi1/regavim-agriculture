@@ -155,13 +155,20 @@
       counter = U.el('div', { class: 'tw-counter', text: 'משובצים: ' + assignedN });
     }
 
+    // חיווי חוסרים — אתר משובץ בלי איש צוות או בלי הסעה
+    var warns = [];
+    if (site && !cardStaffIds(card).length) warns.push('חסר איש צוות');
+    if (site && !card.transportId) warns.push('חסרה הסעה');
+    var warnEl = warns.length ? U.el('div', { class: 'sc-warn no-print', text: '⚠ ' + warns.join(' · ') }) : null;
+
     var head = U.el('div', { class: 'sc-head' }, [
       U.el('div', { style: 'display:flex;gap:4px;align-items:center;' }, [
         siteSel,
         U.el('button', { class: 'sc-del no-print', title: 'הסר אתר', onclick: function () { removeCard(day, card); } }, '×')
       ]),
       meta,
-      counter
+      counter,
+      warnEl
     ]);
 
     // ---- גוף ----

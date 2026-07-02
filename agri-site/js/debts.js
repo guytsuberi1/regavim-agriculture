@@ -34,6 +34,27 @@
     return n.toLocaleString('he-IL', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' ₪';
   }
 
+  // תזכורת תשלום בוואטסאפ
+  function waNum(phone) {
+    var d = String(phone || '').replace(/\D/g, '');
+    if (!d) return null;
+    if (d.indexOf('972') === 0) return d;
+    if (d.charAt(0) === '0') return '972' + d.slice(1);
+    if (d.length === 9) return '972' + d;
+    return d;
+  }
+  function waDebtBtn(s, balance) {
+    var wn = waNum(s.phone);
+    var msg = 'שלום ' + (s.contactName || s.name) + ',\nתזכורת: נותרה יתרת חוב לתשלום בסך ' + money(balance) + '.\nנשמח להסדרה בהקדם. תודה, רגבים בנימין';
+    return U.el('a', {
+      class: 'btn small ico no-print', target: '_blank', rel: 'noopener',
+      href: (wn ? 'https://wa.me/' + wn : 'https://wa.me/') + '?text=' + encodeURIComponent(msg),
+      style: 'background:#25D366;color:#fff;border:0;margin-inline-start:6px;',
+      title: 'תזכורת תשלום בוואטסאפ' + (wn ? '' : ' (אין מספר — בחרו ידנית)'),
+      html: U.WA_SVG
+    });
+  }
+
   // ---------- גישה לנתונים ----------
   function records() { return Store.get().debtRecords || []; }
   function entries() { return Store.get().debtEntries || []; }
@@ -173,7 +194,7 @@
     return U.el('tr', { style: (selectedSiteId === a.siteId ? 'background:var(--green-light);' : '') }, [
       U.el('td', null, [nameBtn]),
       U.el('td', { text: s.contactName || '' }),
-      U.el('td', { text: s.phone || '' }),
+      U.el('td', null, [U.el('span', { text: s.phone || '' }), (a.balance > 0.005 ? waDebtBtn(s, a.balance) : null)]),
       U.el('td', { class: 'center', html: '<b>' + money(a.balance) + '</b>' }),
       U.el('td', null, [statusCell]),
       U.el('td', { text: Object.keys(a.handlers).join(', ') }),

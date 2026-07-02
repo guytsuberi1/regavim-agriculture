@@ -133,6 +133,17 @@
       metaParts.length ? U.el('div', { class: 'fsh-meta', text: metaParts.join('  ·  ') }) : null
     ]));
 
+    // חיווי השלמת דיווח — כמה נותרו לסימון
+    (function () {
+      var all = (card.students || []);
+      var marked = all.filter(function (s) { return s.wentToWork || s.absent; }).length;
+      var left = all.length - marked;
+      if (!all.length) return;
+      root.appendChild(left === 0
+        ? U.el('div', { class: 'field-report done', text: '✓ הדיווח הושלם — כל התלמידים סומנו' })
+        : U.el('div', { class: 'field-report wait', text: '⏳ נותרו ' + left + ' תלמידים לסימון' }));
+    })();
+
     // סידור התלמידים לפי צוותים (ראש צוות תחילה, ואז לפי כיתה); מי שאינו בצוות — בסוף
     var TU = global.TeamUtil;
     var teams = TU ? TU.allTeams() : [];

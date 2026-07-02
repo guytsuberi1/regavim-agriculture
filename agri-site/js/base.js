@@ -5,6 +5,7 @@
   var sub = 'students';
   var showArchive = false; // הצגת רשומות בארכיון (active=false) במקום הפעילות
   var sortKey = null, sortDir = 1; // מיון הטבלה
+  var searchTerm = ''; // חיפוש חופשי בטבלה
 
   // תג כיתה ברור (כמו בסידור היומי)
   function gradeBadge(g) {
@@ -103,7 +104,7 @@
         var count = c === 'teams' ? (data.teams ? data.teams.length : 0) : ((data[c] || []).filter(function (x) { return x.active !== false; }).length);
         return U.el('button', {
           class: sub === c ? 'active' : '',
-          onclick: function () { sub = c; sortKey = null; App.render(); }
+          onclick: function () { sub = c; sortKey = null; searchTerm = ''; App.render(); }
         }, collTitle(c) + ' (' + count + ')');
       })
     );
@@ -114,6 +115,12 @@
       if (global.TeamsView && global.TeamsView.render) global.TeamsView.render(root);
       else root.appendChild(U.el('div', { class: 'card empty' }, 'מסך הצוותים אינו זמין.'));
     } else {
+      var searchInp = U.el('input', { type: 'search', class: 'no-print', placeholder: '🔍 חיפוש...', value: searchTerm, style: 'margin:10px 0;max-width:300px;width:100%;' });
+      searchInp.addEventListener('input', function () {
+        searchTerm = searchInp.value; App.render();
+        var el = U.$('input[type=search]'); if (el) { el.focus(); try { el.setSelectionRange(el.value.length, el.value.length); } catch (e) {} }
+      });
+      root.appendChild(searchInp);
       root.appendChild(buildTable());
     }
   }
@@ -122,10 +129,16 @@
     var data = Store.get();
     var defs = fieldDefs(sub).filter(function (d) { return d.col && d.key !== 'active'; });
     var rows = (data[sub] || []).filter(function (it) { return showArchive ? it.active === false : it.active !== false; });
+    if (searchTerm) {
+      var q = searchTerm.toLowerCase();
+      rows = rows.filter(function (it) {
+        return defs.some(function (d) { return String(it[d.key] == null ? '' : it[d.key]).toLowerCase().indexOf(q) !== -1; });
+      });
+    }
 
     if (!rows.length) {
       return U.el('div', { class: 'card empty' },
-        showArchive ? 'הארכיון ריק.' : 'אין עדיין רשומות. לחצו "הוספה" או "ייבוא מאקסל".');
+        searchTerm ? 'לא נמצאו תוצאות לחיפוש.' : (showArchive ? 'הארכיון ריק.' : 'אין עדיין רשומות. לחצו "הוספה" או "ייבוא מאקסל".'));
     }
 
     var sdef = sortKey ? defs.filter(function (d) { return d.key === sortKey; })[0] : null;
@@ -145,6 +158,9 @@
     var tbody = rows.map(function (item) {
       var tds = defs.map(function (d) {
         if (d.key === 'grade' && item.grade) return U.el('td', null, [gradeBadge(item.grade)]);
+        if (sub === 'students' && d.key === 'name') {
+          return U.el('td', null, [U.el('button', { class: 'btn small secondary', style: 'font-weight:600;', title: 'כרטיס תלמיד', onclick: function () { openStudentCard(item); } }, item.name)]);
+        }
         return U.el('td', { text: displayVal(d, item) });
       });
       tds.push(U.el('td', { class: 'actions' }, [
@@ -177,6 +193,42 @@
     targets.forEach(function (s) { s.className = s.grade + '1'; });
     Store.save(); App.render();
     alert('מולאו ' + targets.length + ' כיתות. עדכנו ידנית תלמידים שצריכים כיתה אחרת.');
+  }
+
+  // ---------- כרטיס תלמיד מהיר (#19) ----------
+  function studentStats(id) {
+    var days = Store.get().days || {}, work = 0, rSum = 0, rCnt = 0, lastSite = null, lastDate = null;
+    Object.keys(days).sort().forEach(function (iso) {
+      (days[iso].cards || []).forEach(function (c) {
+        (c.students || []).forEach(function (s) {
+          if (s.studentId === id && s.wentToWork) {
+            work++; if (s.rating) { rSum += s.rating; rCnt++; }
+            lastDate = iso; lastSite = c.siteId ? ((Store.getById('sites', c.siteId) || {}).name || '') : '';
+          }
+        });
+      });
+    });
+    return { work: work, ratingAvg: rCnt ? (rSum / rCnt) : null, lastDate: lastDate, lastSite: lastSite };
+  }
+  function openStudentCard(stu) {
+    var st = studentStats(stu.id);
+    var team = global.TeamUtil ? global.TeamUtil.teamOfStudent(stu.id) : null;
+    function row(label, val) {
+      return U.el('div', { style: 'display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--border);' },
+        [U.el('span', { class: 'muted', text: label }), U.el('span', { style: 'font-weight:600;', text: val })]);
+    }
+    var body = U.el('div', null, [
+      row('כיתה', stu.className || stu.grade || '—'),
+      row('צוות', team ? global.TeamUtil.teamLabel(team) : 'ללא צוות'),
+      row('טלפון', stu.phone || '—'),
+      row('ימי עבודה (סה"כ)', String(st.work)),
+      row('ציון ממוצע', st.ratingAvg == null ? '—' : st.ratingAvg.toFixed(1)),
+      row('עבד לאחרונה', st.lastDate ? (U.gregLabel(st.lastDate) + (st.lastSite ? ' · ' + st.lastSite : '')) : '—')
+    ]);
+    Modal.open('כרטיס תלמיד — ' + stu.name, body, [
+      { label: 'עריכה', class: 'secondary', onClick: function (close) { close(); openForm(stu); } },
+      { label: 'סגור' }
+    ]);
   }
 
   function openForm(item) {
