@@ -490,6 +490,10 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
 /* ---------- מיקוד מקלדת ---------- */
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--green, #2E7D32); outline-offset: 2px; }
 
+/* ---------- אזור סכנה (הגדרות) ---------- */
+.danger-zone { border: 1px solid #fecaca !important; background: #fef7f7; margin-top: 28px; }
+.danger-zone .btn.danger { box-shadow: none; }
+
 /* ---------- ולידציה בטפסים ---------- */
 input.invalid, select.invalid, textarea.invalid { border-color: var(--danger, #dc2626) !important; background: #fef2f2; }
 .field-err { color: var(--danger, #dc2626); font-size: 12px; margin-top: 2px; min-height: 0; }

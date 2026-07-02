@@ -108,9 +108,9 @@
     root.appendChild(backup);
 
     // ---- אזור סכנה ----
-    var danger = U.el('div', { class: 'card', style: 'max-width:520px;border:1px solid var(--danger);' });
-    danger.appendChild(U.el('h3', { style: 'margin-top:0;color:var(--danger);', text: 'איפוס' }));
-    danger.appendChild(U.el('p', { class: 'muted', text: 'מחיקת כל הנתונים (תלמידים, אתרים, סידורים והכל). מומלץ להוריד גיבוי קודם.' }));
+    var danger = U.el('div', { class: 'card danger-zone', style: 'max-width:520px;' });
+    danger.appendChild(U.el('h3', { style: 'margin-top:0;color:var(--danger);', text: '⚠ אזור מסוכן' }));
+    danger.appendChild(U.el('p', { class: 'muted', text: 'מחיקת כל הנתונים (תלמידים, אתרים, סידורים והכל). פעולה בלתי הפיכה — מומלץ להוריד גיבוי קודם.' }));
     danger.appendChild(U.el('button', { class: 'btn danger', onclick: function () {
       Modal.confirm({ title: '⚠ מחיקת כל הנתונים', text: 'כל הנתונים יימחקו — תלמידים, אתרים, סידורים, חובות והכל.\nבטוחים?', okLabel: 'המשך', danger: true }, function () {
         Modal.confirm({ title: '⚠ אזהרה אחרונה', text: 'הפעולה בלתי הפיכה. מומלץ להוריד גיבוי קודם.\nלמחוק את הכל?', okLabel: 'מחק את הכל', danger: true }, function () {
