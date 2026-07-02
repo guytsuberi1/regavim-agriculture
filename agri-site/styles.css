@@ -420,6 +420,40 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
 .dash-sec { font-weight: 700; color: var(--green-dark); font-size: 14px; margin: 18px 0 8px; }
 .dash-sec:first-of-type { margin-top: 6px; }
 
+/* ---------- טוסטים ---------- */
+.toast-wrap { position: fixed; bottom: 18px; left: 18px; z-index: 300; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+.toast { display: flex; align-items: center; gap: 9px; background: #1e293b; color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 14px; font-weight: 600; box-shadow: 0 6px 24px rgba(0,0,0,.25); opacity: 0; transform: translateY(12px); transition: opacity .25s, transform .25s; max-width: 340px; }
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast-ic { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; font-size: 12px; font-weight: 800; flex: 0 0 auto; }
+.toast-success .toast-ic { background: #16a34a; }
+.toast-error .toast-ic { background: #dc2626; }
+.toast-info .toast-ic { background: #2563eb; }
+@media (max-width: 640px) { .toast-wrap { left: 12px; right: 12px; bottom: 12px; } .toast { max-width: none; } }
+
+/* ---------- הבהוב חיווי שמירה ---------- */
+@keyframes save-flash { 0% { color: #16a34a; transform: scale(1.08); } 100% { color: inherit; transform: scale(1); } }
+.status .flash { display: inline-block; animation: save-flash 0.9s ease-out; }
+
+/* ---------- שלד טעינה ---------- */
+.skeleton { padding: 10px 0; }
+.sk-line { height: 16px; border-radius: 8px; margin-bottom: 14px; background: linear-gradient(90deg, #eceff1 25%, #f7f9fa 50%, #eceff1 75%); background-size: 400% 100%; animation: sk-shimmer 1.3s infinite; }
+.sk-line.lg { height: 30px; width: 40%; }
+.sk-card { height: 90px; border-radius: 12px; margin-bottom: 12px; background: linear-gradient(90deg, #eceff1 25%, #f7f9fa 50%, #eceff1 75%); background-size: 400% 100%; animation: sk-shimmer 1.3s infinite; }
+@keyframes sk-shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+
+/* ---------- מיקוד מקלדת ---------- */
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--green, #2E7D32); outline-offset: 2px; }
+
+/* ---------- מצב-ריק עם פעולה ---------- */
+.empty-actions { display: flex; gap: 8px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
+
+/* ---------- מסך התחברות: עין לסיסמה + ספינר ---------- */
+.pass-wrap { position: relative; }
+.pass-wrap input { width: 100%; padding-inline-end: 40px; box-sizing: border-box; }
+.pass-eye { position: absolute; inset-inline-end: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 17px; opacity: .65; padding: 4px; }
+.pass-eye:hover { opacity: 1; }
+.btn-spin { display: inline-block; width: 15px; height: 15px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: ai-spin 0.7s linear infinite; vertical-align: -3px; margin-inline-end: 7px; }
+
 /* דוח תלמיד לייצוא/הדפסה */
 .stu-report { background: #fff; padding: 16px; border-radius: 12px; }
 .stu-report-title { text-align: center; margin-bottom: 12px; }

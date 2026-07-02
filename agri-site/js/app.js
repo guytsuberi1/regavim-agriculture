@@ -95,12 +95,29 @@
       var downEvt = ('onpointerdown' in window) ? 'pointerdown' : 'mousedown';
       bg.addEventListener(downEvt, function (e) { downOnBg = (e.target === bg); });
       bg.addEventListener('click', function (e) { if (e.target === bg && downOnBg) close(); downOnBg = false; });
+      // Escape סוגר את המודאל (העליון בלבד)
+      function onKey(e) { if (e.key === 'Escape') { e.stopPropagation(); close(); } }
+      document.addEventListener('keydown', onKey);
       document.body.appendChild(bg);
       function close() {
+        document.removeEventListener('keydown', onKey);
         if (bg.parentNode) bg.parentNode.removeChild(bg);
         if (global.Store && Store.flushPendingRemote) Store.flushPendingRemote();
       }
       return close;
+    },
+
+    // דיאלוג אישור מעוצב במקום confirm() של הדפדפן.
+    // Modal.confirm({ title, text, okLabel, danger }, onOk)
+    confirm: function (opts, onOk) {
+      opts = opts || {};
+      var body = U.el('div', null, [
+        U.el('div', { style: 'font-size:15px;line-height:1.6;white-space:pre-line;', text: opts.text || '' })
+      ]);
+      global.Modal.open(opts.title || 'אישור פעולה', body, [
+        { label: opts.cancelLabel || 'ביטול', class: 'secondary' },
+        { label: opts.okLabel || 'אישור', class: (opts.danger ? 'danger' : ''), onClick: function (close) { close(); onOk && onOk(); } }
+      ]);
     }
   };
 

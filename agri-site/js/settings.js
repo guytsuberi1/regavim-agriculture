@@ -69,10 +69,11 @@
     var fileInput = U.el('input', { type: 'file', accept: '.json', style: 'display:none;' });
     fileInput.addEventListener('change', function () {
       var f = fileInput.files[0]; if (!f) return;
-      if (!confirm('שחזור מגיבוי יחליף את כל הנתונים הקיימים. להמשיך?')) return;
-      Store.importJSONFile(f, function (err) {
-        if (err) alert('שגיאה בטעינה: ' + err.message);
-        else { alert('הנתונים נטענו בהצלחה.'); App.render(); }
+      Modal.confirm({ title: 'שחזור מגיבוי', text: 'שחזור מגיבוי יחליף את כל הנתונים הקיימים. להמשיך?', okLabel: 'שחזר', danger: true }, function () {
+        Store.importJSONFile(f, function (err) {
+          if (err) U.toast('שגיאה בטעינה: ' + err.message, 'error');
+          else { U.toast('הנתונים נטענו בהצלחה'); App.render(); }
+        });
       });
     });
     backup.appendChild(U.el('div', { class: 'row' }, [
@@ -111,12 +112,15 @@
     danger.appendChild(U.el('h3', { style: 'margin-top:0;color:var(--danger);', text: 'איפוס' }));
     danger.appendChild(U.el('p', { class: 'muted', text: 'מחיקת כל הנתונים (תלמידים, אתרים, סידורים והכל). מומלץ להוריד גיבוי קודם.' }));
     danger.appendChild(U.el('button', { class: 'btn danger', onclick: function () {
-      if (!confirm('בטוחים? כל הנתונים יימחקו.')) return;
-      if (!confirm('אזהרה אחרונה — הפעולה בלתי הפיכה. למחוק?')) return;
-      var fresh = Store.defaultData();
-      var d = Store.get();
-      Object.keys(fresh).forEach(function (k) { d[k] = fresh[k]; });
-      Store.save(); App.render();
+      Modal.confirm({ title: '⚠ מחיקת כל הנתונים', text: 'כל הנתונים יימחקו — תלמידים, אתרים, סידורים, חובות והכל.\nבטוחים?', okLabel: 'המשך', danger: true }, function () {
+        Modal.confirm({ title: '⚠ אזהרה אחרונה', text: 'הפעולה בלתי הפיכה. מומלץ להוריד גיבוי קודם.\nלמחוק את הכל?', okLabel: 'מחק את הכל', danger: true }, function () {
+          var fresh = Store.defaultData();
+          var d = Store.get();
+          Object.keys(fresh).forEach(function (k) { d[k] = fresh[k]; });
+          Store.save(); App.render();
+          U.toast('כל הנתונים נמחקו', 'info');
+        });
+      });
     } }, 'מחק את כל הנתונים'));
     root.appendChild(danger);
   }
@@ -133,7 +137,7 @@
     box.appendChild(U.el('button', { class: 'btn', onclick: function () {
       data.settings.settingsPassword = (inp.value || '').trim();
       Store.save();
-      alert(data.settings.settingsPassword ? 'הסיסמה נשמרה.' : 'הסיסמה הוסרה.');
+      U.toast(data.settings.settingsPassword ? 'הסיסמה נשמרה' : 'הסיסמה הוסרה');
     } }, 'שמור סיסמה'));
     return box;
   }
@@ -159,12 +163,13 @@
     saveSnapshots(snaps);
   }
   function restoreSnapshot(sn) {
-    if (!confirm('לשחזר גיבוי מתאריך ' + U.gregLabel(sn.date) + '?\nכל הנתונים הנוכחיים יוחלפו.')) return;
-    try {
-      var obj = JSON.parse(sn.json);
-      Store.replaceAll(obj); Store.save();
-      alert('הגיבוי שוחזר בהצלחה.'); App.render();
-    } catch (e) { alert('שגיאה בשחזור: ' + (e.message || e)); }
+    Modal.confirm({ title: 'שחזור גיבוי', text: 'לשחזר גיבוי מתאריך ' + U.gregLabel(sn.date) + '?\nכל הנתונים הנוכחיים יוחלפו.', okLabel: 'שחזר', danger: true }, function () {
+      try {
+        var obj = JSON.parse(sn.json);
+        Store.replaceAll(obj); Store.save();
+        U.toast('הגיבוי שוחזר בהצלחה'); App.render();
+      } catch (e) { U.toast('שגיאה בשחזור: ' + (e.message || e), 'error'); }
+    });
   }
   function downloadSnapshot(sn) {
     var blob = new Blob([sn.json], { type: 'application/json' });

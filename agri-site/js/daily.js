@@ -76,7 +76,14 @@
     root.appendChild(buildTotals(day));
 
     if (!day.cards.length) {
-      root.appendChild(U.el('div', { class: 'card empty no-print' }, 'אין אתרים ליום זה. לחצו "הוסף אתר".'));
+      root.appendChild(U.el('div', { class: 'card empty no-print' }, [
+        U.el('div', { text: 'אין אתרים ליום זה.' }),
+        U.el('div', { class: 'empty-actions' }, [
+          U.el('button', { class: 'btn', onclick: addCard }, '+ הוסף אתר'),
+          U.el('button', { class: 'btn secondary', title: 'טעינת האתרים מהתכנון השבועי של יום זה', onclick: loadFromWeekly }, '📥 טען מהתכנון השבועי'),
+          U.el('button', { class: 'btn secondary', title: 'שכפול הסידור מהיום האחרון שיש בו נתונים', onclick: dupPrev }, '📋 שכפל יום קודם')
+        ])
+      ]));
     } else {
       var board = U.el('div', { class: 'day-board' });
       day.cards.forEach(function (card) { board.appendChild(buildCard(day, card)); });
@@ -427,10 +434,16 @@
   }
 
   function removeCard(day, card) {
-    if ((card.students || []).length && !confirm('להסיר את האתר וכל השיבוצים בו?')) return;
-    day.cards = day.cards.filter(function (c) { return c.id !== card.id; });
-    Sync.dayChanged(curDate);
-    Store.save(); App.render();
+    function doRemove() {
+      day.cards = day.cards.filter(function (c) { return c.id !== card.id; });
+      Sync.dayChanged(curDate);
+      Store.save(); App.render();
+      U.toast('האתר הוסר מהסידור');
+    }
+    if ((card.students || []).length) {
+      var s = card.siteId ? (Store.getById('sites', card.siteId) || {}).name : 'האתר';
+      Modal.confirm({ title: 'הסרת אתר', text: 'להסיר את "' + (s || 'האתר') + '" וכל ' + card.students.length + ' השיבוצים בו?', okLabel: 'הסר', danger: true }, doRemove);
+    } else doRemove();
   }
 
   function removeStudent(card, studentId) {
@@ -442,9 +455,11 @@
   function clearCardStudents(day, card) {
     var n = (card.students || []).length;
     if (!n) return;
-    if (!confirm('להחזיר את כל ' + n + ' התלמידים המשובצים באתר זה למאגר?')) return;
-    card.students = [];
-    Store.save(); App.render();
+    Modal.confirm({ title: 'ביטול שיבוץ', text: 'להחזיר את כל ' + n + ' התלמידים המשובצים באתר זה למאגר?', okLabel: 'בטל שיבוץ', danger: true }, function () {
+      card.students = [];
+      Store.save(); App.render();
+      U.toast(n + ' תלמידים הוחזרו למאגר');
+    });
   }
 
   // שיבוץ תלמיד לכרטיס ללא שמירה/רינדור (לשימוש פנימי)
@@ -1150,10 +1165,10 @@
       (noPhone.length ? '\n\n' + noPhone.length + ' ללא מספר טלפון יידלגו:\n' + noPhone.slice(0, 12).join(', ') + (noPhone.length > 12 ? '…' : '') : '') +
       '\n\n⚠️ שליחת SMS עולה כסף בחשבון 019.')) return;
     Store.sendSms(messages).then(function (res) {
-      alert('✓ נשלחו: ' + (res.sent || 0) + ' · נכשלו: ' + (res.failed || 0) +
-        ((res.errors && res.errors.length) ? '\n\nשגיאה לדוגמה:\n' + res.errors[0] : ''));
+      if (res.failed) U.toast('נשלחו ' + (res.sent || 0) + ' · נכשלו ' + res.failed + ((res.errors && res.errors.length) ? ' — ' + res.errors[0] : ''), 'error');
+      else U.toast('נשלחו ' + (res.sent || 0) + ' הודעות SMS');
     }).catch(function (e) {
-      alert('✗ שגיאה בשליחה: ' + ((e && e.message) ? e.message : e));
+      U.toast('שגיאה בשליחה: ' + ((e && e.message) ? e.message : e), 'error');
     });
   }
 
@@ -1267,9 +1282,9 @@
     Store.save(); App.render();
     var unfilled = siteSlots.filter(function (sl) { return sl.remaining > 0; }).length;
     var unassigned = teams.length - proposals.length;
-    alert('שובצו ' + proposals.length + ' צוותים אוטומטית.' +
-      (unfilled ? '\n⚠ ' + unfilled + ' אתרים עדיין חסרים עובדים.' : '') +
-      (unassigned > 0 ? '\n' + unassigned + ' צוותים לא שובצו (אין מספיק מקום).' : ''));
+    U.toast('שובצו ' + proposals.length + ' צוותים אוטומטית' +
+      (unfilled ? ' · ⚠ ' + unfilled + ' אתרים עדיין חסרים' : '') +
+      (unassigned > 0 ? ' · ' + unassigned + ' צוותים לא שובצו' : ''), unfilled ? 'info' : 'success');
   }
 
   global.DailyView = { render: render };

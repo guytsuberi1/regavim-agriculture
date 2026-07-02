@@ -120,6 +120,7 @@
     }
     // שמירה אוטומטית: ענן > קובץ OneDrive מקומי
     if (cloudMode && !applyingRemote) {
+      setStatus('שומר…');
       if (saveTimer) clearTimeout(saveTimer);
       saveTimer = setTimeout(cloudSave, 500);
     } else if (fileHandle) {
@@ -329,7 +330,13 @@
   var statusEl = null;
   function setStatus(msg) {
     if (!statusEl) statusEl = document.getElementById('saveStatus');
-    if (statusEl) statusEl.textContent = msg;
+    if (!statusEl) return;
+    // יצירת span חדש בכל עדכון — מפעיל מחדש את אנימציית ההבהוב (חיווי "נשמר" חי)
+    statusEl.innerHTML = '';
+    var span = document.createElement('span');
+    span.className = 'flash';
+    span.textContent = msg;
+    statusEl.appendChild(span);
   }
 
   // אימוץ אובייקט נתונים שלם (לטעינה אוטומטית מ-data.json בהפעלה ראשונה)
@@ -383,17 +390,27 @@
     var errEl = document.getElementById('loginErr');
     function doLogin() {
       var email = (emailEl.value || '').trim(), pass = passEl.value || '';
+      if (!email || !pass) { if (errEl) errEl.textContent = 'נא למלא אימייל וסיסמה'; return; }
       if (errEl) errEl.textContent = '';
-      if (btn) { btn.disabled = true; btn.textContent = 'מתחבר...'; }
+      if (btn) { btn.disabled = true; btn.innerHTML = '<span class="btn-spin"></span>מתחבר…'; }
       sb.auth.signInWithPassword({ email: email, password: pass }).then(function (res) {
         if (btn) { btn.disabled = false; btn.textContent = 'כניסה'; }
-        if (res.error) { if (errEl) errEl.textContent = 'התחברות נכשלה — בדקו אימייל/סיסמה'; return; }
+        if (res.error) { if (errEl) errEl.textContent = 'אימייל או סיסמה שגויים — נסו שוב'; if (passEl) { passEl.value = ''; passEl.focus(); } return; }
         setSessionUser(res.data && res.data.user);
         cloudStart(cb);
       });
     }
     if (btn) btn.onclick = doLogin;
     if (passEl) passEl.onkeydown = function (e) { if (e.key === 'Enter') doLogin(); };
+    if (emailEl) emailEl.onkeydown = function (e) { if (e.key === 'Enter') { passEl && passEl.focus(); } };
+    // עין להצגת/הסתרת הסיסמה
+    var eye = document.getElementById('passEye');
+    if (eye && passEl) eye.onclick = function () {
+      var show = passEl.type === 'password';
+      passEl.type = show ? 'text' : 'password';
+      eye.textContent = show ? '🙈' : '👁️';
+      passEl.focus();
+    };
   }
 
   function userInitials(u) {

@@ -139,7 +139,13 @@
     root.appendChild(U.el('h3', { style: 'color:var(--green-dark);margin:6px 0;', text: 'טבלה מסכמת' }));
     var aggs = allAggs.filter(aggPassesFilter).sort(function (a, b) { return b.balance - a.balance; });
     if (!aggs.length) {
-      root.appendChild(U.el('div', { class: 'card empty' }, 'אין חובות להצגה. הוסיפו "חוב חדש" או ייבאו נתוני פתיחה.'));
+      root.appendChild(U.el('div', { class: 'card empty' }, [
+        U.el('div', { text: 'אין חובות להצגה.' }),
+        U.el('div', { class: 'empty-actions' }, [
+          U.el('button', { class: 'btn', onclick: function () { openRecord(null, ''); } }, '+ חוב חדש'),
+          U.el('button', { class: 'btn secondary', onclick: importDebtsExcel }, '📥 ייבוא מאקסל')
+        ])
+      ]));
     } else {
       var shownTotal = 0;
       var tbody = U.el('tbody');
@@ -402,10 +408,16 @@
 
   function deleteRecord(rec) {
     var s = siteOf(rec.siteId);
-    if (!confirm('למחוק את כרטיס החוב של "' + s.name + '" (' + money(recordBalance(rec)) + ')? כל התנועות שלו יימחקו.')) return;
-    entriesForRecord(rec.id).forEach(function (e) { Store.remove('debtEntries', e.id); });
-    Store.remove('debtRecords', rec.id);
-    App.render();
+    Modal.confirm({
+      title: 'מחיקת כרטיס חוב',
+      text: 'למחוק את כרטיס החוב של "' + s.name + '" (' + money(recordBalance(rec)) + ')?\nכל התנועות שלו יימחקו.',
+      okLabel: 'מחק', danger: true
+    }, function () {
+      entriesForRecord(rec.id).forEach(function (e) { Store.remove('debtEntries', e.id); });
+      Store.remove('debtRecords', rec.id);
+      App.render();
+      U.toast('כרטיס החוב נמחק');
+    });
   }
 
   // ---------- מודאל תנועה (תשלום/חיוב/זיכוי) ----------
@@ -605,7 +617,7 @@
     });
     var res = commitDebtObjs(objs);
     App.render();
-    alert('הייבוא הושלם: ' + res.added + ' חובות' + (res.created ? ', ' + res.created + ' אתרים חדשים נוצרו' : '') + '.');
+    U.toast('הייבוא הושלם: ' + res.added + ' חובות' + (res.created ? ' · ' + res.created + ' אתרים חדשים' : ''));
   }
 
   // יצירת רשומות-חוב מתוך אובייקטים מנורמלים (משותף לאקסל ול-PDF). ללא confirm/alert.
@@ -740,7 +752,7 @@
         });
         var res = commitDebtObjs(objs);
         close(); App.render();
-        alert('הייבוא הושלם: ' + res.added + ' חובות' + (res.created ? ', ' + res.created + ' אתרים חדשים נוצרו' : '') + '.');
+        U.toast('הייבוא הושלם: ' + res.added + ' חובות' + (res.created ? ' · ' + res.created + ' אתרים חדשים' : ''));
       } }
     ]);
   }

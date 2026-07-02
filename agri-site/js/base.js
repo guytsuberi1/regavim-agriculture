@@ -177,10 +177,12 @@
 
   // העברה לארכיון / שחזור — שומר את כל המידע ההיסטורי (לא מוחק)
   function archive(item) {
-    if (!confirm('להעביר את "' + item.name + '" לארכיון? המידע יישמר וניתן לשחזר.')) return;
-    item.active = false; Store.save(); App.render();
+    Modal.confirm({ title: 'העברה לארכיון', text: 'להעביר את "' + item.name + '" לארכיון?\nהמידע יישמר וניתן לשחזר בכל רגע.', okLabel: 'העבר לארכיון' }, function () {
+      item.active = false; Store.save(); App.render();
+      U.toast('"' + item.name + '" הועבר לארכיון');
+    });
   }
-  function restore(item) { item.active = true; Store.save(); App.render(); }
+  function restore(item) { item.active = true; Store.save(); App.render(); U.toast('"' + item.name + '" שוחזר מהארכיון'); }
 
   // מילוי חד-פעמי של "כיתה" לתלמידים קיימים לפי השכבה שלהם (ט→ט1). ממלא רק כיתות ריקות.
   function fillClassFromGrade() {
@@ -188,11 +190,12 @@
     var targets = students.filter(function (s) {
       return s.active !== false && s.grade && !(s.className && String(s.className).trim());
     });
-    if (!targets.length) { alert('אין תלמידים למילוי — לכולם כבר יש כיתה, או שאין להם שכבה.'); return; }
-    if (!confirm('למלא כיתה ל-' + targets.length + ' תלמידים לפי השכבה שלהם?\n(ט→ט1, י→י1, יא→יא1, יב→יב1)\nניתן לשנות ידנית אחר כך (ט2 וכו\').')) return;
-    targets.forEach(function (s) { s.className = s.grade + '1'; });
-    Store.save(); App.render();
-    alert('מולאו ' + targets.length + ' כיתות. עדכנו ידנית תלמידים שצריכים כיתה אחרת.');
+    if (!targets.length) { U.toast('אין תלמידים למילוי — לכולם כבר יש כיתה, או שאין להם שכבה.', 'info'); return; }
+    Modal.confirm({ title: 'מילוי כיתה לפי שכבה', text: 'למלא כיתה ל-' + targets.length + ' תלמידים לפי השכבה שלהם?\n(ט→ט1, י→י1, יא→יא1, יב→יב1)\nניתן לשנות ידנית אחר כך (ט2 וכו\').', okLabel: 'מלא' }, function () {
+      targets.forEach(function (s) { s.className = s.grade + '1'; });
+      Store.save(); App.render();
+      U.toast('מולאו ' + targets.length + ' כיתות — עדכנו ידנית את מי שבכיתה אחרת');
+    });
   }
 
   // ---------- כרטיס תלמיד מהיר (#19) ----------

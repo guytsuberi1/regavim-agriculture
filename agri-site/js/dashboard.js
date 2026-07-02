@@ -150,10 +150,10 @@
       (noPhone.length ? '\n(' + noPhone.length + ' ללא טלפון יידלגו)' : '') +
       '\n\n⚠️ שליחת SMS עולה כסף בחשבון 019.')) return;
     Store.sendSms(messages).then(function (res) {
-      alert('✓ נשלחו: ' + (res.sent || 0) + ' · נכשלו: ' + (res.failed || 0) +
-        ((res.errors && res.errors.length) ? '\n\nשגיאה לדוגמה:\n' + res.errors[0] : ''));
+      if (res.failed) U.toast('נשלחו ' + (res.sent || 0) + ' · נכשלו ' + res.failed + ((res.errors && res.errors.length) ? ' — ' + res.errors[0] : ''), 'error');
+      else U.toast('נשלחו ' + (res.sent || 0) + ' תזכורות למחנכים');
     }).catch(function (e) {
-      alert('✗ שגיאה בשליחה: ' + ((e && e.message) ? e.message : e));
+      U.toast('שגיאה בשליחה: ' + ((e && e.message) ? e.message : e), 'error');
     });
   }
 
