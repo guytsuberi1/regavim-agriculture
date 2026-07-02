@@ -303,14 +303,23 @@
 
   // ---------- סיכום יומי (תכנון מול ביצוע, לפי אתרים) ----------
   function renderDaily(root) {
-    var dInp = U.el('input', { type: 'date', value: dashDate });
+    // צ'יפ תאריך יחיד (בעיצוב מבט-על) — לחיצה פותחת את בורר התאריך
+    var dInp = U.el('input', { type: 'date', value: dashDate, class: 'chip-date-input' });
     dInp.addEventListener('change', function () { if (dInp.value) { dashDate = dInp.value; App.render(); } });
+    var dateChip = U.el('span', { class: 'range-chip', style: 'cursor:pointer;', title: 'לחצו לבחירת תאריך' }, [
+      U.el('span', { class: 'rc-ic', text: '📅' }),
+      U.el('span', { text: U.weekdayName(dashDate) + ' · ' + U.gregLabel(dashDate) + ' · ' + dashDate.slice(0, 4) }),
+      dInp
+    ]);
+    dateChip.addEventListener('click', function () {
+      try { if (dInp.showPicker) { dInp.showPicker(); return; } } catch (e) {}
+      dInp.click();
+    });
     root.appendChild(U.el('div', { style: 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;' }, [
       U.el('button', { class: 'btn secondary small', onclick: function () { dashDate = U.addDays(dashDate, -1); App.render(); } }, '→ אתמול'),
-      dInp,
+      dateChip,
       U.el('button', { class: 'btn secondary small', onclick: function () { dashDate = U.addDays(dashDate, 1); App.render(); } }, 'מחר ←'),
       U.el('button', { class: 'btn secondary small', onclick: function () { dashDate = U.todayISO(); App.render(); } }, 'היום'),
-      U.el('span', { class: 'tag', text: U.weekdayName(dashDate) + ' · ' + U.gregLabel(dashDate) }),
       U.el('div', { class: 'spacer' }),
       U.el('a', { class: 'btn small ico', href: 'https://wa.me/?text=' + encodeURIComponent(dailyAttentionMessage()), target: '_blank', rel: 'noopener', style: 'background:#25D366;color:#fff;border:0;', title: 'שליחת סיכום היום בוואטסאפ', html: U.WA_SVG }),
       U.el('button', { class: 'btn small', title: 'שליחת SMS למחנכים למילוי הנעדרים היומיים', onclick: sendHomeroomReminder }, '📩 תזכורת למחנכים')
