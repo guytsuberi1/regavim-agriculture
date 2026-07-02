@@ -478,6 +478,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 /* דרישת תשלום: שורת סה"כ דביקה, סימון דריסה ידנית, כרטיסים מתקפלים */
 tr.total-row td { position: sticky; bottom: 0; background: #EFE6DB; z-index: 2; box-shadow: 0 -2px 5px rgba(0,0,0,.10); }
 input.overridden { border-color: #d97706 !important; background: #fff7ed; box-shadow: 0 0 0 1px #f6c98a inset; }
+tr.detail-total td { background: #f4f0e8; border-top: 2px solid #d9cfbc; }
 .bill-head { cursor: pointer; user-select: none; }
 .bill-head:hover h3 { color: var(--green-dark); }
 .bill-chev { color: var(--muted); font-size: 13px; transition: transform .18s; transform: rotate(-90deg); }

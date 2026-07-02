@@ -84,8 +84,12 @@
       var t = siteTotals(bySite[id], curMonth);
       grandTotal += t.total;
       var s = bySite[id].site || { name: '(אתר נמחק)' };
+      var nameBtn = U.el('button', {
+        class: 'btn small secondary', style: 'font-weight:600;', title: 'מעבר לפירוט של ' + s.name,
+        onclick: function () { openSiteDetail(id); }
+      }, s.name);
       return U.el('tr', null, [
-        U.el('td', { text: s.name }),
+        U.el('td', null, [nameBtn]),
         U.el('td', { text: s.location || '' }),
         U.el('td', { text: [s.contactName, s.phone].filter(Boolean).join(' ') }),
         U.el('td', { class: 'center', text: t.days }),
@@ -160,16 +164,27 @@
       ]);
     });
 
+    // שורה מסכמת בסוף הטבלה
+    var sumWorkers = 0;
+    Object.keys(entry.days).forEach(function (iso) {
+      sumWorkers += effective(entry.days[iso], adjAll[iso]).workers;
+    });
+    rows.push(U.el('tr', { class: 'detail-total' }, [
+      U.el('td', { html: '<b>סה"כ (' + t.days + ' ימים)</b>' }),
+      U.el('td', { class: 'center', html: '<b>' + sumWorkers + '</b>' }),
+      U.el('td'),
+      U.el('td', { class: 'center', html: '<b>' + t.totHours + '</b>' }),
+      U.el('td', { class: 'center', text: t.rate }),
+      U.el('td', { class: 'center', html: '<b>' + Math.round(t.travelTot) + '</b>' }),
+      U.el('td', { class: 'center', html: t.discount ? '<b>' + Math.round(t.discount) + '</b>' : '' }),
+      U.el('td', { class: 'center', html: '<b>' + Math.round(t.total) + ' ₪</b>' }),
+      U.el('td', { text: t.discountNote || '' })
+    ]));
+
     var table = U.el('table', { class: 'grid' }, [
       U.el('thead', null, [U.el('tr', null, ['תאריך', 'כמות עובדים', 'מס\' שעות', 'סה"כ שעות', 'שכר שעתי', 'עלות נסיעות', 'הנחה', 'סה"כ יומי', 'הערה'].map(function (h) { return U.el('th', { text: h }); }))]),
       U.el('tbody', null, rows)
     ]);
-
-    var info = U.el('div', { class: 'muted', style: 'margin:4px 0 8px;' },
-      'תעריף שעתי: ' + t.rate + ' ₪ · נסיעות: ' + t.travelPay + ' ₪ · ' +
-      'תשלום עבודה: ' + Math.round(t.workPay) + ' ₪ · נסיעות: ' + Math.round(t.travelTot) + ' ₪' +
-      (t.discount ? ' · הנחה: ' + Math.round(t.discount) + ' ₪' : '') +
-      ' · סה"כ: ' + Math.round(t.total) + ' ₪');
 
     // הנחה כללית לחודש (אופציונלי) + הערה — בנוסף להנחות היומיות שבטבלה
     var discInp = U.el('input', { type: 'number', value: adjAll._discount || '', placeholder: '0', style: 'width:90px;' });
@@ -186,10 +201,11 @@
     }, '⬇ ייצוא פירוט אישי');
     var wn = waNumber(s.phone);
     var waBtn = U.el('a', {
-      class: 'btn small no-print', target: '_blank', rel: 'noopener',
+      class: 'btn small ico no-print', target: '_blank', rel: 'noopener',
       href: (wn ? 'https://wa.me/' + wn : 'https://wa.me/') + '?text=' + encodeURIComponent(waSiteMessage(s, t)),
-      style: 'background:#25D366;color:#fff;border:0;', title: 'שליחת סיכום החודש לחקלאי בוואטסאפ' + (wn ? '' : ' (אין מספר — בחרו ידנית)')
-    }, '💬 וואטסאפ');
+      style: 'background:#25D366;color:#fff;border:0;', title: 'שליחת סיכום החודש לחקלאי בוואטסאפ' + (wn ? '' : ' (אין מספר — בחרו ידנית)'),
+      html: U.WA_SVG
+    });
     // עצירת התפשטות — לחיצה על הכפתורים לא תקפל/תפתח את הכרטיס
     [exportBtn, waBtn].forEach(function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); }); });
 
@@ -206,8 +222,16 @@
       App.render();
     });
 
-    var bodyWrap = U.el('div', { style: (isOpen ? 'margin-top:8px;' : 'display:none;') }, [info, table, discRow]);
-    return U.el('div', { class: 'card', style: 'margin-bottom:12px;' }, [cardHead, bodyWrap]);
+    var bodyWrap = U.el('div', { style: (isOpen ? 'margin-top:8px;' : 'display:none;') }, [table, discRow]);
+    return U.el('div', { class: 'card', style: 'margin-bottom:12px;', id: 'bill-site-' + id }, [cardHead, bodyWrap]);
+  }
+
+  // קפיצה מהטבלה המסכמת אל כרטיס הפירוט של האתר + פתיחתו
+  function openSiteDetail(id) {
+    expandedSites[id] = true;
+    App.render();
+    var el = document.getElementById('bill-site-' + id);
+    if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   function setAdj(siteId, iso, field, value) {
