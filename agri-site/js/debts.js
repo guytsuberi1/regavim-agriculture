@@ -55,11 +55,11 @@
     });
   }
 
-  // צבע יתרה: ירוק=שולם/אפס · אדום=חוב · אדום כהה=חוב גבוה · כחול=זכות
+  // צבע יתרה — רמזור מדורג: ירוק=שולם/אפס · כתום=חוב · אדום בוהק=חוב גבוה · כחול=זכות
   function balStyle(bal) {
     if (Math.abs(bal) < 0.005) return 'color:#15803d;';
-    if (bal >= 5000) return 'color:#7f1d1d;';
-    if (bal > 0) return 'color:#dc2626;';
+    if (bal >= 5000) return 'color:#dc2626;background:#fee2e2;padding:1px 8px;border-radius:8px;';
+    if (bal > 0) return 'color:#b45309;';
     return 'color:#2563eb;';
   }
 
