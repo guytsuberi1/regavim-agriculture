@@ -372,6 +372,9 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
 .trend-bar.cur { background: var(--green); }
 .trend-val { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .trend-lbl { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.trend-val.cur, .trend-lbl.cur { color: var(--green-dark); font-weight: 700; }
+.trend-col { cursor: default; }
+.trend-col:hover .trend-bar { filter: brightness(0.9); }
 .kpi-good   { --kpi-c: #16a34a; --kpi-bg: #dcfce7; }
 .kpi-bad    { --kpi-c: #dc2626; --kpi-bg: #fee2e2; }
 .kpi-warn   { --kpi-c: #d97706; --kpi-bg: #fef3c7; }
@@ -565,4 +568,15 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .totbar .t { flex: 1 1 100%; }
   .week-grid { grid-auto-columns: 88%; }
   .month-grid { grid-auto-columns: 70%; }
+}
+
+/* דשבורד קומפקטי בנייד — כרטיסי KPI בחצי גובה, בלי אייקון וכיתוב-משנה */
+@media (max-width: 640px) {
+  .kpi { padding: 10px 12px; gap: 0; }
+  .kpi-ic { display: none; }
+  .kpi-sub { display: none; }
+  .kpi-val { font-size: 19px; }
+  .kpi-lbl { font-size: 11.5px; margin-top: 2px; }
+  .kpi-badge { font-size: 10px; padding: 1px 6px; }
+  .dash-sec { margin: 12px 0 6px; font-size: 13px; }
 }

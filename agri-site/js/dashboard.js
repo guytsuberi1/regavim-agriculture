@@ -165,12 +165,30 @@
     if (Math.abs(pct) < 0.5) return { txt: '≈', cls: 'flat' };
     return { txt: (pct > 0 ? '+' : '') + Math.round(pct) + '%', cls: pct > 0 ? 'up' : 'down' };
   }
-  function kpi(icon, value, label, tone, sub, badge) {
+  // אנימציית "ספירה" קצרה לערך מספרי (מכבדת prefers-reduced-motion)
+  function animateVal(el, val, fmt) {
+    var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduced || !val) { el.textContent = fmt(val); return; }
+    var dur = 650, t0 = null;
+    function frame(ts) {
+      if (!t0) t0 = ts;
+      var p = Math.min(1, (ts - t0) / dur);
+      var e = 1 - Math.pow(1 - p, 3); // ease-out
+      el.textContent = fmt(val * e);
+      if (p < 1) requestAnimationFrame(frame);
+      else el.textContent = fmt(val);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function kpi(icon, value, label, tone, sub, badge, anim) {
+    var valEl = U.el('div', { class: 'kpi-val', text: String(value) });
+    if (anim && typeof anim.val === 'number' && isFinite(anim.val)) animateVal(valEl, anim.val, anim.fmt);
     return U.el('div', { class: 'kpi kpi-' + (tone || 'neutral') }, [
       U.el('div', { class: 'kpi-ic', text: icon }),
       U.el('div', { class: 'kpi-body' }, [
         U.el('div', { class: 'kpi-row' }, [
-          U.el('div', { class: 'kpi-val', text: String(value) }),
+          valEl,
           badge ? U.el('span', { class: 'kpi-badge ' + badge.cls, text: badge.txt }) : null
         ]),
         U.el('div', { class: 'kpi-lbl', text: label }),
@@ -184,7 +202,8 @@
     if (invert && badge && (badge.cls === 'up' || badge.cls === 'down')) badge.cls = (badge.cls === 'up' ? 'down' : 'up');
     // אין תקופה קודמת (null או 0 נתונים) — בלי כיתוב "היה..." ובלי באדג'
     var sub = (prev == null || prev === 0) ? null : ('היה ' + fmt(prev) + ' ' + prevWord());
-    return kpi(icon, cur == null ? '—' : fmt(cur), label, tone, sub, badge);
+    var anim = (typeof cur === 'number' && isFinite(cur)) ? { val: cur, fmt: fmt } : null;
+    return kpi(icon, cur == null ? '—' : fmt(cur), label, tone, sub, badge, anim);
   }
   function panel(title, bodyNode, extraClass) {
     return U.el('section', { class: 'dash-panel ' + (extraClass || '') }, [
@@ -205,10 +224,11 @@
     var max = Math.max(1, Math.max.apply(null, values.map(function (v) { return v.val || 0; })));
     return U.el('div', { class: 'trend' }, values.map(function (v, i) {
       var h = Math.max(2, (v.val || 0) / max * 100);
-      return U.el('div', { class: 'trend-col' }, [
-        U.el('div', { class: 'trend-val', text: fmt(v.val || 0) }),
-        U.el('div', { class: 'trend-bar' + (i === values.length - 1 ? ' cur' : ''), style: 'height:' + h.toFixed(0) + '%;' }),
-        U.el('div', { class: 'trend-lbl', text: v.label })
+      var isCur = i === values.length - 1;
+      return U.el('div', { class: 'trend-col', title: v.label + ': ' + fmt(v.val || 0) }, [
+        U.el('div', { class: 'trend-val' + (isCur ? ' cur' : ''), text: fmt(v.val || 0) }),
+        U.el('div', { class: 'trend-bar' + (isCur ? ' cur' : ''), style: 'height:' + h.toFixed(0) + '%;' }),
+        U.el('div', { class: 'trend-lbl' + (isCur ? ' cur' : ''), text: v.label })
       ]);
     }));
   }
@@ -455,9 +475,9 @@
     var collected = global.DebtUtil ? DebtUtil.totalCollected() : 0;
 
     root.appendChild(U.el('div', { class: 'kpi-grid' }, [
-      kpi('💵', money(totalIncome), 'סה"כ הכנסות (חיוב, מצטבר)', 'good'),
-      kpi('✅', money(collected), 'סה"כ נגבה', 'info'),
-      kpi('🧮', money(totalDebt), 'יתרת גבייה צפויה (חובות פתוחים)', totalDebt > 0 ? 'warn' : 'good')
+      kpi('💵', money(totalIncome), 'סה"כ הכנסות (חיוב, מצטבר)', 'good', null, null, { val: totalIncome, fmt: money }),
+      kpi('✅', money(collected), 'סה"כ נגבה', 'info', null, null, { val: collected, fmt: money }),
+      kpi('🧮', money(totalDebt), 'יתרת גבייה צפויה (חובות פתוחים)', totalDebt > 0 ? 'warn' : 'good', null, null, { val: totalDebt, fmt: money })
     ]));
 
     var sitesIncome = Object.keys(billed).map(function (id) {
