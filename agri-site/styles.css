@@ -475,6 +475,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .stu-report { background: #fff; padding: 16px; border-radius: 12px; }
 .stu-report-title { text-align: center; margin-bottom: 12px; }
 
+/* דרישת תשלום: שורת סה"כ דביקה, סימון דריסה ידנית, כרטיסים מתקפלים */
+tr.total-row td { position: sticky; bottom: 0; background: #EFE6DB; z-index: 2; box-shadow: 0 -2px 5px rgba(0,0,0,.10); }
+input.overridden { border-color: #d97706 !important; background: #fff7ed; box-shadow: 0 0 0 1px #f6c98a inset; }
+.bill-head { cursor: pointer; user-select: none; }
+.bill-head:hover h3 { color: var(--green-dark); }
+.bill-chev { color: var(--muted); font-size: 13px; transition: transform .18s; transform: rotate(-90deg); }
+.bill-chev.open { transform: rotate(0deg); }
+
 /* חיווי חוסרים בכרטיס אתר (סידור יומי) */
 .sc-warn { color: #b91c1c; background: #fee2e2; border-radius: 6px; padding: 2px 8px; font-size: 12px; font-weight: 600; margin-top: 4px; display: inline-block; }
 

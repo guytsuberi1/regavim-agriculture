@@ -3,6 +3,7 @@
   'use strict';
   var U = global.U;
   var curMonth = U.monthKey(U.todayISO());
+  var expandedSites = {}; // כרטיסי פירוט פתוחים (ברירת מחדל: מכווץ) — נשמר בין רינדורים
 
   // אגרגציה: לכל אתר, רשימת ימים בחודש עם כמות עובדים/שעות/נסיעות
   function computeMonth(mk) {
@@ -96,7 +97,7 @@
         U.el('td', { class: 'center', html: '<b>' + Math.round(t.total) + '</b>' })
       ]);
     });
-    summaryRows.push(U.el('tr', null, [
+    summaryRows.push(U.el('tr', { class: 'total-row' }, [
       U.el('td', { html: '<b>סה"כ</b>' }), U.el('td'), U.el('td'), U.el('td'), U.el('td'), U.el('td'), U.el('td'), U.el('td'), U.el('td'),
       U.el('td', { class: 'center', html: '<b>' + Math.round(grandTotal) + ' ₪</b>' })
     ]));
@@ -129,9 +130,17 @@
       var dayDisc = U.num(adj.discount);
       var dayTotal = th * t.rate + dayTravel - dayDisc;
 
-      var wInp = U.el('input', { type: 'number', value: adj.workersOverride !== undefined && adj.workersOverride !== '' ? adj.workersOverride : dd.workers, style: 'width:60px;' });
+      var wOver = adj.workersOverride !== undefined && adj.workersOverride !== '' && U.num(adj.workersOverride) !== dd.workers;
+      var wInp = U.el('input', {
+        type: 'number', value: adj.workersOverride !== undefined && adj.workersOverride !== '' ? adj.workersOverride : dd.workers,
+        style: 'width:60px;', class: (wOver ? 'overridden' : ''), title: (wOver ? 'עודכן ידנית (מקורי: ' + dd.workers + ')' : '')
+      });
       wInp.addEventListener('change', function () { setAdj(id, iso, 'workersOverride', wInp.value); App.render(); });
-      var hInp = U.el('input', { type: 'number', step: '0.5', value: adj.hoursOverride !== undefined && adj.hoursOverride !== '' ? adj.hoursOverride : dd.hours, style: 'width:60px;' });
+      var hOver = adj.hoursOverride !== undefined && adj.hoursOverride !== '' && U.num(adj.hoursOverride) !== U.num(dd.hours);
+      var hInp = U.el('input', {
+        type: 'number', step: '0.5', value: adj.hoursOverride !== undefined && adj.hoursOverride !== '' ? adj.hoursOverride : dd.hours,
+        style: 'width:60px;', class: (hOver ? 'overridden' : ''), title: (hOver ? 'עודכן ידנית (מקורי: ' + dd.hours + ')' : '')
+      });
       hInp.addEventListener('change', function () { setAdj(id, iso, 'hoursOverride', hInp.value); App.render(); });
       var discInpDay = U.el('input', { type: 'number', value: adj.discount !== undefined && adj.discount !== '' ? adj.discount : '', placeholder: '0', style: 'width:70px;', title: 'הנחה ליום זה (₪)' });
       discInpDay.addEventListener('change', function () { setAdj(id, iso, 'discount', discInpDay.value); App.render(); });
@@ -181,14 +190,24 @@
       href: (wn ? 'https://wa.me/' + wn : 'https://wa.me/') + '?text=' + encodeURIComponent(waSiteMessage(s, t)),
       style: 'background:#25D366;color:#fff;border:0;', title: 'שליחת סיכום החודש לחקלאי בוואטסאפ' + (wn ? '' : ' (אין מספר — בחרו ידנית)')
     }, '💬 וואטסאפ');
-    var cardHead = U.el('div', { style: 'display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px;' }, [
+    // עצירת התפשטות — לחיצה על הכפתורים לא תקפל/תפתח את הכרטיס
+    [exportBtn, waBtn].forEach(function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); }); });
+
+    var isOpen = !!expandedSites[id];
+    var chev = U.el('span', { class: 'bill-chev' + (isOpen ? ' open' : ''), text: '▾' });
+    var cardHead = U.el('div', { class: 'bill-head', style: 'display:flex;align-items:center;gap:10px;flex-wrap:wrap;' }, [
+      chev,
       U.el('h3', { style: 'margin:0;flex:1;', text: s.name + (s.location ? ' · ' + s.location : '') }),
+      U.el('span', { class: 'tag', style: 'font-weight:700;', text: t.days + ' ימים · ' + Math.round(t.total) + ' ₪' }),
       waBtn, exportBtn
     ]);
+    cardHead.addEventListener('click', function () {
+      expandedSites[id] = !expandedSites[id];
+      App.render();
+    });
 
-    return U.el('div', { class: 'card', style: 'margin-bottom:16px;' }, [
-      cardHead, info, table, discRow
-    ]);
+    var bodyWrap = U.el('div', { style: (isOpen ? 'margin-top:8px;' : 'display:none;') }, [info, table, discRow]);
+    return U.el('div', { class: 'card', style: 'margin-bottom:12px;' }, [cardHead, bodyWrap]);
   }
 
   function setAdj(siteId, iso, field, value) {
