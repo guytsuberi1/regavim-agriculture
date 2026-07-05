@@ -139,7 +139,7 @@
       // אם אין י"ב/י"א פנויים, נאפשר כל תלמיד פנוי
       candidates = (Store.get().students || []).filter(function (s) { return s.active !== false && !isInAnyTeam(s.id); });
     }
-    if (!candidates.length) { alert('אין תלמידים פנויים לשמש כראש צוות.'); return; }
+    if (!candidates.length) { U.toast('אין תלמידים פנויים לשמש כראש צוות.', 'info'); return; }
 
     var sel = U.el('select', { style: 'width:100%;' }, candidates.map(function (s) {
       return U.el('option', { value: s.id }, s.name + (s.grade ? ' · ' + s.grade : ''));
@@ -157,9 +157,15 @@
   }
 
   function deleteTeam(team) {
-    if (!confirm('למחוק את הצוות "' + teamLabel(team) + '"? (התלמידים עצמם לא יימחקו)')) return;
-    Store.remove('teams', team.id);
-    App.render();
+    Modal.confirm({
+      title: 'מחיקת צוות',
+      text: 'למחוק את הצוות "' + teamLabel(team) + '"?\n(התלמידים עצמם לא יימחקו)',
+      okLabel: 'מחק', danger: true
+    }, function () {
+      Store.remove('teams', team.id);
+      App.render();
+      U.toast('הצוות נמחק');
+    });
   }
 
   // העברת תלמיד (חבר) מצוות לצוות בגרירה
@@ -169,7 +175,7 @@
     // אי אפשר לגרור ראש צוות
     for (var i = 0; i < teams.length; i++) {
       if (teams[i].leaderStudentId === studentId) {
-        alert('לא ניתן לגרור ראש צוות. כדי לשנות ראש צוות — צרו או מחקו צוות.');
+        U.toast('לא ניתן לגרור ראש צוות — צרו או מחקו צוות.', 'info');
         return;
       }
     }

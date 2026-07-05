@@ -134,7 +134,7 @@
         roleSel.value = cur;
         roleSel.addEventListener('change', function () {
           Store.setUserRole(email, roleSel.value);
-          if (email === Store.currentEmail()) { alert('שינית את ההרשאה של עצמך. המסך ייטען מחדש.'); location.reload(); return; }
+          if (email === Store.currentEmail()) { U.toast('שינית את ההרשאה של עצמך — המסך נטען מחדש…', 'info'); setTimeout(function () { location.reload(); }, 1200); return; }
           App.render();
         });
         roleCell.appendChild(roleSel);

@@ -276,7 +276,7 @@
   function exportExcel() {
     var bySite = computeMonth(curMonth);
     var siteIds = Object.keys(bySite);
-    if (!siteIds.length) { alert('אין נתונים לייצוא בחודש זה.'); return; }
+    if (!siteIds.length) { U.toast('אין נתונים לייצוא בחודש זה.', 'info'); return; }
     var wb = XLSX.utils.book_new();
     wb.Workbook = { Views: [{ RTL: true }] }; // כל הגיליונות נפתחים מימין לשמאל
 
@@ -382,7 +382,7 @@
   // ---------- ייצוא פירוט אישי לחקלאי בודד (לשליחה אישית) ----------
   function exportSiteExcel(id) {
     var bySite = computeMonth(curMonth);
-    if (!bySite[id]) { alert('אין נתוני עבודה לחקלאי זה בחודש הנבחר.'); return; }
+    if (!bySite[id]) { U.toast('אין נתוני עבודה לחקלאי זה בחודש הנבחר.', 'info'); return; }
     var wb = XLSX.utils.book_new();
     wb.Workbook = { Views: [{ RTL: true }] };
     appendFarmerSheet(wb, id, bySite[id], {});

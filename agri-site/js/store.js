@@ -116,7 +116,7 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch (e) {
       console.error('save failed', e);
-      alert('שגיאה בשמירה מקומית: ' + e.message);
+      if (global.U && U.toast) U.toast('שגיאה בשמירה מקומית: ' + e.message, 'error');
     }
     // שמירה אוטומטית: ענן > קובץ OneDrive מקומי
     if (cloudMode && !applyingRemote) {
@@ -291,7 +291,7 @@
 
   function connectFile() {
     if (!fsSupported()) {
-      alert('הדפדפן לא תומך בחיבור אוטומטי לקובץ. השתמשו בכפתורי גיבוי/טעינה ידניים.');
+      if (global.U && U.toast) U.toast('הדפדפן לא תומך בחיבור אוטומטי לקובץ — השתמשו בגיבוי/טעינה ידניים.', 'error');
       return Promise.reject();
     }
     return global.showSaveFilePicker({
@@ -307,7 +307,7 @@
 
   function openExistingFile() {
     if (!fsSupported()) {
-      alert('הדפדפן לא תומך בפתיחת קובץ אוטומטית. השתמשו בכפתור "טעינת גיבוי".');
+      if (global.U && U.toast) U.toast('הדפדפן לא תומך בפתיחת קובץ אוטומטית — השתמשו ב"טעינת גיבוי".', 'error');
       return Promise.reject();
     }
     return global.showOpenFilePicker({

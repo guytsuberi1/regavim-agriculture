@@ -412,7 +412,7 @@
       { label: 'ביטול', class: 'secondary' },
       { label: 'שמירה', onClick: function (close) {
         var siteId = siteSel.value;
-        if (!siteId) { alert('יש לבחור אתר.'); return; }
+        if (!siteId) { U.toast('יש לבחור אתר.', 'error'); return; }
         var out = {
           id: rec ? rec.id : undefined,
           siteId: siteId,
@@ -477,7 +477,7 @@
       { label: 'ביטול', class: 'secondary' },
       { label: 'שמירה', onClick: function (close) {
         var amt = U.num(amtInp.value);
-        if (!amt) { alert('יש להזין סכום.'); return; }
+        if (!amt) { U.toast('יש להזין סכום.', 'error'); return; }
         Store.upsert('debtEntries', {
           recordId: recordId, siteId: siteId, kind: kindSel.value,
           amount: amt, date: dateInp.value || U.todayISO(),
@@ -509,7 +509,7 @@
   function exportExcel() {
     var map = farmerAgg();
     var aggs = Object.keys(map).map(function (k) { return map[k]; }).sort(function (a, b) { return b.balance - a.balance; });
-    if (!aggs.length) { alert('אין נתונים לייצוא.'); return; }
+    if (!aggs.length) { U.toast('אין נתונים לייצוא.', 'info'); return; }
     var wb = XLSX.utils.book_new();
     wb.Workbook = { Views: [{ RTL: true }] };
 
@@ -546,43 +546,6 @@
     XLSX.writeFile(wb, 'חובות-חקלאים-' + U.todayISO() + '.xlsx');
   }
 
-  // ---------- ייבוא נתוני פתיחה (תמלול מהגיליון) ----------
-  // הערה: התמלול מצילום מסך — מומלץ לעבור ולוודא שמות/סכומים.
-  var MIGRATION = [
-    { name: 'רשות העתיקות', contact: 'אפי', phone: '052-343-5561', amount: 106839, handledBy: 'שלמה גיא', status: 'בטיפול', year: '2025/6', note: 'תקוע בתהליך האישורים' },
-    { name: 'צביקי סטרולין כרמי יין', contact: 'צביקי סטרולין', phone: '052-796-6615', amount: 78676, handledBy: 'שלמה', status: 'בטיפול', year: '2025/6', note: 'משלם כל שנה בחודש 10 אחרי הבציר' },
-    { name: 'עצמונת תלע"ד', contact: 'מיב"צ', phone: '052-725-7868', amount: 39240, handledBy: 'שלמה גיא', status: 'בטיפול', year: '2025/6', note: 'בטיפול מול שרידים' },
-    { name: 'ליבי בניה ותשתיות בע"מ', contact: 'אליקים', phone: '', amount: 34808, handledBy: 'שלמה', status: '', year: '2025/10', note: '' },
-    { name: 'יקב בן פורת בע"מ', contact: '', phone: '052-771-0433', amount: 28408.25, handledBy: 'שלמה', status: 'בטיפול', year: '', note: '' },
-    { name: 'פרץ שמעון', contact: 'שמעון חזות', phone: '050-521-7839', amount: 22100, handledBy: 'שלמה', status: '', year: '2025', note: '' },
-    { name: 'יקב פסומה בע"מ', contact: 'משה מזין', phone: '052-720-3178', amount: 12034, handledBy: 'שלמה', status: 'בטיפול', year: '2025/6', note: '' },
-    { name: 'אספי אזולאי', contact: 'אספי', phone: '052-478-5361', amount: 11000, handledBy: 'שלמה', status: '', year: '2026', note: '' },
-    { name: 'אליהו סבג', contact: 'אליהו', phone: '058-497-0916', amount: 10880, handledBy: 'שלמה', status: '', year: '2025', note: '' },
-    { name: 'יקב גבעות בע"מ', contact: 'אליאב', phone: '050-725-0806', amount: 10710, handledBy: 'שלמה', status: 'בטיפול', year: '2025', note: '' },
-    { name: 'מקנה הרים בע"מ', contact: 'יובל', phone: '050-336-1055', amount: 9950, handledBy: 'שלמה', status: '', year: '2025/6', note: '' },
-    { name: 'ישי זייצ\'יק', contact: 'ישי', phone: '052-607-0159', amount: 9625, handledBy: 'שלמה', status: '', year: '2025/6', note: '' },
-    { name: 'גבריאל משה', contact: 'גבריאל משה', phone: '052-331-0505', amount: 5847, handledBy: 'שלמה', status: 'בטיפול', year: '2022', note: 'ישוב- פדיה' },
-    { name: 'ארץ הצבי א.ש. בע"מ', contact: 'ארז בן סעדון', phone: '052-370-5105', amount: 5164.60, handledBy: 'שלמה', status: 'בטיפול', year: '2023', note: 'יקב טווא' },
-    { name: 'גיורא ג\'- תירוש ההר', contact: 'גיורא', phone: '052-796-6598', amount: 4590, handledBy: 'שלמה', status: 'בטיפול', year: '2026', note: '' },
-    { name: 'טווא אליהו יאיר', contact: 'אלי', phone: '052-423-8084', amount: 3960, handledBy: 'שלמה', status: '', year: '2024/5', note: '' },
-    { name: 'ב.השדה חווה לחקלאות', contact: 'רועי', phone: '055-668-2063', amount: 3780, handledBy: 'שלמה', status: 'בטיפול', year: '2026', note: '' },
-    { name: 'א.נעם הנדואי וחקלאות', contact: 'אורי', phone: '050-740-5556', amount: 3430, handledBy: 'שלמה', status: '', year: '2025', note: 'ישוב- כפר רות' },
-    { name: 'כרם עלי', contact: 'אספי', phone: '050-998-9812', amount: 3028, handledBy: 'שלמה', status: '', year: '2025', note: 'ישוב- חמרה' },
-    { name: 'משק וויים מוסי', contact: 'מוסי', phone: '052-384-9426', amount: 2445, handledBy: 'שלמה', status: '', year: '', note: '' },
-    { name: 'כרמי משק אחיה בע"מ', contact: 'ידידיה ממן', phone: '058-636-6714', amount: 700, handledBy: 'שלמה', status: 'בטיפול', year: '', note: '' },
-    { name: 'משק אחיה (ידידיה ממן)', contact: 'ידידיה ממן', phone: '058-636-6714', amount: 7686, handledBy: 'גיא', status: 'חוב אבוד', year: '2019/20', note: 'טוען ששילם- לעשות חובות אבודים' },
-    { name: 'משק אחיה (ממן ידידיה)', contact: 'ידידיה ממן', phone: '058-636-6714', amount: 2100, handledBy: 'גיא', status: 'חוב אבוד', year: '2020', note: 'טוען ששילם- לעשות חובות אבודים' },
-    { name: 'צמלביץ אפרים', contact: '', phone: '', amount: 1022.70, handledBy: '', status: '', year: '2019', note: 'חוב ישן' },
-    { name: 'רבינו גידול ושיווק', contact: '', phone: '', amount: 11150, handledBy: '', status: 'פתוחה', year: '2019', note: 'לוודא מול שרי/שלנקוף' },
-    { name: 'ראם בע"מ', contact: '', phone: '', amount: 1430, handledBy: '', status: 'פתוחה', year: '2024', note: 'לוודא מול שרי החקלאי' },
-    { name: 'אתרי יודי קיי בע"מ', contact: '', phone: '', amount: 2350, handledBy: '', status: 'חוב אבוד', year: '2020', note: 'לשאול את הרב יצחק' },
-    { name: 'תיכון בישעיה', contact: '', phone: '050-264-1426', amount: 1380, handledBy: '', status: '', year: '2024', note: '' },
-    { name: 'דרור אזולאי', contact: '', phone: '', amount: 600, handledBy: '', status: 'פתוחה', year: '2025', note: 'שלמה שאל את אסף מי זה?' },
-    { name: 'עופר אברהם', contact: 'עופר', phone: '050-567-5494', amount: 30844.10, handledBy: 'שלמה והרב יצחק', status: 'תהליך הוצל"פ', year: '2022/3', note: 'יש להתקשר לקראת חודש 07' },
-    { name: 'יקב תגיא בע"מ', contact: 'יורם', phone: '', amount: 29876, handledBy: 'הרב יצחק', status: 'תהליך הוצל"פ', year: '', note: '' },
-    { name: 'עת צור', contact: 'יאיר', phone: '052-946-0181', amount: 13308.20, handledBy: 'יאיר', status: 'תהליך הוצל"פ', year: '2023/4', note: 'לטעון שלא עבדנו מספיק טוב. לערב את ישראל שלנו' },
-    { name: 'יקב הר קידה', contact: 'יאיר', phone: '052-946-0181', amount: 9322, handledBy: 'יאיר', status: 'תהליך הוצל"פ', year: '2022/3/4', note: '' }
-  ];
 
   function normName(s) { return String(s || '').replace(/["'״׳\s.\-]/g, '').replace(/בעמ$/, ''); }
 
@@ -607,14 +570,14 @@
           var wb = XLSX.read(e.target.result, { type: 'array' });
           var ws = wb.Sheets[wb.SheetNames[0]];
           importDebtRows(XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false }));
-        } catch (err) { alert('שגיאה בקריאת הקובץ: ' + (err.message || err)); }
+        } catch (err) { U.toast('שגיאה בקריאת הקובץ: ' + (err.message || err), 'error'); }
       };
       reader.readAsArrayBuffer(f);
     };
     inp.click();
   }
   function importDebtRows(rows) {
-    if (!rows || rows.length < 2) { alert('הקובץ ריק או חסר שורות נתונים.'); return; }
+    if (!rows || rows.length < 2) { U.toast('הקובץ ריק או חסר שורות נתונים.', 'error'); return; }
     var header = rows[0].map(function (h) { return String(h == null ? '' : h).trim(); });
     function colIdx(names) { for (var i = 0; i < header.length; i++) for (var j = 0; j < names.length; j++) if (header[i].indexOf(names[j]) !== -1) return i; return -1; }
     var ci = {
@@ -627,21 +590,26 @@
       handler: colIdx(['מטופל', 'מטפל']),
       note: colIdx(['הער'])
     };
-    if (ci.name < 0 || ci.amount < 0) { alert('לא נמצאו העמודות "שם עסק" ו"חוב פתיחה". הורידו את אקסל לדוגמה והשתמשו באותן כותרות.'); return; }
+    if (ci.name < 0 || ci.amount < 0) { U.toast('לא נמצאו העמודות "שם עסק" ו"חוב פתיחה". הורידו את אקסל לדוגמה והשתמשו באותן כותרות.', 'error'); return; }
     function cell(r, i) { return i >= 0 ? String(r[i] == null ? '' : r[i]).trim() : ''; }
     var data = rows.slice(1).filter(function (r) { return r && cell(r, ci.name); });
-    if (!data.length) { alert('אין שורות נתונים.'); return; }
-    if (!confirm('לייבא ' + data.length + ' חובות? אתרים שלא קיימים ייווצרו אוטומטית (כלא-פעילים).')) return;
-    var objs = data.map(function (r) {
-      return {
-        name: cell(r, ci.name), contact: cell(r, ci.contact), phone: cell(r, ci.phone),
-        amount: r[ci.amount], year: cell(r, ci.year), status: cell(r, ci.status),
-        handler: cell(r, ci.handler), note: cell(r, ci.note)
-      };
+    if (!data.length) { U.toast('אין שורות נתונים.', 'error'); return; }
+    Modal.confirm({
+      title: 'ייבוא חובות מאקסל',
+      text: 'לייבא ' + data.length + ' חובות?\nאתרים שלא קיימים ייווצרו אוטומטית (כלא-פעילים).',
+      okLabel: 'ייבא'
+    }, function () {
+      var objs = data.map(function (r) {
+        return {
+          name: cell(r, ci.name), contact: cell(r, ci.contact), phone: cell(r, ci.phone),
+          amount: r[ci.amount], year: cell(r, ci.year), status: cell(r, ci.status),
+          handler: cell(r, ci.handler), note: cell(r, ci.note)
+        };
+      });
+      var res = commitDebtObjs(objs);
+      App.render();
+      U.toast('הייבוא הושלם: ' + res.added + ' חובות' + (res.created ? ' · ' + res.created + ' אתרים חדשים' : ''));
     });
-    var res = commitDebtObjs(objs);
-    App.render();
-    U.toast('הייבוא הושלם: ' + res.added + ' חובות' + (res.created ? ' · ' + res.created + ' אתרים חדשים' : ''));
   }
 
   // יצירת רשומות-חוב מתוך אובייקטים מנורמלים (משותף לאקסל ול-PDF). ללא confirm/alert.
@@ -673,7 +641,7 @@
     inp.type = 'file'; inp.accept = 'application/pdf,.pdf';
     inp.onchange = function () {
       var f = inp.files[0]; if (!f) return;
-      if (f.size > 15 * 1024 * 1024) { alert('הקובץ גדול מדי (מקסימום ~15MB).'); return; }
+      if (f.size > 15 * 1024 * 1024) { U.toast('הקובץ גדול מדי (מקסימום ~15MB).', 'error'); return; }
       var reader = new FileReader();
       reader.onload = function (e) {
         var dataUrl = String(e.target.result || '');
@@ -691,11 +659,11 @@
     Store.parseDebtsPdf({ pdfBase64: b64, mimeType: mime }).then(function (res) {
       overlay.close();
       var rows = (res && res.rows) || [];
-      if (!rows.length) { alert('ה-AI לא מצא חובות בקובץ. נסו קובץ ברור יותר, או ייבוא מאקסל.'); return; }
+      if (!rows.length) { U.toast('ה-AI לא מצא חובות בקובץ. נסו קובץ ברור יותר, או ייבוא מאקסל.', 'error'); return; }
       openPdfPreview(rows);
     }).catch(function (err) {
       overlay.close();
-      alert('שגיאה בניתוח ה-PDF: ' + ((err && err.message) || err));
+      U.toast('שגיאה בניתוח ה-PDF: ' + ((err && err.message) || err), 'error');
     });
   }
 
@@ -766,7 +734,7 @@
       { label: 'ביטול', class: 'secondary' },
       { label: 'ייבא נבחרים', onClick: function (close) {
         var chosen = state.filter(function (s) { return s.include && String(s.name).trim() && s.total; });
-        if (!chosen.length) { alert('לא נבחרו שורות לייבוא (ודאו שם ויתרה).'); return; }
+        if (!chosen.length) { U.toast('לא נבחרו שורות לייבוא (ודאו שם ויתרה).', 'error'); return; }
         var objs = chosen.map(function (s) {
           var note = [];
           if (s.customerNumber) note.push('מס׳ לקוח ' + s.customerNumber);
@@ -779,38 +747,6 @@
         U.toast('הייבוא הושלם: ' + res.added + ' חובות' + (res.created ? ' · ' + res.created + ' אתרים חדשים' : ''));
       } }
     ]);
-  }
-
-  function importOpening() {
-    if (records().some(function (r) { return r.imported; })) {
-      if (!confirm('נראה שכבר יובאו נתוני פתיחה. לייבא שוב? (עלולות להיווצר כפילויות)')) return;
-    }
-    if (!confirm('לייבא ' + MIGRATION.length + ' חובות מנתוני הפתיחה? אתרים שלא קיימים ייווצרו אוטומטית (כלא-פעילים).')) return;
-
-    var sites = Store.get().sites || [];
-    var created = 0, addedRecords = 0;
-    MIGRATION.forEach(function (row) {
-      var site = null;
-      for (var i = 0; i < sites.length; i++) {
-        if (normName(sites[i].name) === normName(row.name)) { site = sites[i]; break; }
-      }
-      if (!site) {
-        site = Store.upsert('sites', {
-          name: row.name, contactName: row.contact || '', phone: row.phone || '',
-          active: false, notes: 'נוצר מייבוא חובות'
-        });
-        sites = Store.get().sites;
-        created++;
-      }
-      Store.upsert('debtRecords', {
-        siteId: site.id, openingDebt: row.amount, debtYear: row.year || '',
-        status: row.status || '', handledBy: row.handledBy || '', notes: row.note || '',
-        imported: true
-      });
-      addedRecords++;
-    });
-    App.render();
-    alert('הייבוא הושלם: ' + addedRecords + ' חובות' + (created ? ', ' + created + ' אתרים חדשים נוצרו' : '') + '.');
   }
 
   global.DebtUtil = {

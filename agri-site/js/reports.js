@@ -535,7 +535,7 @@
   }
 
   function exportStudentCard(node, stu) {
-    if (typeof global.html2canvas === 'undefined') { alert('רכיב הייצוא עדיין נטען — נסו שוב בעוד רגע.'); return; }
+    if (typeof global.html2canvas === 'undefined') { U.toast('רכיב הייצוא עדיין נטען — נסו שוב בעוד רגע.', 'info'); return; }
     global.html2canvas(node, { scale: 2, backgroundColor: '#ffffff' }).then(function (canvas) {
       canvas.toBlob(function (blob) {
         var url = URL.createObjectURL(blob), a = document.createElement('a');
@@ -543,7 +543,7 @@
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
       });
-    }).catch(function (e) { alert('שגיאה בייצוא התמונה: ' + e.message); });
+    }).catch(function (e) { U.toast('שגיאה בייצוא התמונה: ' + e.message, 'error'); });
   }
 
   // ---------- ייצוא אקסל ----------

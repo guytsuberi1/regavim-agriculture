@@ -354,12 +354,17 @@
       mergedGroups++;
     });
     var n = Object.keys(removeIds).length;
-    if (!n) { alert('לא נמצאו כפילויות לפי שם.'); return; }
-    if (!confirm('נמצאו ' + mergedGroups + ' שמות עם כפילות (' + n + ' רשומות עודפות).\nלאחד — לשמור רשומה אחת לכל שם (כולל הטלפון) ולמחוק את העודפות?')) return;
-    data.students = students.filter(function (s) { return !removeIds[s.id]; });
-    Store.save();
-    alert('בוצע: אוחדו ' + mergedGroups + ' שמות · הוסרו ' + n + ' כפילויות.');
-    App.render();
+    if (!n) { U.toast('לא נמצאו כפילויות לפי שם.', 'info'); return; }
+    Modal.confirm({
+      title: 'איחוד כפילויות',
+      text: 'נמצאו ' + mergedGroups + ' שמות עם כפילות (' + n + ' רשומות עודפות).\nלאחד — לשמור רשומה אחת לכל שם (כולל הטלפון) ולמחוק את העודפות?',
+      okLabel: 'אחד כפילויות'
+    }, function () {
+      data.students = students.filter(function (s) { return !removeIds[s.id]; });
+      Store.save();
+      U.toast('אוחדו ' + mergedGroups + ' שמות · הוסרו ' + n + ' כפילויות');
+      App.render();
+    });
   }
 
   global.BaseView = { render: render };

@@ -93,7 +93,7 @@
       return geocodeName(n).then(function (c) { return c ? n : null; });
     })).then(function (resolved) {
       var withCoords = resolved.filter(Boolean);
-      if (!withCoords.length) { alert('אין מיקומים עם קואורדינטות זמינות לתחזית.'); return; }
+      if (!withCoords.length) { U.toast('אין מיקומים עם קואורדינטות זמינות לתחזית.', 'info'); return; }
       var sel = U.el('select', { style: 'width:100%;' }, withCoords.map(function (n) { return U.el('option', { value: n }, n); }));
       if (withCoords.indexOf(cur) !== -1) sel.value = cur;
       Modal.open('מיקום לתחזית מזג האוויר', U.el('div', { class: 'field' }, [U.el('label', { text: 'בחרו מיקום (לפי האתרים):' }), sel]), [
@@ -101,7 +101,7 @@
         { label: 'שמירה', onClick: function (close) {
           var name = sel.value; close();
           geocodeName(name).then(function (c) {
-            if (!c) { alert('לא נמצאו קואורדינטות עבור "' + name + '". המיקום לא שונה.'); return; }
+            if (!c) { U.toast('לא נמצאו קואורדינטות עבור "' + name + '" — המיקום לא שונה.', 'error'); return; }
             setLoc({ name: name, lat: c.lat, lon: c.lon }); wxData = null; wxKey = null; App.render();
           });
         } }
@@ -407,7 +407,7 @@
 
   // ---------- ייצוא תמונה של התכנון השבועי (ימים, תאריכים, אתרים + דרך הגעה; ללא הערות) ----------
   function exportImage() {
-    if (typeof global.html2canvas === 'undefined') { alert('רכיב הייצוא עדיין נטען — נסו שוב בעוד רגע.'); return; }
+    if (typeof global.html2canvas === 'undefined') { U.toast('רכיב הייצוא עדיין נטען — נסו שוב בעוד רגע.', 'info'); return; }
     var plan = Store.get().weeklyPlan;
     var temp = U.el('div', { style: 'position:fixed;top:0;right:-12000px;width:1100px;box-sizing:border-box;background:#fff;padding:20px;direction:rtl;font-family:Arial,sans-serif;' });
     temp.appendChild(U.el('div', { style: 'text-align:center;font-weight:700;font-size:20px;color:#1b5e20;margin-bottom:4px;', text: 'תכנון שבועי — רגבים בנימין' }));
@@ -445,7 +445,7 @@
       });
     }).catch(function (e) {
       if (temp.parentNode) document.body.removeChild(temp);
-      alert('שגיאה בייצוא התמונה: ' + e.message);
+      U.toast('שגיאה בייצוא התמונה: ' + e.message, 'error');
     });
   }
 

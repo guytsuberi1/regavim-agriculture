@@ -39,7 +39,7 @@
           var wb = XLSX.read(new Uint8Array(reader.result), { type: 'array' });
           showImportUI(wb, targetColl);
         } catch (e) {
-          alert('שגיאה בקריאת הקובץ: ' + e.message);
+          U.toast('שגיאה בקריאת הקובץ: ' + e.message, 'error');
         }
       };
       reader.readAsArrayBuffer(file);
@@ -166,7 +166,7 @@
       Store.upsert(coll, rec);
       added++;
     });
-    alert('יובאו ' + added + ' רשומות חדשות.');
+    U.toast('יובאו ' + added + ' רשומות חדשות');
     App.render();
     // סגירת המודאל
     var bg = U.$('.modal-bg'); if (bg) bg.parentNode.removeChild(bg);
@@ -268,7 +268,7 @@
       Store.upsert(coll, rec);
       if (existRec) { updated++; } else { byName[normName(name)] = rec; added++; }
     }
-    alert('יובאו ' + added + ' חדשים · עודכנו ' + updated + ' קיימים.');
+    U.toast('יובאו ' + added + ' חדשים · עודכנו ' + updated + ' קיימים');
     App.render();
     var bg = U.$('.modal-bg'); if (bg) bg.parentNode.removeChild(bg);
   }

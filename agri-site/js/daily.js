@@ -980,75 +980,6 @@
     ]);
   }
 
-  function dupPrev() {
-    var day = getDay(curDate);
-    if (day.cards.length && !confirm('היום הנוכחי כבר מכיל אתרים. להחליף בשכפול מיום קודם?')) return;
-    // מצא את היום הקודם עם נתונים (עד 14 ימים אחורה)
-    var src = null, probe = curDate;
-    for (var i = 0; i < 14; i++) {
-      probe = U.addDays(probe, -1);
-      var d = Store.get().days[probe];
-      if (d && d.cards && d.cards.length) { src = d; break; }
-    }
-    if (!src) { alert('לא נמצא יום קודם עם נתונים.'); return; }
-    day.cards = src.cards.map(function (c) {
-      return {
-        id: Store.uid(), siteId: c.siteId, transportId: c.transportId,
-        staffId: c.staffId, staffIds: (c.staffIds || []).slice(), leaderId: c.leaderId, hours: c.hours, travel: c.travel, notes: c.notes,
-        targetWorkers: c.targetWorkers, group: c.group || '',
-        students: (c.students || []).map(function (s) { return { studentId: s.studentId, wentToWork: false, sick: false, rating: null, teamLeader: s.teamLeader }; })
-      };
-    });
-    Sync.dayChanged(curDate);
-    Store.save(); App.render();
-  }
-
-  function loadFromWeekly() {
-    var plan = Store.get().weeklyPlan[curDate];
-    if (!plan || !plan.length) { alert('אין תכנון שבועי לתאריך זה.'); return; }
-    var day = getDay(curDate);
-    if (day.cards.length && !confirm('להוסיף את אתרי התכנון לסידור הקיים?')) return;
-    plan.forEach(function (p) {
-      var s = p.siteId ? Store.getById('sites', p.siteId) : null;
-      day.cards.push({
-        id: Store.uid(), siteId: p.siteId || null, transportId: p.transportId || (s ? s.defaultTransportId : null),
-        staffId: null, leaderId: null, hours: s ? (s.defaultHours || Store.get().settings.defaultHours) : Store.get().settings.defaultHours,
-        travel: true, notes: p.note || '', students: []
-      });
-    });
-    Store.save(); App.render();
-  }
-
-  // ---------- ייצוא אקסל ----------
-  function exportExcel() {
-    var day = getDay(curDate);
-    var aoa = [['סידור עבודה — רגבים בנימין'], [U.weekdayName(curDate) + ' · ' + U.hebrewDate(curDate) + ' · ' + U.gregLabel(curDate)], []];
-    day.cards.forEach(function (c) {
-      var site = c.siteId ? Store.getById('sites', c.siteId) : null;
-      var staffNames = cardStaffNames(c);
-      var leader = c.leaderId ? Store.getById('staff', c.leaderId) : null;
-      var trans = c.transportId ? Store.getById('transports', c.transportId) : null;
-      aoa.push(['אתר:', site ? site.name : '']);
-      if (site && site.location) aoa.push(['מיקום:', site.location]);
-      if (site && (site.contactName || site.phone)) aoa.push(['איש קשר:', [site.contactName, site.phone].filter(Boolean).join(' ')]);
-      aoa.push(['הסעה:', trans ? trans.name : '', 'אנשי צוות:', staffNames, 'ראש צוות:', leader ? leader.name : '']);
-      aoa.push(['שעות:', c.hours, 'נסיעות:', c.travel !== false ? 'כן' : 'לא']);
-      aoa.push(['תלמיד', 'כיתה', 'יצא לעבודה', 'חולה', 'ציון']);
-      (c.students || []).forEach(function (s) {
-        var stu = Store.getById('students', s.studentId);
-        aoa.push([stu ? stu.name : '', stu ? stu.grade : '', s.wentToWork ? 'כן' : '', s.sick ? 'כן' : '', s.rating || '']);
-      });
-      var went = (c.students || []).filter(function (s) { return s.wentToWork; }).length;
-      var sickN = (c.students || []).filter(function (s) { return s.sick; }).length;
-      aoa.push(['סה"כ יצאו:', went, 'חולים:', sickN]);
-      aoa.push([]);
-    });
-    var ws = XLSX.utils.aoa_to_sheet(aoa);
-    var wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'סידור');
-    XLSX.writeFile(wb, 'סידור-' + curDate + '.xlsx');
-  }
-
   // ---------- ייצוא תמונה מסודרת של הסידור היומי (לתלמידים) ----------
   // מציג: שם חקלאי, מיקום, איש קשר, הסעה, איש צוות, ורשימת תלמידים בלבד.
   function buildExportCard(card) {
@@ -1104,8 +1035,8 @@
 
   function exportImage() {
     var day = getDay(curDate);
-    if (!day.cards.length) { alert('אין אתרים להצגה ביום זה.'); return; }
-    if (typeof global.html2canvas === 'undefined') { alert('רכיב הייצוא עדיין נטען — נסו שוב בעוד רגע.'); return; }
+    if (!day.cards.length) { U.toast('אין אתרים להצגה ביום זה.', 'info'); return; }
+    if (typeof global.html2canvas === 'undefined') { U.toast('רכיב הייצוא עדיין נטען — נסו שוב בעוד רגע.', 'info'); return; }
 
     // רוחב A4 לאורך (794px @96dpi) — בסגנון פלייר רגבים בנימין
     var temp = U.el('div', { style: 'position:fixed;top:0;right:-12000px;width:794px;box-sizing:border-box;background:#f4ecdd;padding:20px;direction:rtl;font-family:"Segoe UI",Arial,sans-serif;' });
@@ -1140,7 +1071,7 @@
       });
     }).catch(function (e) {
       if (temp.parentNode) document.body.removeChild(temp);
-      alert('שגיאה בייצוא התמונה: ' + e.message);
+      U.toast('שגיאה בייצוא התמונה: ' + e.message, 'error');
     });
   }
 
@@ -1187,7 +1118,7 @@
   }
   function openWhatsApp() {
     var day = getDay(curDate);
-    if (!day.cards.length) { alert('אין שיבוצים ליום זה.'); return; }
+    if (!day.cards.length) { U.toast('אין שיבוצים ליום זה.', 'info'); return; }
     var body = U.el('div', { style: 'max-height:62vh;overflow:auto;' });
     body.appendChild(U.el('div', { style: 'margin:0 0 10px;padding:10px;background:var(--green-light);border-radius:8px;' }, [
       U.el('div', { style: 'font-weight:700;color:var(--green-dark);margin-bottom:4px;', text: '📤 שליחה אחת לקבוצה' }),
@@ -1213,7 +1144,7 @@
         ]));
       });
     });
-    if (!any) { alert('אין משובצים ליום זה.'); return; }
+    if (!any) { U.toast('אין משובצים ליום זה.', 'info'); return; }
     Modal.open('שליחת שיבוצים בוואטסאפ — ' + U.weekdayName(curDate) + ' ' + U.gregLabel(curDate), body, [{ label: 'סגור', class: 'secondary' }]);
   }
 
@@ -1251,15 +1182,20 @@
         else noPhone.push(p.name + ' (' + p.role + ')');
       });
     });
-    if (!messages.length) { alert('אין נמענים עם מספר טלפון ליום זה.'); return; }
-    if (!confirm('לשלוח SMS ל-' + messages.length + ' נמענים (' + nStu + ' תלמידים · ' + nStaff + ' אנשי צוות)?' +
-      (noPhone.length ? '\n\n' + noPhone.length + ' ללא מספר טלפון יידלגו:\n' + noPhone.slice(0, 12).join(', ') + (noPhone.length > 12 ? '…' : '') : '') +
-      '\n\n⚠️ שליחת SMS עולה כסף בחשבון 019.')) return;
-    Store.sendSms(messages).then(function (res) {
-      if (res.failed) U.toast('נשלחו ' + (res.sent || 0) + ' · נכשלו ' + res.failed + ((res.errors && res.errors.length) ? ' — ' + res.errors[0] : ''), 'error');
-      else U.toast('נשלחו ' + (res.sent || 0) + ' הודעות SMS');
-    }).catch(function (e) {
-      U.toast('שגיאה בשליחה: ' + ((e && e.message) ? e.message : e), 'error');
+    if (!messages.length) { U.toast('אין נמענים עם מספר טלפון ליום זה.', 'info'); return; }
+    Modal.confirm({
+      title: 'שליחת SMS לכולם',
+      text: 'לשלוח SMS ל-' + messages.length + ' נמענים (' + nStu + ' תלמידים · ' + nStaff + ' אנשי צוות)?' +
+        (noPhone.length ? '\n' + noPhone.length + ' ללא מספר טלפון יידלגו: ' + noPhone.slice(0, 12).join(', ') + (noPhone.length > 12 ? '…' : '') : '') +
+        '\n⚠️ שליחת SMS עולה כסף בחשבון 019.',
+      okLabel: 'שלח'
+    }, function () {
+      Store.sendSms(messages).then(function (res) {
+        if (res.failed) U.toast('נשלחו ' + (res.sent || 0) + ' · נכשלו ' + res.failed + ((res.errors && res.errors.length) ? ' — ' + res.errors[0] : ''), 'error');
+        else U.toast('נשלחו ' + (res.sent || 0) + ' הודעות SMS');
+      }).catch(function (e) {
+        U.toast('שגיאה בשליחה: ' + ((e && e.message) ? e.message : e), 'error');
+      });
     });
   }
 
@@ -1313,7 +1249,7 @@
   function autoAssign() {
     var day = getDay(curDate);
     var TU = global.TeamUtil;
-    if (!TU) { alert('מודול הצוותים אינו זמין.'); return; }
+    if (!TU) { U.toast('מודול הצוותים אינו זמין.', 'error'); return; }
     var excluded = excludedSet();
     var already = assignedSet(day);
 
@@ -1323,7 +1259,7 @@
     }).map(function (c) {
       return { card: c, remaining: U.num(c.targetWorkers) - (c.students || []).length };
     }).filter(function (x) { return x.remaining > 0; });
-    if (!siteSlots.length) { alert('אין אתרים עם "רצוי" ומקום פנוי. הגדירו "רצוי" לאתרים בסידור.'); return; }
+    if (!siteSlots.length) { U.toast('אין אתרים עם "רצוי" ומקום פנוי. הגדירו "רצוי" לאתרים בסידור.', 'info'); return; }
 
     // צוותים פנויים: אף חבר לא משובץ ידנית, ויש לפחות חבר אחד לא-מוחרג
     var teams = TU.allTeams().map(function (t) {
@@ -1332,7 +1268,7 @@
       var anyAssigned = members.some(function (id) { return already[id]; });
       return { team: t, members: avail, skip: anyAssigned || !avail.length };
     }).filter(function (e) { return !e.skip; });
-    if (!teams.length) { alert('אין צוותים פנויים לשיבוץ (כולם כבר משובצים או מוחרגים).'); return; }
+    if (!teams.length) { U.toast('אין צוותים פנויים לשיבוץ (כולם כבר משובצים או מוחרגים).', 'info'); return; }
 
     var H = historyCounts();
     function affinity(m, siteId) { return m.reduce(function (a, id) { return a + ((H.perSite[id] || {})[siteId] || 0); }, 0); }
@@ -1364,7 +1300,7 @@
       p.sl.remaining -= te.members.length; // ייתכן שלילי (צוות אטומי — חריגה מותרת)
       proposals.push({ team: te.team, members: te.members, card: p.sl.card, aff: p.aff, load: p.load, rate: p.rate });
     });
-    if (!proposals.length) { alert('לא נמצאו שיבוצים מתאימים.'); return; }
+    if (!proposals.length) { U.toast('לא נמצאו שיבוצים מתאימים.', 'info'); return; }
 
     // שיבוץ ישיר (ללא תצוגה מקדימה) + סימון להבהוב אישור
     justAssigned = {};

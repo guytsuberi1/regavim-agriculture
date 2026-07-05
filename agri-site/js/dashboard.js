@@ -137,7 +137,7 @@
   }
   function sendHomeroomReminder() {
     var teachers = (Store.get().staff || []).filter(function (s) { return s.homeroomClass && String(s.homeroomClass).trim() && s.active !== false; });
-    if (!teachers.length) { alert('לא הוגדרו מחנכים. סמנו "מחנך" לאיש צוות תחת "נתוני בסיס".'); return; }
+    if (!teachers.length) { U.toast('לא הוגדרו מחנכים — מלאו "כיתת מחנך" לאיש צוות בנתוני בסיס.', 'info'); return; }
     var text = 'תזכורת: נא למלא את רשימת הנעדרים של היום.\nכניסה למערכת: https://chaklaut.rgvb.org.il\n("מצב שטח" ← "נעדרים היום")';
     var messages = [], noPhone = [];
     teachers.forEach(function (t) {
@@ -145,15 +145,20 @@
       if (ph) messages.push({ phone: ph, text: text });
       else noPhone.push(t.name);
     });
-    if (!messages.length) { alert('אין למחנכים מספרי טלפון תקינים.'); return; }
-    if (!confirm('לשלוח תזכורת SMS ל-' + messages.length + ' מחנכים?' +
-      (noPhone.length ? '\n(' + noPhone.length + ' ללא טלפון יידלגו)' : '') +
-      '\n\n⚠️ שליחת SMS עולה כסף בחשבון 019.')) return;
-    Store.sendSms(messages).then(function (res) {
-      if (res.failed) U.toast('נשלחו ' + (res.sent || 0) + ' · נכשלו ' + res.failed + ((res.errors && res.errors.length) ? ' — ' + res.errors[0] : ''), 'error');
-      else U.toast('נשלחו ' + (res.sent || 0) + ' תזכורות למחנכים');
-    }).catch(function (e) {
-      U.toast('שגיאה בשליחה: ' + ((e && e.message) ? e.message : e), 'error');
+    if (!messages.length) { U.toast('אין למחנכים מספרי טלפון תקינים.', 'error'); return; }
+    Modal.confirm({
+      title: 'תזכורת למחנכים',
+      text: 'לשלוח תזכורת SMS ל-' + messages.length + ' מחנכים?' +
+        (noPhone.length ? '\n(' + noPhone.length + ' ללא טלפון יידלגו)' : '') +
+        '\n⚠️ שליחת SMS עולה כסף בחשבון 019.',
+      okLabel: 'שלח'
+    }, function () {
+      Store.sendSms(messages).then(function (res) {
+        if (res.failed) U.toast('נשלחו ' + (res.sent || 0) + ' · נכשלו ' + res.failed + ((res.errors && res.errors.length) ? ' — ' + res.errors[0] : ''), 'error');
+        else U.toast('נשלחו ' + (res.sent || 0) + ' תזכורות למחנכים');
+      }).catch(function (e) {
+        U.toast('שגיאה בשליחה: ' + ((e && e.message) ? e.message : e), 'error');
+      });
     });
   }
 
