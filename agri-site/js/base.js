@@ -86,7 +86,7 @@
     var data = Store.get();
 
     var isTeams = sub === 'teams';
-    var headBtns = [U.el('h2', { text: 'נתוני בסיס' }), U.el('div', { class: 'spacer' })];
+    var headBtns = [U.el('h2', { text: '🗂️ נתוני בסיס' }), U.el('div', { class: 'spacer' })];
     if (!isTeams) {
       headBtns.push(U.el('button', { class: 'btn secondary ico', title: showArchive ? 'חזרה לפעילים' : 'ארכיון', onclick: function () { showArchive = !showArchive; App.render(); } }, showArchive ? '↩' : '📦'));
       if (!showArchive) {

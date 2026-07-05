@@ -17,7 +17,7 @@
 
   // ---------- מסך נעילה ----------
   function renderLock(root) {
-    root.appendChild(U.el('div', { class: 'page-head' }, [U.el('h2', { text: 'הגדרות וגיבוי' })]));
+    root.appendChild(U.el('div', { class: 'page-head' }, [U.el('h2', { text: '⚙️ הגדרות וגיבוי' })]));
     var inp = U.el('input', { type: 'password', placeholder: 'סיסמה', autocomplete: 'off', style: 'width:100%;' });
     var err = U.el('div', { class: 'login-err', style: 'min-height:18px;' });
     function tryUnlock() {
@@ -38,7 +38,7 @@
   // ---------- תוכן ההגדרות ----------
   function renderSettings(root) {
     var data = Store.get();
-    root.appendChild(U.el('div', { class: 'page-head' }, [U.el('h2', { text: 'הגדרות וגיבוי' })]));
+    root.appendChild(U.el('div', { class: 'page-head' }, [U.el('h2', { text: '⚙️ הגדרות וגיבוי' })]));
 
     // ---- ניהול משתמשים (אדמין) ----
     if (global.UsersView && Store.isAdmin()) {

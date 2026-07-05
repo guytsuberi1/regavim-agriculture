@@ -167,14 +167,14 @@
     }
 
     var head = U.el('div', { class: 'page-head' }, [
-      U.el('h2', { text: viewMode === 'month' ? 'תכנון חודשי' : 'תכנון שבועי' }),
+      U.el('h2', { text: viewMode === 'month' ? '📋 תכנון חודשי' : '📋 תכנון שבועי' }),
       modeToggle
     ].concat(nav).concat([
       U.el('button', { class: 'btn secondary ico no-print', title: 'מיקום לתחזית מזג האוויר: ' + getLoc().name + ' (לחצו לשינוי)', onclick: chooseLocation }, '📍'),
       U.el('div', { class: 'spacer' }),
       U.el('button', { class: 'btn secondary ico no-print', title: 'תורנים שבועיים' + countSuffix('weeklyDuty'), onclick: function () { editWeekList('weeklyDuty', 'תורנים שבועיים'); } }, '🧹'),
       U.el('button', { class: 'btn secondary ico no-print', title: 'חולים השבוע' + countSuffix('weeklySick'), onclick: function () { editWeekList('weeklySick', 'חולים השבוע'); } }, '🤒'),
-      U.el('button', { class: 'btn secondary ico no-print', title: 'ייצוא תמונה', onclick: exportImage }, '🖼')
+      U.el('button', { class: 'btn secondary ico no-print', title: 'ייצוא תמונה', onclick: exportImage }, '📷')
     ]));
     root.appendChild(head);
 

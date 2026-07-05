@@ -56,7 +56,7 @@
     var teams = allTeams();
 
     root.appendChild(U.el('div', { class: 'page-head' }, [
-      U.el('h2', { text: 'ניהול צוותים' }),
+      U.el('h2', { text: '👥 ניהול צוותים' }),
       U.el('div', { class: 'spacer' }),
       U.el('button', { class: 'btn', onclick: addTeam }, '+ צוות חדש')
     ]));

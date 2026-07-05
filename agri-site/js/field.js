@@ -53,7 +53,7 @@
     var who = id ? (Store.getById('staff', id) || {}).name : (isMgr ? 'רכז' : null);
     var identityChip = who ? U.el('span', { class: 'tag', style: 'margin-inline-start:auto;', text: '👤 ' + who }) : null;
     root.appendChild(U.el('div', { class: 'page-head' }, [
-      U.el('h2', { text: '📋 מצב שטח' }),
+      U.el('h2', { text: '🚜 מצב שטח' }),
       U.el('button', { class: 'btn secondary small', onclick: function () { fieldDate = U.addDays(fieldDate, -1); fieldCardId = null; App.render(); } }, '→ אתמול'),
       U.el('button', { class: 'btn secondary small', onclick: function () { fieldDate = U.todayISO(); fieldCardId = null; App.render(); } }, 'היום'),
       U.el('button', { class: 'btn secondary small', onclick: function () { fieldDate = U.addDays(fieldDate, 1); fieldCardId = null; App.render(); } }, 'מחר ←'),

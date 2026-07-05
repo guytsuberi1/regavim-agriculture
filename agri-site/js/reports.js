@@ -211,8 +211,9 @@
   // ---------- ניווט ראשי ----------
   function render(root) {
     var head = U.el('div', { class: 'page-head' }, [
-      U.el('h2', { text: 'דוחות' }),
-      U.el('button', { class: 'btn accent', onclick: exportExcel }, '⬇ ייצוא אקסל')
+      U.el('h2', { text: '📊 דוחות' }),
+      U.el('div', { class: 'spacer' }),
+      U.el('button', { class: 'btn secondary ico', title: 'ייצוא אקסל', onclick: exportExcel }, '⬇')
     ]);
     root.appendChild(head);
     root.appendChild(datePresetBar());

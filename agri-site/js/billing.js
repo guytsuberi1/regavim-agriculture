@@ -64,7 +64,7 @@
 
   function render(root) {
     var head = U.el('div', { class: 'page-head' }, [
-      U.el('h2', { text: 'דרישת תשלום חודשית' }),
+      U.el('h2', { text: '🧾 דרישת תשלום חודשית' }),
       monthInput(),
       U.el('div', { class: 'spacer' }),
       U.el('button', { class: 'btn accent', onclick: exportExcel }, '⬇ ייצוא לגבייה (אקסל)')
