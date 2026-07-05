@@ -55,13 +55,13 @@
     root.appendChild(U.el('div', { class: 'page-head' }, [
       U.el('h2', { text: '🚜 מצב שטח' }),
       U.el('button', { class: 'btn secondary small', onclick: function () { fieldDate = U.addDays(fieldDate, -1); fieldCardId = null; App.render(); } }, '→ אתמול'),
-      U.el('button', { class: 'btn secondary small', onclick: function () { fieldDate = U.todayISO(); fieldCardId = null; App.render(); } }, 'היום'),
-      U.el('button', { class: 'btn secondary small', onclick: function () { fieldDate = U.addDays(fieldDate, 1); fieldCardId = null; App.render(); } }, 'מחר ←'),
       (function () {
         var dInp = U.el('input', { type: 'date', value: fieldDate });
         dInp.addEventListener('change', function () { if (dInp.value) { fieldDate = dInp.value; fieldCardId = null; App.render(); } });
         return U.dateChip(U.weekdayName(fieldDate) + ' · ' + U.gregLabel(fieldDate), dInp);
       })(),
+      U.el('button', { class: 'btn secondary small', onclick: function () { fieldDate = U.addDays(fieldDate, 1); fieldCardId = null; App.render(); } }, 'מחר ←'),
+      U.el('button', { class: 'btn secondary small', onclick: function () { fieldDate = U.todayISO(); fieldCardId = null; App.render(); } }, 'היום'),
       U.el('button', { class: 'btn', onclick: openAbsentField }, '🚫 נעדרים היום' + (absN ? ' (' + absN + ')' : '')),
       identityChip
     ]));

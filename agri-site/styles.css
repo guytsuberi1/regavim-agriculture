@@ -132,6 +132,7 @@ label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 3px
 /* ---------- טבלאות ---------- */
 table.grid { width: 100%; border-collapse: collapse; background: var(--card); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
 table.grid th, table.grid td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: right; }
+table.grid td { font-variant-numeric: tabular-nums; }
 table.grid th { background: var(--green-light); color: var(--green-dark); font-weight: 600; font-size: 13px; }
 table.grid th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
 table.grid th.sortable:hover { background: #d7eedd; }
@@ -522,7 +523,8 @@ tr.total-row td { position: sticky; bottom: 0; background: #EFE6DB; z-index: 2; 
 input.overridden { border-color: #d97706 !important; background: #fff7ed; box-shadow: 0 0 0 1px #f6c98a inset; }
 tr.detail-total td { background: #f4f0e8; border-top: 2px solid #d9cfbc; }
 .bill-head { cursor: pointer; user-select: none; }
-.bill-head:hover h3 { color: var(--green-dark); }
+.bill-head h3 { color: var(--green-dark); }
+.bill-head:hover h3 { text-decoration: underline; }
 .bill-chev { color: var(--muted); font-size: 13px; transition: transform .18s; transform: rotate(-90deg); }
 .bill-chev.open { transform: rotate(0deg); }
 

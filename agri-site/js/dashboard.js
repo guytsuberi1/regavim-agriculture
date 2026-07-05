@@ -7,7 +7,7 @@
   var period = 'month';      // week | month | year (לשונית "מבט על")
   var dashDate = U.todayISO(); // תאריך לסיכום היומי
 
-  function money(n) { return '₪' + Math.round(U.num(n)).toLocaleString('he-IL'); }
+  function money(n) { return Math.round(U.num(n)).toLocaleString('he-IL') + ' ₪'; }
   function inRange(iso, r) { return iso >= r.start && iso <= r.end; }
 
   // אתר "דווח" = יש בו תלמידים וכולם סומנו (יצא / לא יצא)
@@ -295,7 +295,7 @@
     series.forEach(function (s) { s.m = computeRange(s.r); });
     root.appendChild(U.el('div', { class: 'dash-cols' }, [
       panel('📈 מגמת יציאות לעבודה', trendChart(series.map(function (s) { return { label: s.label, val: s.m.manDays }; }), function (v) { return Math.round(v); }), 'col-half'),
-      panel('📈 מגמת הכנסות', trendChart(series.map(function (s) { return { label: s.label, val: s.m.income }; }), function (v) { return '₪' + Math.round(v / 1000) + 'k'; }), 'col-half')
+      panel('📈 מגמת הכנסות', trendChart(series.map(function (s) { return { label: s.label, val: s.m.income }; }), function (v) { return Math.round(v / 1000) + 'k ₪'; }), 'col-half')
     ]));
 
     root.appendChild(U.el('p', { class: 'muted', style: 'font-size:12px;', text: 'הכנסות מחושבות לפי שעות×תעריף + נסיעות לכל יום (אומדן ניהולי; הנתון המדויק לחיוב נמצא ב"דרישת תשלום").' }));

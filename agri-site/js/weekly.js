@@ -153,16 +153,16 @@
     if (viewMode === 'month') {
       nav = [
         U.el('button', { class: 'btn secondary small', onclick: function () { monthAnchor = monthStartOf(U.addDays(monthAnchor, -1)); App.render(); } }, '→ חודש קודם'),
-        U.el('button', { class: 'btn secondary small', onclick: function () { monthAnchor = monthStartOf(U.todayISO()); App.render(); } }, 'החודש'),
+        U.dateChip(U.monthLabel(U.monthKey(monthAnchor))),
         U.el('button', { class: 'btn secondary small', onclick: function () { monthAnchor = monthStartOf(U.addDays(monthAnchor, 32)); App.render(); } }, 'חודש הבא ←'),
-        U.dateChip(U.monthLabel(U.monthKey(monthAnchor)))
+        U.el('button', { class: 'btn secondary small', onclick: function () { monthAnchor = monthStartOf(U.todayISO()); App.render(); } }, 'החודש')
       ];
     } else {
       nav = [
         U.el('button', { class: 'btn secondary small', onclick: function () { weekStart = U.addDays(weekStart, -7); App.render(); } }, '→ שבוע קודם'),
-        U.el('button', { class: 'btn secondary small', onclick: function () { weekStart = U.startOfWeek(U.todayISO()); App.render(); } }, 'השבוע'),
+        U.dateChip(U.gregLabel(weekStart) + ' – ' + U.gregLabel(U.addDays(weekStart, 6))),
         U.el('button', { class: 'btn secondary small', onclick: function () { weekStart = U.addDays(weekStart, 7); App.render(); } }, 'שבוע הבא ←'),
-        U.dateChip(U.gregLabel(weekStart) + ' – ' + U.gregLabel(U.addDays(weekStart, 6)))
+        U.el('button', { class: 'btn secondary small', onclick: function () { weekStart = U.startOfWeek(U.todayISO()); App.render(); } }, 'השבוע')
       ];
     }
 

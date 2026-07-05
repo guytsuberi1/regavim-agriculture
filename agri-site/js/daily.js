@@ -93,6 +93,7 @@
       U.el('button', { class: 'btn secondary small', onclick: function () { curDate = U.addDays(curDate, -1); App.render(); } }, '→ יום קודם'),
       U.dateChip(U.weekdayName(curDate) + ' · ' + U.hebrewDate(curDate) + ' · ' + U.gregLabel(curDate), dInp),
       U.el('button', { class: 'btn secondary small', onclick: function () { curDate = U.addDays(curDate, 1); App.render(); } }, 'יום הבא ←'),
+      U.el('button', { class: 'btn secondary small', onclick: function () { curDate = U.todayISO(); App.render(); } }, 'היום'),
       U.el('div', { class: 'spacer' }),
       U.el('button', { class: 'btn secondary', title: 'נעדרים היום', onclick: openAbsentDialog }, '🚫' + (Store.get().dailyAbsent[curDate] && Store.get().dailyAbsent[curDate].length ? ' (' + Store.get().dailyAbsent[curDate].length + ')' : '')),
       U.el('button', { class: 'btn secondary ico', title: 'ייצוא תמונה', onclick: exportImage }, '📷'),
