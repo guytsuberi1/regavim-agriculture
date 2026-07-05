@@ -41,29 +41,39 @@
   // יוצר/מאפס סיסמה ושולח את פרטי ההתחברות ב-SMS
   function sendCredentialsSms(staff, email, hasAccount) {
     var phone = smsPhone(staff.phone);
-    if (!phone) { alert('לאיש צוות זה אין מספר טלפון תקין בנתוני בסיס.'); return; }
-    if (!confirm('פעולה זו תייצר סיסמה חדשה ל"' + staff.name + '" ותשלח לו ב-SMS את האימייל, הסיסמה והקישור לאתר.\n\n⚠️ שליחת SMS עולה כסף בחשבון 019. להמשיך?')) return;
-    var password = genPassword();
-    Store.manageUsers({ action: hasAccount ? 'resetPassword' : 'create', email: email, password: password }).then(function () {
-      return Store.sendSms([{ phone: phone, text: credsMessage(staff.name, email, password) }]);
-    }).then(function (res) {
-      if ((res.sent || 0) > 0) alert('✓ נשלח SMS עם פרטי ההתחברות ל' + staff.name + '.');
-      else alert('הסיסמה עודכנה אך שליחת ה-SMS נכשלה' + ((res.errors && res.errors[0]) ? ':\n' + res.errors[0] : '.'));
-      App.render();
-    }).catch(function (e) { alert('שגיאה: ' + (e.message || e)); });
+    if (!phone) { U.toast('לאיש צוות זה אין מספר טלפון תקין בנתוני בסיס.', 'error'); return; }
+    Modal.confirm({
+      title: 'שליחת פרטי התחברות ב-SMS',
+      text: 'פעולה זו תייצר סיסמה חדשה ל"' + staff.name + '" ותשלח לו ב-SMS את האימייל, הסיסמה והקישור לאתר.\n⚠️ שליחת SMS עולה כסף בחשבון 019.',
+      okLabel: 'שלח'
+    }, function () {
+      var password = genPassword();
+      Store.manageUsers({ action: hasAccount ? 'resetPassword' : 'create', email: email, password: password }).then(function () {
+        return Store.sendSms([{ phone: phone, text: credsMessage(staff.name, email, password) }]);
+      }).then(function (res) {
+        if ((res.sent || 0) > 0) U.toast('נשלח SMS עם פרטי ההתחברות ל' + staff.name);
+        else U.toast('הסיסמה עודכנה אך שליחת ה-SMS נכשלה' + ((res.errors && res.errors[0]) ? ' — ' + res.errors[0] : ''), 'error');
+        App.render();
+      }).catch(function (e) { U.toast('שגיאה: ' + (e.message || e), 'error'); });
+    });
   }
 
   // יוצר/מאפס סיסמה ופותח וואטסאפ עם פרטי ההתחברות מוכנים לשליחה (חינם)
   function sendCredentialsWhatsApp(staff, email, hasAccount) {
-    if (!confirm('פעולה זו תייצר סיסמה חדשה ל"' + staff.name + '" ותפתח וואטסאפ עם האימייל, הסיסמה והקישור מוכנים לשליחה. להמשיך?')) return;
-    var win = window.open('', '_blank'); // נפתח מיד (מחווה של המשתמש) כדי לעקוף חוסם חלונות קופצים
-    var wn = waNumber(staff.phone);
-    var password = genPassword();
-    Store.manageUsers({ action: hasAccount ? 'resetPassword' : 'create', email: email, password: password }).then(function () {
-      var url = (wn ? 'https://wa.me/' + wn : 'https://wa.me/') + '?text=' + encodeURIComponent(credsMessage(staff.name, email, password));
-      if (win) win.location = url; else window.open(url, '_blank');
-      App.render();
-    }).catch(function (e) { if (win) win.close(); alert('שגיאה: ' + (e.message || e)); });
+    Modal.confirm({
+      title: 'שליחת פרטי התחברות בוואטסאפ',
+      text: 'פעולה זו תייצר סיסמה חדשה ל"' + staff.name + '" ותפתח וואטסאפ עם האימייל, הסיסמה והקישור מוכנים לשליחה.',
+      okLabel: 'המשך'
+    }, function () {
+      var win = window.open('', '_blank'); // נפתח מיד (מחווה של המשתמש) כדי לעקוף חוסם חלונות קופצים
+      var wn = waNumber(staff.phone);
+      var password = genPassword();
+      Store.manageUsers({ action: hasAccount ? 'resetPassword' : 'create', email: email, password: password }).then(function () {
+        var url = (wn ? 'https://wa.me/' + wn : 'https://wa.me/') + '?text=' + encodeURIComponent(credsMessage(staff.name, email, password));
+        if (win) win.location = url; else window.open(url, '_blank');
+        App.render();
+      }).catch(function (e) { if (win) win.close(); U.toast('שגיאה: ' + (e.message || e), 'error'); });
+    });
   }
 
   function render(root) {
@@ -141,7 +151,7 @@
         if (hasAccount) actions.appendChild(U.el('button', { class: 'btn small secondary', title: 'אפס סיסמה', onclick: function () { openPwdDialog('resetPassword', s, email); } }, '🔑'));
         else actions.appendChild(U.el('button', { class: 'btn small', title: 'צור חשבון', onclick: function () { openPwdDialog('create', s, email); } }, '➕'));
         // שליחת פרטי התחברות — מוצגים תמיד (אם אין טלפון, תוצג הודעה בלחיצה)
-        actions.appendChild(U.el('button', { class: 'btn small', style: 'background:#0a7d2c;', title: 'שליחת פרטי התחברות ב-SMS', onclick: function () { sendCredentialsSms(s, email, hasAccount); } }, '📩'));
+        actions.appendChild(U.el('button', { class: 'btn small ico secondary', title: 'שליחת פרטי התחברות ב-SMS', onclick: function () { sendCredentialsSms(s, email, hasAccount); } }, '📩'));
         actions.appendChild(U.el('button', { class: 'btn small ico', style: 'background:#25D366;color:#fff;', title: 'שליחת פרטי התחברות בוואטסאפ', onclick: function () { sendCredentialsWhatsApp(s, email, hasAccount); }, html: U.WA_SVG }));
         if (hasAccount) actions.appendChild(U.el('button', { class: 'btn small danger', title: 'מחק חשבון', onclick: function () { delAccount(s, email); } }, '🗑'));
       }
@@ -194,7 +204,7 @@
         msg.style.color = '#6b7884'; msg.textContent = 'שולח…';
         Store.manageUsers({ action: action, email: email, password: pwd }).then(function () {
           close();
-          alert((isReset ? 'הסיסמה אופסה בהצלחה.' : 'החשבון נוצר בהצלחה.') + '\n\nאימייל: ' + email + '\nסיסמה: ' + pwd);
+          U.toast((isReset ? 'הסיסמה אופסה בהצלחה' : 'החשבון נוצר בהצלחה') + ' · ' + email);
           App.render();
         }).catch(function (e) {
           msg.style.color = '#c62828'; msg.textContent = 'שגיאה: ' + (e.message || e);
@@ -204,11 +214,16 @@
   }
 
   function delAccount(staff, email) {
-    if (!confirm('למחוק את חשבון ההתחברות של "' + staff.name + '" (' + email + ')?\nאיש הצוות לא יוכל להתחבר יותר. רשומת איש הצוות עצמה לא תימחק.')) return;
-    Store.manageUsers({ action: 'delete', email: email }).then(function () {
-      alert('החשבון נמחק.');
-      App.render();
-    }).catch(function (e) { alert('שגיאה: ' + (e.message || e)); });
+    Modal.confirm({
+      title: 'מחיקת חשבון התחברות',
+      text: 'למחוק את חשבון ההתחברות של "' + staff.name + '" (' + email + ')?\nאיש הצוות לא יוכל להתחבר יותר. רשומת איש הצוות עצמה לא תימחק.',
+      okLabel: 'מחק', danger: true
+    }, function () {
+      Store.manageUsers({ action: 'delete', email: email }).then(function () {
+        U.toast('החשבון נמחק');
+        App.render();
+      }).catch(function (e) { U.toast('שגיאה: ' + (e.message || e), 'error'); });
+    });
   }
 
   global.UsersView = { render: render };
