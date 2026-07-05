@@ -303,18 +303,10 @@
 
   // ---------- סיכום יומי (תכנון מול ביצוע, לפי אתרים) ----------
   function renderDaily(root) {
-    // צ'יפ תאריך יחיד (בעיצוב מבט-על) — לחיצה פותחת את בורר התאריך
-    var dInp = U.el('input', { type: 'date', value: dashDate, class: 'chip-date-input' });
+    // צ'יפ תאריך יחיד — לחיצה פותחת את בורר התאריך
+    var dInp = U.el('input', { type: 'date', value: dashDate });
     dInp.addEventListener('change', function () { if (dInp.value) { dashDate = dInp.value; App.render(); } });
-    var dateChip = U.el('span', { class: 'range-chip', style: 'cursor:pointer;', title: 'לחצו לבחירת תאריך' }, [
-      U.el('span', { class: 'rc-ic', text: '📅' }),
-      U.el('span', { text: U.weekdayName(dashDate) + ' · ' + U.gregLabel(dashDate) + ' · ' + dashDate.slice(0, 4) }),
-      dInp
-    ]);
-    dateChip.addEventListener('click', function () {
-      try { if (dInp.showPicker) { dInp.showPicker(); return; } } catch (e) {}
-      dInp.click();
-    });
+    var dateChip = U.dateChip(U.weekdayName(dashDate) + ' · ' + U.gregLabel(dashDate) + ' · ' + dashDate.slice(0, 4), dInp);
     root.appendChild(U.el('div', { style: 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;' }, [
       U.el('button', { class: 'btn secondary small', onclick: function () { dashDate = U.addDays(dashDate, -1); App.render(); } }, '→ אתמול'),
       dateChip,

@@ -139,6 +139,24 @@
     }, life);
   }
 
+  // ---------- צ'יפ תאריך אחיד (📅) ----------
+  // text — הטקסט להצגה; input (אופציונלי) — שדה date/month נסתר: לחיצה על הצ'יפ פותחת את הבורר שלו.
+  function dateChip(text, input) {
+    var kids = [el('span', { class: 'rc-ic', text: '📅' }), el('span', { text: text })];
+    if (input) {
+      input.classList.add('chip-date-input');
+      kids.push(input);
+    }
+    var chip = el('span', { class: 'range-chip', style: input ? 'cursor:pointer;' : '', title: input ? 'לחצו לבחירת תאריך' : '' }, kids);
+    if (input) {
+      chip.addEventListener('click', function () {
+        try { if (input.showPicker) { input.showPicker(); return; } } catch (e) {}
+        input.click();
+      });
+    }
+    return chip;
+  }
+
   global.U = {
     el: el, clear: clear, $: $, $all: $all,
     todayISO: todayISO, toISO: toISO, fromISO: fromISO, addDays: addDays,
@@ -146,6 +164,6 @@
     hebrewDate: hebrewDate, gregLabel: gregLabel,
     monthKey: monthKey, monthLabel: monthLabel,
     GRADES: GRADES, WEEKDAYS: WEEKDAYS, num: num, escapeCsv: escapeCsv,
-    WA_SVG: WA_SVG, toast: toast
+    WA_SVG: WA_SVG, toast: toast, dateChip: dateChip
   };
 })(window);

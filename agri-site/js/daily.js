@@ -86,12 +86,13 @@
     Sync.mergeDate(curDate); // ודא שאתרים מהתכנון השבועי מופיעים ביום זה
     var day = getDay(curDate);
 
+    var dInp = U.el('input', { type: 'date', value: curDate });
+    dInp.addEventListener('change', function () { if (dInp.value) { curDate = dInp.value; App.render(); } });
     var head = U.el('div', { class: 'page-head' }, [
       U.el('h2', { text: '📋 סידור יומי' }),
       U.el('button', { class: 'btn secondary small', onclick: function () { curDate = U.addDays(curDate, -1); App.render(); } }, '→ יום קודם'),
-      dateInput(),
+      U.dateChip(U.weekdayName(curDate) + ' · ' + U.hebrewDate(curDate) + ' · ' + U.gregLabel(curDate), dInp),
       U.el('button', { class: 'btn secondary small', onclick: function () { curDate = U.addDays(curDate, 1); App.render(); } }, 'יום הבא ←'),
-      U.el('span', { class: 'tag', text: U.weekdayName(curDate) + ' · ' + U.hebrewDate(curDate) }),
       U.el('div', { class: 'spacer' }),
       U.el('button', { class: 'btn secondary', title: 'נעדרים היום', onclick: openAbsentDialog }, '🚫' + (Store.get().dailyAbsent[curDate] && Store.get().dailyAbsent[curDate].length ? ' (' + Store.get().dailyAbsent[curDate].length + ')' : '')),
       U.el('button', { class: 'btn secondary ico', title: 'ייצוא תמונה', onclick: exportImage }, '📷'),
@@ -128,12 +129,6 @@
     var gw = poolEl.querySelector('.pool-groups');
     var chrome = poolEl.offsetHeight - (gw ? gw.offsetHeight : 0);
     root.style.paddingBottom = (chrome + Math.min(getPoolHeight(), 280) + 14) + 'px';
-  }
-
-  function dateInput() {
-    var inp = U.el('input', { type: 'date', value: curDate });
-    inp.addEventListener('change', function () { if (inp.value) { curDate = inp.value; App.render(); } });
-    return inp;
   }
 
   function buildTotals(day) {

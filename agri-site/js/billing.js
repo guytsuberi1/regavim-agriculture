@@ -252,7 +252,7 @@
   function monthInput() {
     var inp = U.el('input', { type: 'month', value: curMonth });
     inp.addEventListener('change', function () { if (inp.value) { curMonth = inp.value; App.render(); } });
-    return inp;
+    return U.dateChip(U.monthLabel(curMonth), inp);
   }
 
   var THIN = { style: 'thin', color: { rgb: 'CBD5C0' } };

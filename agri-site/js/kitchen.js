@@ -25,7 +25,7 @@
       U.el('button', { class: 'btn secondary small', onclick: function () { kWeek = U.addDays(kWeek, -7); App.render(); } }, '→ שבוע קודם'),
       U.el('button', { class: 'btn secondary small', onclick: function () { kWeek = U.startOfWeek(U.todayISO()); App.render(); } }, 'השבוע'),
       U.el('button', { class: 'btn secondary small', onclick: function () { kWeek = U.addDays(kWeek, 7); App.render(); } }, 'שבוע הבא ←'),
-      U.el('span', { class: 'tag', text: U.gregLabel(kWeek) + ' – ' + U.gregLabel(U.addDays(kWeek, 6)) })
+      U.dateChip(U.gregLabel(kWeek) + ' – ' + U.gregLabel(U.addDays(kWeek, 6)))
     ]));
 
     var ids = (d.weeklyDuty && d.weeklyDuty[kWeek]) || [];
