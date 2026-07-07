@@ -6,6 +6,8 @@
   var sub = 'overview';      // overview | daily | notes | finance
   var period = 'month';      // week | month | year (לשונית "מבט על")
   var dashDate = U.todayISO(); // תאריך לסיכום היומי
+  var trendMetric = 'income'; // המדד המוצג בגרף המגמה (נבחר בלחיצה על כרטיס)
+  var notesArchive = false;   // הערות מהשטח: תצוגת ארכיון (טופלו)
 
   function money(n) { return Math.round(U.num(n)).toLocaleString('he-IL') + ' ₪'; }
   function inRange(iso, r) { return iso >= r.start && iso <= r.end; }
@@ -16,33 +18,48 @@
     return s.length > 0 && s.every(function (x) { return x.wentToWork || x.absent; });
   }
 
-  // ---------- סיכום יומי לוואטסאפ (הטעונים טיפול) ----------
-  function dailyAttentionMessage() {
+  // ---------- תזכורת וואטסאפ לאנשי צוות שלא השלימו דיווח שטח ----------
+  function waN(phone) {
+    var d = String(phone || '').replace(/\D/g, '');
+    if (!d) return null;
+    if (d.indexOf('972') === 0) return d;
+    if (d.charAt(0) === '0') return '972' + d.slice(1);
+    if (d.length === 9) return '972' + d;
+    return d;
+  }
+  function staffWaReminder() {
     var day = (Store.get().days || {})[dashDate], cards = (day && day.cards) || [];
-    var parts = ['*סיכום יומי — ' + U.weekdayName(dashDate) + ' (' + U.gregLabel(dashDate) + ')*', ''];
-    var any = false;
+    var pending = [];
     cards.forEach(function (c) {
-      var site = c.siteId ? ((Store.getById('sites', c.siteId) || {}).name || '(אתר)') : '(אתר)';
-      var flagged = (c.students || []).filter(function (s) { return !s.wentToWork || s.rating === 1 || s.rating === 5; });
-      if (!flagged.length) return;
-      any = true;
-      parts.push('📍 *' + site + '*');
-      flagged.forEach(function (s) {
-        var stu = Store.getById('students', s.studentId) || { name: '?' };
-        var cls = stu.className || stu.grade || '';
-        var status = s.wentToWork ? ('ציון ' + s.rating) : (s.absent ? 'לא יצא' : 'לא סומן');
-        parts.push('· ' + stu.name + (cls ? ' (' + cls + ')' : '') + ' — ' + status);
+      var students = c.students || [];
+      if (!students.length || cardReported(c)) return; // אין תלמידים / דווח במלואו
+      var siteName = c.siteId ? ((Store.getById('sites', c.siteId) || {}).name || '(אתר)') : '(אתר)';
+      var left = students.filter(function (s) { return !(s.wentToWork || s.absent); }).length;
+      var ids = (c.staffIds && c.staffIds.length) ? c.staffIds : (c.staffId ? [c.staffId] : []);
+      if (!ids.length) { pending.push({ name: null, phone: null, site: siteName, left: left }); return; }
+      ids.forEach(function (id) {
+        var p = Store.getById('staff', id);
+        if (p) pending.push({ name: p.name, phone: p.phone, site: siteName, left: left });
       });
-      parts.push('');
     });
-    var gen = ((Store.get().dailyAbsent || {})[dashDate] || []);
-    if (gen.length) {
-      parts.push('🚫 *נעדרים כלליים:*');
-      gen.forEach(function (id) { var stu = Store.getById('students', id); if (stu) parts.push('· ' + stu.name); });
-      any = true;
-    }
-    if (!any) parts.push('✓ אין תלמידים הטעונים טיפול היום.');
-    return parts.join('\n');
+    if (!pending.length) { U.toast('כל האתרים דווחו במלואם ✓'); return; }
+
+    var body = U.el('div', null, [
+      U.el('p', { class: 'muted', style: 'margin:0 0 10px;', text: 'אתרים שהדיווח בהם לא הושלם היום — לחצו לשליחת תזכורת אישית בוואטסאפ:' })
+    ]);
+    pending.forEach(function (p) {
+      var msg = 'שלום ' + (p.name || '') + ',\nתזכורת: נא להשלים את דיווח מצב השטח של היום באתר "' + p.site + '" — נותרו ' + p.left + ' תלמידים לסימון.\nתודה 🌱 רגבים בנימין';
+      var wn = waN(p.phone);
+      body.appendChild(U.el('div', { style: 'display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);' }, [
+        U.el('span', { style: 'flex:1;font-size:14px;', text: (p.name || '⚠ ללא איש צוות') + ' · ' + p.site + ' · נותרו ' + p.left + (p.name && !wn ? ' · (אין מספר)' : '') }),
+        p.name ? U.el('a', {
+          class: 'btn small ico', target: '_blank', rel: 'noopener',
+          href: (wn ? 'https://wa.me/' + wn : 'https://wa.me/') + '?text=' + encodeURIComponent(msg),
+          style: 'background:#25D366;color:#fff;border:0;', title: 'שלח תזכורת בוואטסאפ', html: U.WA_SVG
+        }) : null
+      ]));
+    });
+    Modal.open('תזכורת דיווח שטח — ' + U.weekdayName(dashDate) + ' ' + U.gregLabel(dashDate), body, [{ label: 'סגור', class: 'secondary' }]);
   }
 
   // ---------- טווחי תקופה ----------
@@ -116,16 +133,30 @@
       (days[iso].cards || []).forEach(function (c) {
         if (c.fieldNote && String(c.fieldNote).trim()) {
           var site = c.siteId ? ((Store.getById('sites', c.siteId) || {}).name || '(אתר)') : '(אתר)';
-          out.push({ date: iso, site: site, note: c.fieldNote, by: c.fieldNoteBy || '', card: c, handled: !!c.fieldNoteHandled });
+          out.push({ date: iso, site: site, note: c.fieldNote, by: c.fieldNoteBy || '', card: c, status: noteStatus(c) });
         }
       });
     });
-    // לא-מטופלות תחילה, ובתוך כל קבוצה החדשות למעלה
+    // תקוע תחילה (דחוף), אחר כך פתוח, ואז בטיפול; בתוך כל קבוצה — החדשות למעלה
+    var rank = { stuck: 0, open: 1, progress: 2, done: 3 };
     out.sort(function (a, b) {
-      if (a.handled !== b.handled) return a.handled ? 1 : -1;
+      if (rank[a.status] !== rank[b.status]) return rank[a.status] - rank[b.status];
       return a.date < b.date ? 1 : (a.date > b.date ? -1 : 0);
     });
     return out;
+  }
+
+  // סטטוס הערת שטח (תאימות לאחור: fieldNoteHandled הישן = טופל)
+  var NOTE_STATUSES = [
+    { v: 'open', label: 'פתוח', color: '#2563eb' },
+    { v: 'progress', label: 'בטיפול', color: '#d97706' },
+    { v: 'stuck', label: 'תקוע', color: '#dc2626' },
+    { v: 'done', label: 'טופל', color: '#16a34a' }
+  ];
+  function noteStatus(c) { return c.fieldNoteStatus || (c.fieldNoteHandled ? 'done' : 'open'); }
+  function noteStatusDef(v) {
+    for (var i = 0; i < NOTE_STATUSES.length; i++) if (NOTE_STATUSES[i].v === v) return NOTE_STATUSES[i];
+    return NOTE_STATUSES[0];
   }
 
   // ---------- תזכורת SMS למחנכים למילוי נעדרים (הועבר מהתכנון השבועי) ----------
@@ -183,13 +214,21 @@
       ])
     ]);
   }
-  function metricKpi(icon, label, cur, prev, fmt, tone, invert) {
+  function metricKpi(icon, label, cur, prev, fmt, tone, invert, key) {
     var badge = deltaBadge(cur, prev);
     // invert: מדד ש"פחות = טוב" (למשל היעדרויות) — עלייה תסומן באדום ולא בירוק
     if (invert && badge && (badge.cls === 'up' || badge.cls === 'down')) badge.cls = (badge.cls === 'up' ? 'down' : 'up');
     // אין תקופה קודמת (null או 0 נתונים) — בלי כיתוב "היה..." ובלי באדג'
     var sub = (prev == null || prev === 0) ? null : ('היה ' + fmt(prev) + ' ' + prevWord());
-    return kpi(icon, cur == null ? '—' : fmt(cur), label, tone, sub, badge);
+    var card = kpi(icon, cur == null ? '—' : fmt(cur), label, tone, sub, badge);
+    // לחיצה על כרטיס מציגה את מגמת הנתון בגרף
+    if (key) {
+      card.classList.add('kpi-click');
+      if (trendMetric === key) card.classList.add('sel');
+      card.title = 'לחצו להצגת המגמה של: ' + label;
+      card.addEventListener('click', function () { trendMetric = key; App.render(); });
+    }
+    return card;
   }
   function panel(title, bodyNode, extraClass) {
     return U.el('section', { class: 'dash-panel ' + (extraClass || '') }, [
@@ -276,32 +315,45 @@
     }
 
     section('נוכחות ומשמעת', [
-      metricKpi('🚜', 'אחוז יציאה לעבודה', cur.attPct, prev.attPct, function (v) { return Math.round(v) + '%'; }, 'info'),
-      metricKpi('🚫', 'היעדרויות ללא אישור', cur.absUnap, prev.absUnap, num, 'info', true)
+      metricKpi('🚜', 'אחוז יציאה לעבודה', cur.attPct, prev.attPct, function (v) { return Math.round(v) + '%'; }, 'info', false, 'attPct'),
+      metricKpi('🚫', 'היעדרויות ללא אישור', cur.absUnap, prev.absUnap, num, 'info', true, 'absUnap')
     ]);
     section('היקף פעילות', [
-      metricKpi('🗓️', 'ימי עבודה', cur.workDays, prev.workDays, function (v) { return String(v); }, 'neutral'),
-      metricKpi('🧑‍🌾', 'תלמידים פעילים', cur.activeStudents, prev.activeStudents, function (v) { return String(v); }, 'neutral'),
-      metricKpi('👷', 'ממוצע תלמידים ליום עבודה', curAvg, prevAvg, one, 'neutral'),
-      metricKpi('⏱️', 'שעות עבודה', cur.hours, prev.hours, num, 'neutral'),
-      metricKpi('🕐', 'ממוצע שעות ליום עבודה', curHoursAvg, prevHoursAvg, one, 'neutral')
+      metricKpi('🗓️', 'ימי עבודה', cur.workDays, prev.workDays, function (v) { return String(v); }, 'neutral', false, 'workDays'),
+      metricKpi('🧑‍🌾', 'תלמידים פעילים', cur.activeStudents, prev.activeStudents, function (v) { return String(v); }, 'neutral', false, 'activeStudents'),
+      metricKpi('👷', 'ממוצע תלמידים ליום עבודה', curAvg, prevAvg, one, 'neutral', false, 'avgStudents'),
+      metricKpi('⏱️', 'שעות עבודה', cur.hours, prev.hours, num, 'neutral', false, 'hours'),
+      metricKpi('🕐', 'ממוצע שעות ליום עבודה', curHoursAvg, prevHoursAvg, one, 'neutral', false, 'hoursAvg')
     ]);
     section('איכות', [
-      metricKpi('⭐', 'ציון ממוצע', cur.ratingAvg, prev.ratingAvg, one, 'purple')
+      metricKpi('⭐', 'ציון ממוצע', cur.ratingAvg, prev.ratingAvg, one, 'purple', false, 'ratingAvg')
     ]);
     section('כספים', [
-      metricKpi('💵', 'הכנסות (' + periodWord() + ')', cur.income, prev.income, money, 'good'),
-      metricKpi('💸', 'הכנסה ממוצעת ליום עבודה', curIncAvg, prevIncAvg, money, 'good')
+      metricKpi('💵', 'הכנסות (' + periodWord() + ')', cur.income, prev.income, money, 'good', false, 'income'),
+      metricKpi('💸', 'הכנסה ממוצעת ליום עבודה', curIncAvg, prevIncAvg, money, 'good', false, 'incomeAvg')
     ]);
 
-    // מגמות — 6 התקופות האחרונות
+    // גרף מגמה אחד — הנתון הנבחר (לחיצה על כרטיס מחליפה מדד), 6 התקופות האחרונות
+    var moneyShort = function (v) { return v >= 9500 ? Math.round(v / 1000) + 'k ₪' : Math.round(v) + ' ₪'; };
+    var METRICS = {
+      attPct:         { label: 'אחוז יציאה לעבודה', get: function (m) { return m.attPct || 0; }, fmt: function (v) { return Math.round(v) + '%'; } },
+      absUnap:        { label: 'היעדרויות ללא אישור', get: function (m) { return m.absUnap; }, fmt: function (v) { return String(Math.round(v)); } },
+      workDays:       { label: 'ימי עבודה', get: function (m) { return m.workDays; }, fmt: function (v) { return String(Math.round(v)); } },
+      activeStudents: { label: 'תלמידים פעילים', get: function (m) { return m.activeStudents; }, fmt: function (v) { return String(Math.round(v)); } },
+      avgStudents:    { label: 'ממוצע תלמידים ליום עבודה', get: function (m) { return m.workDays ? m.manDays / m.workDays : 0; }, fmt: function (v) { return v.toFixed(1); } },
+      hours:          { label: 'שעות עבודה', get: function (m) { return m.hours; }, fmt: function (v) { return String(Math.round(v)); } },
+      hoursAvg:       { label: 'ממוצע שעות ליום עבודה', get: function (m) { return m.workDays ? m.hours / m.workDays : 0; }, fmt: function (v) { return v.toFixed(1); } },
+      ratingAvg:      { label: 'ציון ממוצע', get: function (m) { return m.ratingAvg || 0; }, fmt: function (v) { return v.toFixed(1); } },
+      income:         { label: 'הכנסות', get: function (m) { return m.income; }, fmt: moneyShort },
+      incomeAvg:      { label: 'הכנסה ממוצעת ליום עבודה', get: function (m) { return m.workDays ? m.income / m.workDays : 0; }, fmt: moneyShort }
+    };
+    var mm = METRICS[trendMetric] || METRICS.income;
     var offs = [-5, -4, -3, -2, -1, 0];
     var series = offs.map(function (o) { return { label: periodShortLabel(period, o), r: rangeOf(period, o) }; });
     series.forEach(function (s) { s.m = computeRange(s.r); });
-    root.appendChild(U.el('div', { class: 'dash-cols' }, [
-      panel('📈 מגמת יציאות לעבודה', trendChart(series.map(function (s) { return { label: s.label, val: s.m.manDays }; }), function (v) { return Math.round(v); }), 'col-half'),
-      panel('📈 מגמת הכנסות', trendChart(series.map(function (s) { return { label: s.label, val: s.m.income }; }), function (v) { return Math.round(v / 1000) + 'k ₪'; }), 'col-half')
-    ]));
+    root.appendChild(panel('📈 מגמה: ' + mm.label,
+      trendChart(series.map(function (s) { return { label: s.label, val: mm.get(s.m) || 0 }; }), mm.fmt)));
+    root.appendChild(U.el('p', { class: 'muted', style: 'font-size:12px;margin-top:4px;', text: 'לחצו על כל כרטיס נתון כדי להציג את המגמה שלו בגרף.' }));
 
     root.appendChild(U.el('p', { class: 'muted', style: 'font-size:12px;', text: 'הכנסות מחושבות לפי שעות×תעריף + נסיעות לכל יום (אומדן ניהולי; הנתון המדויק לחיוב נמצא ב"דרישת תשלום").' }));
   }
@@ -318,8 +370,13 @@
       U.el('button', { class: 'btn secondary small', onclick: function () { dashDate = U.addDays(dashDate, 1); App.render(); } }, 'מחר ←'),
       U.el('button', { class: 'btn secondary small', onclick: function () { dashDate = U.todayISO(); App.render(); } }, 'היום'),
       U.el('div', { class: 'spacer' }),
-      U.el('a', { class: 'btn small ico', href: 'https://wa.me/?text=' + encodeURIComponent(dailyAttentionMessage()), target: '_blank', rel: 'noopener', style: 'background:#25D366;color:#fff;border:0;', title: 'שליחת סיכום היום בוואטסאפ', html: U.WA_SVG }),
-      U.el('button', { class: 'btn small', title: 'שליחת SMS למחנכים למילוי הנעדרים היומיים', onclick: sendHomeroomReminder }, '📩 תזכורת למחנכים')
+      U.el('div', { class: 'remind-group no-print' }, [
+        U.el('div', { class: 'rg-title', text: 'תזכורת' }),
+        U.el('div', { class: 'rg-btns' }, [
+          U.el('button', { class: 'btn small ico secondary', title: 'תזכורת SMS למחנכים — מילוי נעדרים יומיים', onclick: sendHomeroomReminder }, '📩'),
+          U.el('button', { class: 'btn small ico', style: 'background:#25D366;color:#fff;border:0;', title: 'תזכורת וואטסאפ לאנשי צוות שלא השלימו דיווח שטח', onclick: staffWaReminder, html: U.WA_SVG })
+        ])
+      ])
     ]));
     root.appendChild(U.el('div', { class: 'muted', style: 'font-size:12.5px;margin-bottom:10px;', text: 'מוצגים רק תלמידים הטעונים תשומת לב: לא יצאו · לא סומנו · ציון 1 או 5.' }));
 
@@ -438,24 +495,45 @@
   // ---------- הערות מהשטח ----------
   function renderNotes(root) {
     var notes = fieldNotes();
-    var open = notes.filter(function (n) { return !n.handled; }).length;
+    var openNotes = notes.filter(function (n) { return n.status !== 'done'; });
+    var archived = notes.filter(function (n) { return n.status === 'done'; });
+    var shown = notesArchive ? archived : openNotes;
+
     var box = U.el('div', { class: 'fieldnotes' });
-    if (!notes.length) box.appendChild(U.el('div', { class: 'dash-empty', text: 'אין הערות מהשטח עדיין.' }));
-    else notes.forEach(function (n) {
-      var toggle = U.el('button', {
-        class: 'btn small ' + (n.handled ? 'secondary' : ''),
-        onclick: function () { n.card.fieldNoteHandled = !n.card.fieldNoteHandled; Store.save(); App.render(); }
-      }, n.handled ? '↩ החזר לטיפול' : '✓ טופל');
-      box.appendChild(U.el('div', { class: 'fieldnote' + (n.handled ? ' fn-handled' : '') }, [
+    // מתג ארכיון
+    box.appendChild(U.el('div', { style: 'display:flex;justify-content:flex-end;margin-bottom:8px;' }, [
+      U.el('button', { class: 'btn small secondary', onclick: function () { notesArchive = !notesArchive; App.render(); } },
+        notesArchive ? '↩ חזרה להערות פתוחות' : '📦 ארכיון (' + archived.length + ')')
+    ]));
+
+    if (!shown.length) {
+      box.appendChild(U.el('div', { class: 'dash-empty', text: notesArchive ? 'הארכיון ריק.' : 'אין הערות פתוחות מהשטח 🎉' }));
+    } else shown.forEach(function (n) {
+      var def = noteStatusDef(n.status);
+      // בורר סטטוס — צבוע לפי המצב הנבחר
+      var ssel = U.el('select', { class: 'fn-status', style: 'color:' + def.color + ';border-color:' + def.color + ';' },
+        NOTE_STATUSES.map(function (st) { return U.el('option', { value: st.v }, st.label); }));
+      ssel.value = n.status;
+      ssel.addEventListener('change', function () {
+        n.card.fieldNoteStatus = ssel.value;
+        delete n.card.fieldNoteHandled;
+        Store.save(); App.render();
+        if (ssel.value === 'done') U.toast('ההערה הועברה לארכיון');
+      });
+      // הערת רכז
+      var reply = U.el('input', { type: 'text', class: 'fn-reply', value: n.card.fieldNoteReply || '', placeholder: '📝 הערת רכז (מה נעשה / למי הועבר)…' });
+      reply.addEventListener('change', function () { n.card.fieldNoteReply = reply.value; Store.save(); });
+
+      box.appendChild(U.el('div', { class: 'fieldnote', style: 'border-inline-start:4px solid ' + def.color + ';' }, [
         U.el('div', { class: 'fn-top' }, [
           U.el('span', { class: 'fn-site', text: n.site + (n.by ? ' · ' + n.by : '') }),
           U.el('span', { class: 'fn-date', text: U.gregLabel(n.date) })
         ]),
         U.el('div', { class: 'fn-text', text: n.note }),
-        U.el('div', { style: 'margin-top:6px;text-align:left;' }, [toggle])
+        U.el('div', { style: 'display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;' }, [ssel, reply])
       ]));
     });
-    root.appendChild(panel('📝 הערות מהשטח (' + open + ' פתוחות)', box));
+    root.appendChild(panel('📝 הערות מהשטח (' + openNotes.length + ' פתוחות)', box));
   }
 
   // ---------- נתונים כספיים ----------

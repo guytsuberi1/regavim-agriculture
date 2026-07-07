@@ -537,8 +537,19 @@ tr.detail-total td { background: #f4f0e8; border-top: 2px solid #d9cfbc; }
 .ds-report.wait, .field-report.wait { background: #fef3c7; color: #92400e; }
 .field-report { display: inline-block; font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 8px; margin-bottom: 8px; }
 
-/* הערת שטח שטופלה */
-.fn-handled { opacity: .55; }
+/* כרטיס KPI לחיץ (מציג מגמה בגרף) */
+.kpi-click { cursor: pointer; }
+.kpi-click:hover { box-shadow: 0 6px 18px rgba(0,0,0,.12); }
+.kpi.sel { outline: 2px solid var(--green); outline-offset: -1px; }
+
+/* קבוצת תזכורת (סיכום יומי) */
+.remind-group { text-align: center; }
+.rg-title { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: .05em; margin-bottom: 3px; }
+.rg-btns { display: flex; gap: 6px; justify-content: center; }
+
+/* הערות שטח — סטטוס והערת רכז */
+.fn-status { font-size: 12.5px; font-weight: 700; padding: 4px 8px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--card); }
+.fn-reply { flex: 1; min-width: 200px; font-size: 13px; }
 
 /* טבלת סיכום יומי בדשבורד */
 .ds-table td, .ds-table th { vertical-align: middle; }
