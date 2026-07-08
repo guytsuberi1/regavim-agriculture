@@ -685,8 +685,26 @@ tr.detail-total td { background: #f4f0e8; border-top: 2px solid #d9cfbc; }
 .avatar { width: auto; min-width: 34px; padding: 0 12px; border-radius: 999px; }
 .um-name { font-size: 14px; font-weight: 700; color: var(--text); padding: 8px 12px 0; }
 .um-name + .um-email { padding-top: 2px; }
-.dark-toggle { background: none; border: 0; font-size: 18px; cursor: pointer; padding: 2px 6px; line-height: 1; }
-.dark-toggle:hover { filter: brightness(1.1); }
+/* מתג מצב לילה — פס מעוגל עם כפתור מחליק בין ☀️ ל-🌙 */
+.mode-switch {
+  position: relative; width: 54px; height: 28px; flex: 0 0 auto;
+  border-radius: 999px; border: 1px solid var(--border); cursor: pointer; padding: 0;
+  background: linear-gradient(90deg, #dbeafe, #eef4fa);
+  transition: background .35s, border-color .35s;
+}
+.mode-switch:hover { filter: brightness(1.03); }
+.mode-switch .ms-ico { position: absolute; top: 50%; transform: translateY(-50%); font-size: 12px; line-height: 1; transition: opacity .3s; pointer-events: none; }
+.mode-switch .ms-sun { inset-inline-start: 7px; opacity: 1; }
+.mode-switch .ms-moon { inset-inline-end: 7px; opacity: .45; }
+.mode-switch .ms-knob {
+  position: absolute; top: 2.5px; inset-inline-start: 3px; width: 21px; height: 21px;
+  border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.35);
+  transition: transform .3s cubic-bezier(.45, 1.6, .5, 1);
+}
+.mode-switch.on { background: linear-gradient(90deg, #1e293b, #33415c); border-color: #33415c; }
+.mode-switch.on .ms-knob { transform: translateX(-26px); background: #cbd5e1; }
+.mode-switch.on .ms-sun { opacity: .4; }
+.mode-switch.on .ms-moon { opacity: 1; }
 #headerSync { display: inline-flex; align-items: center; gap: 6px; }
 
 /* ---------- מצב לילה ---------- */

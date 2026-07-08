@@ -486,7 +486,8 @@
       var name = userDisplayName(u);
       var first = name.split(/\s+/)[0] || '?';
       var dark = document.body.classList.contains('dark');
-      el.innerHTML = '<button class="dark-toggle" id="darkToggle" aria-label="מצב לילה" title="' + (dark ? 'מעבר למצב יום' : 'מעבר למצב לילה') + '">' + (dark ? '☀️' : '🌙') + '</button>'
+      el.innerHTML = '<button class="mode-switch' + (dark ? ' on' : '') + '" id="darkToggle" role="switch" aria-checked="' + dark + '" aria-label="מצב לילה" title="' + (dark ? 'מעבר למצב יום' : 'מעבר למצב לילה') + '">'
+          + '<span class="ms-ico ms-sun">☀️</span><span class="ms-ico ms-moon">🌙</span><span class="ms-knob"></span></button>'
         + '<div class="usermenu">'
         + '<button class="avatar" id="avatarBtn" aria-label="תפריט משתמש" title="' + escHtml(name) + ' · ' + escHtml(email) + '">' + escHtml(first) + '</button>'
         + '<div class="usermenu-pop" id="userPop">'
@@ -504,7 +505,8 @@
       if (dt) dt.onclick = function () {
         var on = document.body.classList.toggle('dark');
         try { localStorage.setItem('agri_dark', on ? '1' : '0'); } catch (e) {}
-        dt.textContent = on ? '☀️' : '🌙';
+        dt.classList.toggle('on', on);
+        dt.setAttribute('aria-checked', on ? 'true' : 'false');
         dt.title = on ? 'מעבר למצב יום' : 'מעבר למצב לילה';
       };
     }).catch(function () {});
