@@ -35,7 +35,6 @@
       { key: 'name', label: 'שם התלמיד', type: 'text', required: true, col: true },
       { key: 'className', label: 'כיתה', type: 'text', col: true, hint: 'לדוגמה: ט1 (השכבה נגזרת אוטומטית)' },
       { key: 'phone', label: 'טלפון', type: 'text', required: true, col: true },
-      { key: 'active', label: 'פעיל', type: 'bool', col: true, def: true },
       { key: 'notes', label: 'הערות', type: 'text' }
     ];
     if (coll === 'sites') return [
@@ -48,7 +47,6 @@
       { key: 'travelPay', label: 'תשלום נסיעות (₪)', type: 'number', col: true },
       { key: 'defaultHours', label: 'שעות ברירת מחדל', type: 'number', def: 8 },
       { key: 'access', label: 'דרך הגעה', type: 'text' },
-      { key: 'active', label: 'פעיל', type: 'bool', def: true },
       { key: 'notes', label: 'הערות', type: 'text' }
     ];
     if (coll === 'staff') return [
@@ -57,13 +55,11 @@
         values: ['staff', 'leader'], col: true, def: 'staff' },
       { key: 'phone', label: 'טלפון', type: 'text', required: true, col: true },
       { key: 'email', label: 'אימייל להתחברות', type: 'text', required: true, col: true },
-      { key: 'homeroomClass', label: 'כיתת מחנך', type: 'text', col: true, hint: 'מלאו כיתה (ט1) רק אם הוא מחנך; ריק = אינו מחנך' },
-      { key: 'active', label: 'פעיל', type: 'bool', col: true, def: true }
+      { key: 'homeroomClass', label: 'כיתת מחנך', type: 'text', col: true, hint: 'מלאו כיתה (ט1) רק אם הוא מחנך; ריק = אינו מחנך' }
     ];
     if (coll === 'transports') return [
       { key: 'name', label: 'שם הסעה', type: 'text', required: true, col: true },
-      { key: 'capacity', label: 'קיבולת', type: 'number', col: true },
-      { key: 'active', label: 'פעיל', type: 'bool', col: true, def: true }
+      { key: 'capacity', label: 'קיבולת', type: 'number', col: true }
     ];
     return [];
   }
@@ -282,36 +278,47 @@
       ]);
     }));
 
-    Modal.open((editing ? 'עריכת' : 'הוספת') + ' ' + collTitle(sub), body, [
-      { label: 'ביטול', class: 'secondary' },
-      { label: 'שמירה', class: '', onClick: function (close) {
-        // בעריכה — שומרים על שדות קיימים שאינם בטופס (כמו defaultTransportId) כדי לא לאבד אותם
-        var out = {};
-        if (editing) { for (var key in item) { if (Object.prototype.hasOwnProperty.call(item, key)) out[key] = item[key]; } out.id = model.id; }
-        var firstBad = null;
-        defs.forEach(function (d) {
-          var inp = inputs[d.key];
-          var v = d.type === 'bool' ? inp.checked : inp.value;
-          if (d.type === 'number') v = v === '' ? '' : U.num(v);
-          var bad = d.required && (v === '' || v == null || String(v).trim() === '');
-          if (d.required && errEls[d.key]) {
-            inp.classList.toggle('invalid', bad);
-            errEls[d.key].textContent = bad ? 'שדה חובה' : '';
-          }
-          if (bad && !firstBad) firstBad = inp;
-          out[d.key] = v;
-        });
-        if (firstBad) { firstBad.focus(); return; }
-        // גזירת שכבה מהכיתה (רק אם הוזנה כיתה) — כדי לתחזק שדה אחד בלבד
-        if (sub === 'students') {
-          var g = deriveGrade(out.className);
-          if (g) out.grade = g;
+    function doSave(close, skipContact) {
+      // בעריכה — שומרים על שדות קיימים שאינם בטופס (כמו defaultTransportId) כדי לא לאבד אותם
+      var out = {};
+      if (editing) { for (var key in item) { if (Object.prototype.hasOwnProperty.call(item, key)) out[key] = item[key]; } out.id = model.id; }
+      var firstBad = null;
+      defs.forEach(function (d) {
+        var inp = inputs[d.key];
+        var v = d.type === 'bool' ? inp.checked : inp.value;
+        if (d.type === 'number') v = v === '' ? '' : U.num(v);
+        // "שמירה ללא טלפון/מייל" — מדלגת על חובת שדות הקשר בלבד (שם נשאר חובה)
+        var req = d.required && !(skipContact && (d.key === 'phone' || d.key === 'email'));
+        var bad = req && (v === '' || v == null || String(v).trim() === '');
+        if (d.required && errEls[d.key]) {
+          inp.classList.toggle('invalid', bad);
+          errEls[d.key].textContent = bad ? 'שדה חובה' : '';
         }
-        Store.upsert(sub, out);
-        close();
-        App.render();
-      } }
-    ]);
+        if (bad && !firstBad) firstBad = inp;
+        out[d.key] = v;
+      });
+      if (firstBad) { firstBad.focus(); return; }
+      // גזירת שכבה מהכיתה (רק אם הוזנה כיתה) — כדי לתחזק שדה אחד בלבד
+      if (sub === 'students') {
+        var g = deriveGrade(out.className);
+        if (g) out.grade = g;
+      }
+      Store.upsert(sub, out);
+      close();
+      App.render();
+    }
+
+    var btns = [
+      { label: 'ביטול', class: 'secondary' },
+      { label: 'שמירה', class: '', onClick: function (close) { doSave(close, false); } }
+    ];
+    // דילוג על חובת טלפון/מייל — רק באוספים שבהם הם שדות חובה
+    var reqContact = defs.filter(function (d) { return d.required && (d.key === 'phone' || d.key === 'email'); });
+    if (reqContact.length) {
+      var what = reqContact.length > 1 ? 'טלפון/מייל' : (reqContact[0].key === 'phone' ? 'טלפון' : 'מייל');
+      btns.splice(1, 0, { label: '⏭ שמירה ללא ' + what, class: 'secondary', onClick: function (close) { doSave(close, true); } });
+    }
+    Modal.open((editing ? 'עריכת' : 'הוספת') + ' ' + collTitle(sub), body, btns);
   }
 
   // ---------- ייבוא מאקסל ----------

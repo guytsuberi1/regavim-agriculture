@@ -413,10 +413,15 @@
     };
   }
 
-  function userInitials(u) {
+  function escHtml(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  // שם התצוגה של המשתמש: רשומת איש הצוות עם אותו אימייל → שם מהחשבון → תחילת האימייל
+  function userDisplayName(u) {
+    var em = (u.email || '').toLowerCase();
+    var m = ((data && data.staff) || []).filter(function (s) { return (s.email || '').toLowerCase() === em; })[0];
+    if (m && m.name && m.name.trim()) return m.name.trim();
     var n = (u.user_metadata && (u.user_metadata.full_name || u.user_metadata.name)) || '';
-    if (n && n.trim()) { var p = n.trim().split(/\s+/); return (p[0].charAt(0) + (p[1] ? p[1].charAt(0) : '')).toUpperCase(); }
-    return ((u.email || '?').trim().charAt(0) || '?').toUpperCase();
+    if (n && n.trim()) return n.trim();
+    return (u.email || '?').split('@')[0];
   }
   function updateUserBar() {
     if (!sb) return;
@@ -425,10 +430,15 @@
       var el = document.getElementById('headerSync');
       if (!el || !u) return;
       var email = u.email || '';
-      el.innerHTML = '<div class="usermenu">'
-        + '<button class="avatar" id="avatarBtn" aria-label="תפריט משתמש" title="' + email + '">' + userInitials(u) + '</button>'
+      var name = userDisplayName(u);
+      var first = name.split(/\s+/)[0] || '?';
+      var dark = document.body.classList.contains('dark');
+      el.innerHTML = '<button class="dark-toggle" id="darkToggle" aria-label="מצב לילה" title="' + (dark ? 'מעבר למצב יום' : 'מעבר למצב לילה') + '">' + (dark ? '☀️' : '🌙') + '</button>'
+        + '<div class="usermenu">'
+        + '<button class="avatar" id="avatarBtn" aria-label="תפריט משתמש" title="' + escHtml(name) + ' · ' + escHtml(email) + '">' + escHtml(first) + '</button>'
         + '<div class="usermenu-pop" id="userPop">'
-          + '<div class="um-email">' + email + '</div>'
+          + '<div class="um-name">' + escHtml(name) + '</div>'
+          + '<div class="um-email">' + escHtml(email) + '</div>'
           + '<button class="um-item um-logout" id="umLogout">↩️ התנתקות</button>'
         + '</div></div>';
       var ab = document.getElementById('avatarBtn'), pop = document.getElementById('userPop');
@@ -437,6 +447,13 @@
         document.addEventListener('click', function () { pop.classList.remove('open'); });
       }
       var lo = document.getElementById('umLogout'); if (lo) lo.onclick = doLogout;
+      var dt = document.getElementById('darkToggle');
+      if (dt) dt.onclick = function () {
+        var on = document.body.classList.toggle('dark');
+        try { localStorage.setItem('agri_dark', on ? '1' : '0'); } catch (e) {}
+        dt.textContent = on ? '☀️' : '🌙';
+        dt.title = on ? 'מעבר למצב יום' : 'מעבר למצב לילה';
+      };
     }).catch(function () {});
   }
   function doLogout() { if (sb) sb.auth.signOut().then(function () { location.reload(); }); }
