@@ -93,8 +93,8 @@
     return out;
   }
 
-  // בורר מיקום תחזית — רק אתרים משובצים בתקופה; אם אין שיבוץ — שילה
-  var autoLocTried = {};
+  // בורר מיקום תחזית — שילה תמיד ראשונה, ואחריה רק מיקומים משובצים שיש להם קואורדינטות
+  var autoLocTried = {}, geoTried = {};
   function switchLoc(name) {
     seedGeocode();
     geocodeName(name).then(function (c) {
@@ -105,17 +105,26 @@
     });
   }
   function weatherSelect() {
-    var locs = scheduledLocations();
-    if (!locs.length) locs = [DEF_LOC.name];
+    var cache = seedGeocode();
+    var locs = [DEF_LOC.name]; // שילה — תמיד מוצגת ותמיד בראש הרשימה
+    scheduledLocations().forEach(function (n) {
+      if (n === DEF_LOC.name) return;
+      if (cache[n]) { locs.push(n); return; }
+      // מיקום ללא קואורדינטות — לא מוצג; מנסים גיאוקודינג ברקע ויתווסף אם יימצא
+      if (!geoTried[n]) {
+        geoTried[n] = true;
+        geocodeName(n).then(function (c) { if (c) App.render(); });
+      }
+    });
     var cur = getLoc().name;
-    var sel = U.el('select', { class: 'wx-sel no-print', title: 'מיקום תחזית מזג האוויר — לפי האתרים המשובצים בתקופה' },
+    var sel = U.el('select', { class: 'wx-sel no-print', title: 'מיקום תחזית מזג האוויר — שילה + האתרים המשובצים בתקופה' },
       locs.map(function (n) { return U.el('option', { value: n }, '🌤 ' + n); }));
     if (locs.indexOf(cur) !== -1) {
       sel.value = cur;
-    } else if (!autoLocTried[locs[0]]) {
-      // המיקום השמור לא משובץ בתקופה — מעבר אוטומטי למיקום המשובץ הראשון (פעם אחת)
-      autoLocTried[locs[0]] = true;
-      switchLoc(locs[0]);
+    } else {
+      // המיקום השמור לא ברשימה — מעבר אוטומטי למשובץ הראשון, ואם אין — לשילה (פעם אחת)
+      var target = locs.length > 1 ? locs[1] : locs[0];
+      if (!autoLocTried[target]) { autoLocTried[target] = true; switchLoc(target); }
     }
     sel.addEventListener('change', function () { switchLoc(sel.value); });
     return sel;
