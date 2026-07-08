@@ -5,7 +5,6 @@
   var weekStart = U.startOfWeek(U.todayISO());
   // תצוגה: 'week' (ברירת מחדל) או 'month'
   var viewMode = (localStorage.getItem('agri_plan_viewmode') === 'month') ? 'month' : 'week';
-  function setViewMode(m) { viewMode = m; localStorage.setItem('agri_plan_viewmode', m); App.render(); }
   function monthStartOf(iso) { var d = U.fromISO(iso); return U.toISO(new Date(d.getFullYear(), d.getMonth(), 1)); }
   var monthAnchor = monthStartOf(U.todayISO());
 
@@ -72,41 +71,54 @@
       return c;
     }).catch(function () { return null; });
   }
-  // מיקומי האתרים הפעילים (ערכי location ייחודיים)
-  function siteLocations() {
+  // מיקומי האתרים המשובצים בתקופה המוצגת (שבוע/חודש) — לבורר מזג האוויר
+  function scheduledLocations() {
+    var plan = Store.get().weeklyPlan || {};
+    var days = [];
+    if (viewMode === 'month') {
+      var fd = U.fromISO(monthAnchor);
+      var n = new Date(fd.getFullYear(), fd.getMonth() + 1, 0).getDate();
+      for (var i = 0; i < n; i++) days.push(U.addDays(monthAnchor, i));
+    } else {
+      for (var j = 0; j < 6; j++) days.push(U.addDays(weekStart, j));
+    }
     var seen = {}, out = [];
-    (Store.get().sites || []).forEach(function (s) {
-      if (s.active === false) return;
-      var loc = (s.location || '').trim();
-      if (loc && !seen[loc]) { seen[loc] = true; out.push(loc); }
+    days.forEach(function (iso) {
+      (plan[iso] || []).forEach(function (it) {
+        var s = it.siteId ? Store.getById('sites', it.siteId) : null;
+        var loc = s ? (s.location || '').trim() : '';
+        if (loc && !seen[loc]) { seen[loc] = true; out.push(loc); }
+      });
     });
     return out;
   }
-  function chooseLocation() {
+
+  // בורר מיקום תחזית — רק אתרים משובצים בתקופה; אם אין שיבוץ — שילה
+  var autoLocTried = {};
+  function switchLoc(name) {
     seedGeocode();
-    var locs = siteLocations();
-    if (!locs.length) locs = PRESETS.map(function (p) { return p.name; });
-    var cur = getLoc().name;
-    if (cur && locs.indexOf(cur) === -1) locs.unshift(cur);
-    // כוללים רק מיקומים שיש להם קואורדינטות (מיקום ללא קואורדינטות לא נוסף לרשימה)
-    Promise.all(locs.map(function (n) {
-      return geocodeName(n).then(function (c) { return c ? n : null; });
-    })).then(function (resolved) {
-      var withCoords = resolved.filter(Boolean);
-      if (!withCoords.length) { U.toast('אין מיקומים עם קואורדינטות זמינות לתחזית.', 'info'); return; }
-      var sel = U.el('select', { style: 'width:100%;' }, withCoords.map(function (n) { return U.el('option', { value: n }, n); }));
-      if (withCoords.indexOf(cur) !== -1) sel.value = cur;
-      Modal.open('מיקום לתחזית מזג האוויר', U.el('div', { class: 'field' }, [U.el('label', { text: 'בחרו מיקום (לפי האתרים):' }), sel]), [
-        { label: 'ביטול', class: 'secondary' },
-        { label: 'שמירה', onClick: function (close) {
-          var name = sel.value; close();
-          geocodeName(name).then(function (c) {
-            if (!c) { U.toast('לא נמצאו קואורדינטות עבור "' + name + '" — המיקום לא שונה.', 'error'); return; }
-            setLoc({ name: name, lat: c.lat, lon: c.lon }); wxData = null; wxKey = null; App.render();
-          });
-        } }
-      ]);
+    geocodeName(name).then(function (c) {
+      if (!c) { U.toast('לא נמצאו קואורדינטות עבור "' + name + '" — המיקום לא שונה.', 'error'); App.render(); return; }
+      setLoc({ name: name, lat: c.lat, lon: c.lon });
+      wxData = null; wxKey = null;
+      App.render();
     });
+  }
+  function weatherSelect() {
+    var locs = scheduledLocations();
+    if (!locs.length) locs = [DEF_LOC.name];
+    var cur = getLoc().name;
+    var sel = U.el('select', { class: 'wx-sel no-print', title: 'מיקום תחזית מזג האוויר — לפי האתרים המשובצים בתקופה' },
+      locs.map(function (n) { return U.el('option', { value: n }, '🌤 ' + n); }));
+    if (locs.indexOf(cur) !== -1) {
+      sel.value = cur;
+    } else if (!autoLocTried[locs[0]]) {
+      // המיקום השמור לא משובץ בתקופה — מעבר אוטומטי למיקום המשובץ הראשון (פעם אחת)
+      autoLocTried[locs[0]] = true;
+      switchLoc(locs[0]);
+    }
+    sel.addEventListener('change', function () { switchLoc(sel.value); });
+    return sel;
   }
 
   // ---------- אירועי בית הספר (Google Calendar API · מפתח מוגבל לדומיין, קריאה בלבד) ----------
@@ -140,37 +152,30 @@
   }
   function eventsOn(iso) { return (evMap && evWeek === weekStart && evMap[iso]) ? evMap[iso] : []; }
 
-  function render(root) {
+  function render(root, mode) {
+    if (mode === 'week' || mode === 'month') viewMode = mode; // נשלט מלשונית "תכנון"
     ensureForecast();
     if (viewMode === 'week') ensureEvents();
-
-    var modeToggle = U.el('div', { style: 'display:inline-flex;gap:4px;' }, [
-      U.el('button', { class: 'btn small ' + (viewMode === 'week' ? 'accent' : 'secondary'), onclick: function () { setViewMode('week'); } }, 'שבועי'),
-      U.el('button', { class: 'btn small ' + (viewMode === 'month' ? 'accent' : 'secondary'), onclick: function () { setViewMode('month'); } }, 'חודשי')
-    ]);
 
     var nav;
     if (viewMode === 'month') {
       nav = [
-        U.el('button', { class: 'btn secondary small', onclick: function () { monthAnchor = monthStartOf(U.addDays(monthAnchor, -1)); App.render(); } }, '→ חודש קודם'),
-        U.dateChip(U.monthLabel(U.monthKey(monthAnchor))),
-        U.el('button', { class: 'btn secondary small', onclick: function () { monthAnchor = monthStartOf(U.addDays(monthAnchor, 32)); App.render(); } }, 'חודש הבא ←'),
-        U.el('button', { class: 'btn secondary small', onclick: function () { monthAnchor = monthStartOf(U.todayISO()); App.render(); } }, 'החודש')
+        U.el('button', { class: 'btn secondary ico', title: 'חודש קודם', onclick: function () { monthAnchor = monthStartOf(U.addDays(monthAnchor, -1)); App.render(); } }, '→'),
+        U.dateChip(U.monthLabel(U.monthKey(monthAnchor)), null,
+          { onClick: function () { monthAnchor = monthStartOf(U.todayISO()); App.render(); }, title: 'לחצו לחזרה לחודש הנוכחי' }),
+        U.el('button', { class: 'btn secondary ico', title: 'חודש הבא', onclick: function () { monthAnchor = monthStartOf(U.addDays(monthAnchor, 32)); App.render(); } }, '←')
       ];
     } else {
       nav = [
-        U.el('button', { class: 'btn secondary small', onclick: function () { weekStart = U.addDays(weekStart, -7); App.render(); } }, '→ שבוע קודם'),
-        U.dateChip(U.gregLabel(weekStart) + ' – ' + U.gregLabel(U.addDays(weekStart, 6))),
-        U.el('button', { class: 'btn secondary small', onclick: function () { weekStart = U.addDays(weekStart, 7); App.render(); } }, 'שבוע הבא ←'),
-        U.el('button', { class: 'btn secondary small', onclick: function () { weekStart = U.startOfWeek(U.todayISO()); App.render(); } }, 'השבוע')
+        U.el('button', { class: 'btn secondary ico', title: 'שבוע קודם', onclick: function () { weekStart = U.addDays(weekStart, -7); App.render(); } }, '→'),
+        U.dateChip(U.gregLabel(weekStart) + ' – ' + U.gregLabel(U.addDays(weekStart, 5)), null,
+          { onClick: function () { weekStart = U.startOfWeek(U.todayISO()); App.render(); }, title: 'לחצו לחזרה לשבוע הנוכחי' }),
+        U.el('button', { class: 'btn secondary ico', title: 'שבוע הבא', onclick: function () { weekStart = U.addDays(weekStart, 7); App.render(); } }, '←')
       ];
     }
 
-    var head = U.el('div', { class: 'page-head' }, [
-      U.el('h2', { text: viewMode === 'month' ? '📋 תכנון חודשי' : '📋 תכנון שבועי' }),
-      modeToggle
-    ].concat(nav).concat([
-      U.el('button', { class: 'btn secondary ico no-print', title: 'מיקום לתחזית מזג האוויר: ' + getLoc().name + ' (לחצו לשינוי)', onclick: chooseLocation }, '📍'),
+    var head = U.el('div', { class: 'page-head' }, nav.concat([
+      weatherSelect(),
       U.el('div', { class: 'spacer' }),
       U.el('button', { class: 'btn secondary ico no-print', title: 'תורנים שבועיים' + countSuffix('weeklyDuty'), onclick: function () { editWeekList('weeklyDuty', 'תורנים שבועיים'); } }, '🧹'),
       U.el('button', { class: 'btn secondary ico no-print', title: 'חולים השבוע' + countSuffix('weeklySick'), onclick: function () { editWeekList('weeklySick', 'חולים השבוע'); } }, '🤒'),
@@ -193,7 +198,7 @@
 
     var grid = U.el('div', { class: 'week-grid' });
     var plan = Store.get().weeklyPlan;
-    for (var i = 0; i < 7; i++) {
+    for (var i = 0; i < 6; i++) { // ראשון–שישי, ללא שבת
       var iso = U.addDays(weekStart, i);
       grid.appendChild(buildDay(iso, plan[iso] || []));
     }
@@ -211,9 +216,10 @@
     var gridStart = U.addDays(first, -offset); // אחורה ליום ראשון
     var curMonth = U.monthKey(first);
     var wrap = U.el('div', { class: 'month-grid' });
-    U.WEEKDAYS.forEach(function (wd) { wrap.appendChild(U.el('div', { class: 'month-dow', text: wd })); });
+    U.WEEKDAYS.slice(0, 6).forEach(function (wd) { wrap.appendChild(U.el('div', { class: 'month-dow', text: wd })); });
     for (var i = 0; i < cells; i++) {
       var iso = U.addDays(gridStart, i);
+      if (U.fromISO(iso).getDay() === 6) continue; // ללא שבת
       var cell = buildDay(iso, plan[iso] || []);
       if (U.monthKey(iso) !== curMonth) cell.classList.add('other-month');
       wrap.appendChild(cell);
@@ -244,7 +250,9 @@
 
   function buildDay(iso, items) {
     var cell = U.el('div', { class: 'week-day' + (iso === U.todayISO() ? ' today' : '') });
-    cell.appendChild(U.el('h4', { text: U.weekdayName(iso) }));
+    var h4 = U.el('h4', { class: 'day-link', title: 'מעבר לסידור היומי של יום זה', text: U.weekdayName(iso) });
+    h4.addEventListener('click', function () { if (global.PlanningNav) PlanningNav.openDaily(iso); });
+    cell.appendChild(h4);
     cell.appendChild(U.el('div', { class: 'heb', text: U.hebrewDate(iso) + ' · ' + U.gregLabel(iso) }));
 
     // --- מעל התכנון: מזג אוויר ואירועי יומן (כמו בגוגל קלנדר) ---
@@ -276,9 +284,13 @@
         U.el('span', { text: label }),
         trans ? U.el('div', { class: 'muted', style: 'font-size:11px;', text: '🚌 ' + trans.name }) : null,
         it.note ? U.el('div', { class: 'muted', style: 'font-size:11px;', text: it.note }) : null,
-        U.el('span', { class: 'x no-print', text: '✕', onclick: function () { removeItem(iso, idx); } })
+        U.el('span', { class: 'ed no-print', text: '✎', title: 'עריכה', onclick: function () { openItem(iso, it, idx); } }),
+        U.el('span', { class: 'x no-print', text: '✕', title: 'מחיקה', onclick: function () { removeItem(iso, idx); } })
       ]);
-      item.addEventListener('click', function (e) { if (e.target.className.indexOf('x') === -1) openItem(iso, it, idx); });
+      item.addEventListener('click', function (e) {
+        if (e.target.closest && (e.target.closest('.x') || e.target.closest('.ed'))) return;
+        openItem(iso, it, idx);
+      });
       cell.appendChild(item);
     });
 
@@ -289,7 +301,7 @@
   // האם יש אירועים כלשהם בשבוע הנוכחי (כדי להציג תיבה אחידה בכל הימים)
   function weekHasAnyEvents() {
     if (!evMap || evWeek !== weekStart) return false;
-    for (var i = 0; i < 7; i++) { if ((evMap[U.addDays(weekStart, i)] || []).length) return true; }
+    for (var i = 0; i < 6; i++) { if ((evMap[U.addDays(weekStart, i)] || []).length) return true; }
     return false;
   }
 
@@ -301,13 +313,8 @@
       if (m) { times.push(m[1]); return U.el('div', { class: 'ev-item' }, [U.el('span', { class: 'ev-time', text: m[1] }), U.el('span', { text: m[2] })]); }
       return U.el('div', { class: 'ev-item allday' }, [U.el('span', { class: 'ev-time', text: 'כל היום' }), U.el('span', { text: t })]);
     });
-    var headChildren = ['📅 יומן'];
-    if (times.length) {
-      times.sort();
-      headChildren.push(U.el('span', { style: 'direction:ltr;unicode-bidi:isolate;', text: ' · ' + times[0] + '–' + times[times.length - 1] }));
-    }
     var body = U.el('div', { class: 'ev-box-body' }, rows.length ? rows : [U.el('div', { class: 'ev-empty', text: 'אין אירועים' })]);
-    return U.el('div', { class: 'ev-box' }, [U.el('div', { class: 'ev-box-head' }, headChildren), body]);
+    return U.el('div', { class: 'ev-box' }, [body]);
   }
 
   function rangeDates(from, to) {
@@ -344,7 +351,7 @@
       rangeRow.style.display = 'none';
       multiBox = U.el('div', { style: 'display:flex;flex-wrap:wrap;gap:8px;' });
       var wkStart = U.startOfWeek(iso);
-      for (var i = 0; i < 7; i++) {
+      for (var i = 0; i < 6; i++) { // ראשון–שישי
         var di = U.addDays(wkStart, i);
         var cb = U.el('input', { type: 'checkbox', value: di });
         if (di === iso) cb.checked = true;
@@ -411,9 +418,9 @@
     var plan = Store.get().weeklyPlan;
     var temp = U.el('div', { style: 'position:fixed;top:0;right:-12000px;width:1100px;box-sizing:border-box;background:#fff;padding:20px;direction:rtl;font-family:Arial,sans-serif;' });
     temp.appendChild(U.el('div', { style: 'text-align:center;font-weight:700;font-size:20px;color:#1b5e20;margin-bottom:4px;', text: 'תכנון שבועי — רגבים בנימין' }));
-    temp.appendChild(U.el('div', { style: 'text-align:center;font-size:15px;margin-bottom:12px;', text: U.gregLabel(weekStart) + ' – ' + U.gregLabel(U.addDays(weekStart, 6)) }));
-    var board = U.el('div', { style: 'display:grid;grid-template-columns:repeat(7,1fr);gap:6px;align-items:start;direction:rtl;' });
-    for (var i = 0; i < 7; i++) {
+    temp.appendChild(U.el('div', { style: 'text-align:center;font-size:15px;margin-bottom:12px;', text: U.gregLabel(weekStart) + ' – ' + U.gregLabel(U.addDays(weekStart, 5)) }));
+    var board = U.el('div', { style: 'display:grid;grid-template-columns:repeat(6,1fr);gap:6px;align-items:start;direction:rtl;' });
+    for (var i = 0; i < 6; i++) {
       var iso = U.addDays(weekStart, i);
       var items = plan[iso] || [];
       var cell = U.el('div', { style: 'border:1px solid #cdd6cf;border-radius:8px;overflow:hidden;' });

@@ -140,19 +140,27 @@
   }
 
   // ---------- צ'יפ תאריך אחיד (📅) ----------
-  // text — הטקסט להצגה; input (אופציונלי) — שדה date/month נסתר: לחיצה על הצ'יפ פותחת את הבורר שלו.
-  function dateChip(text, input) {
+  // text — הטקסט להצגה; input (אופציונלי) — שדה date/month נסתר: לחיצה פותחת את הבורר שלו;
+  // opts.onClick (אופציונלי, במקום input) — פעולה מותאמת בלחיצה (למשל: חזרה להיום); opts.title — טקסט ריחוף.
+  function dateChip(text, input, opts) {
+    opts = opts || {};
+    var clickable = !!(input || opts.onClick);
     var kids = [el('span', { class: 'rc-ic', text: '📅' }), el('span', { text: text })];
     if (input) {
       input.classList.add('chip-date-input');
       kids.push(input);
     }
-    var chip = el('span', { class: 'range-chip', style: input ? 'cursor:pointer;' : '', title: input ? 'לחצו לבחירת תאריך' : '' }, kids);
+    var chip = el('span', {
+      class: 'range-chip', style: clickable ? 'cursor:pointer;' : '',
+      title: opts.title || (input ? 'לחצו לבחירת תאריך' : '')
+    }, kids);
     if (input) {
       chip.addEventListener('click', function () {
         try { if (input.showPicker) { input.showPicker(); return; } } catch (e) {}
         input.click();
       });
+    } else if (opts.onClick) {
+      chip.addEventListener('click', opts.onClick);
     }
     return chip;
   }

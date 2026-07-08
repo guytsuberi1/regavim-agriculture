@@ -77,14 +77,16 @@
     var d = Store.get();
     if (!d.weeklyDuty) d.weeklyDuty = {};
     var counts = dutyCounts(kWeek);
+    var selected = {}, pinned = {};
+    (d.weeklyDuty[kWeek] || []).forEach(function (id) { selected[id] = true; pinned[id] = true; });
     var students = (d.students || []).filter(function (s) { return s.active !== false; });
     students.sort(function (a, b) {
+      var pa = pinned[a.id] ? 0 : 1, pb = pinned[b.id] ? 0 : 1;
+      if (pa !== pb) return pa - pb; // הנבחרים לשבוע זה — למעלה
       var ca = counts[a.id] || 0, cb = counts[b.id] || 0;
       if (ca !== cb) return ca - cb; // הכי מעט תורנויות — למעלה
       return (a.name || '').localeCompare(b.name || '', 'he');
     });
-    var selected = {};
-    (d.weeklyDuty[kWeek] || []).forEach(function (id) { selected[id] = true; });
 
     var search = U.el('input', { type: 'text', placeholder: 'חיפוש…', style: 'width:100%;margin-bottom:8px;' });
     var countEl = U.el('span', { class: 'tag' });

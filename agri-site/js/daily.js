@@ -86,14 +86,28 @@
     Sync.mergeDate(curDate); // ודא שאתרים מהתכנון השבועי מופיעים ביום זה
     var day = getDay(curDate);
 
+    // דילוג על שבת בניווט (שבוע עבודה: ראשון–שישי)
+    function stepDay(dir) {
+      var d = U.addDays(curDate, dir);
+      if (U.fromISO(d).getDay() === 6) d = U.addDays(d, dir);
+      curDate = d; App.render();
+    }
     var dInp = U.el('input', { type: 'date', value: curDate });
     dInp.addEventListener('change', function () { if (dInp.value) { curDate = dInp.value; App.render(); } });
     var head = U.el('div', { class: 'page-head' }, [
-      U.el('h2', { text: '📋 סידור יומי' }),
-      U.el('button', { class: 'btn secondary small', onclick: function () { curDate = U.addDays(curDate, -1); App.render(); } }, '→ יום קודם'),
-      U.dateChip(U.weekdayName(curDate) + ' · ' + U.hebrewDate(curDate) + ' · ' + U.gregLabel(curDate), dInp),
-      U.el('button', { class: 'btn secondary small', onclick: function () { curDate = U.addDays(curDate, 1); App.render(); } }, 'יום הבא ←'),
-      U.el('button', { class: 'btn secondary small', onclick: function () { curDate = U.todayISO(); App.render(); } }, 'היום'),
+      U.el('button', { class: 'btn secondary ico', title: 'יום קודם', onclick: function () { stepDay(-1); } }, '→'),
+      U.dateChip(U.weekdayName(curDate) + ' · ' + U.hebrewDate(curDate) + ' · ' + U.gregLabel(curDate), null,
+        { onClick: function () { curDate = U.todayISO(); App.render(); }, title: 'לחצו לחזרה להיום' }),
+      U.el('button', { class: 'btn secondary ico', title: 'יום הבא', onclick: function () { stepDay(1); } }, '←'),
+      (function () {
+        var b = U.el('button', { class: 'btn secondary ico no-print', title: 'קפיצה לתאריך…' }, ['📅', dInp]);
+        b.addEventListener('click', function () {
+          try { if (dInp.showPicker) { dInp.showPicker(); return; } } catch (e) {}
+          dInp.click();
+        });
+        dInp.classList.add('chip-date-input');
+        return b;
+      })(),
       U.el('div', { class: 'spacer' }),
       U.el('button', { class: 'btn secondary', title: 'ניהול הנעדרים של היום', onclick: openAbsentDialog }, '🚫 נעדרים' + (Store.get().dailyAbsent[curDate] && Store.get().dailyAbsent[curDate].length ? ' (' + Store.get().dailyAbsent[curDate].length + ')' : '')),
       U.el('button', { class: 'btn secondary ico', title: 'ייצוא תמונה', onclick: exportImage }, '📷'),
@@ -642,24 +656,31 @@
   function pickStudents(title, preselectedIds, onSave, opts) {
     var students = activeList('students');
     if (opts && typeof opts.filter === 'function') students = students.filter(opts.filter);
-    var selected = {};
-    (preselectedIds || []).forEach(function (id) { selected[id] = true; });
+    var selected = {}, pinned = {};
+    (preselectedIds || []).forEach(function (id) { selected[id] = true; pinned[id] = true; }); // הנבחרים בפתיחה — מוצגים למעלה
     var search = U.el('input', { type: 'text', placeholder: 'חיפוש…', style: 'width:100%;margin-bottom:8px;' });
     var countEl = U.el('span', { class: 'tag' });
     var listBox = U.el('div', { style: 'max-height:340px;overflow:auto;' });
     function updateCount() { countEl.textContent = 'נבחרו: ' + Object.keys(selected).filter(function (k) { return selected[k]; }).length; }
+    function rowOf(s) {
+      var cb = U.el('input', { type: 'checkbox', checked: !!selected[s.id] });
+      cb.addEventListener('change', function () { selected[s.id] = cb.checked; updateCount(); });
+      return U.el('label', { style: 'display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text);padding:2px 0;' }, [cb, s.name]);
+    }
     function build(filter) {
       U.clear(listBox);
       if (!students.length) { listBox.appendChild(U.el('div', { class: 'muted', style: 'padding:10px;', text: 'אין תלמידים להצגה.' })); return; }
+      // הנבחרים — תמיד למעלה
+      var pin = students.filter(function (s) { return pinned[s.id] && (!filter || s.name.indexOf(filter) !== -1); });
+      if (pin.length) {
+        listBox.appendChild(U.el('div', { style: 'margin:6px 0 2px;font-weight:700;color:var(--green-dark);', text: '✓ נבחרים (' + pin.length + ')' }));
+        pin.forEach(function (s) { listBox.appendChild(rowOf(s)); });
+      }
       U.GRADES.concat(['']).forEach(function (g) {
-        var grp = students.filter(function (s) { return (s.grade || '') === g && (!filter || s.name.indexOf(filter) !== -1); });
+        var grp = students.filter(function (s) { return !pinned[s.id] && (s.grade || '') === g && (!filter || s.name.indexOf(filter) !== -1); });
         if (!grp.length) return;
         listBox.appendChild(U.el('div', { class: 'muted', style: 'margin:6px 0 2px;font-weight:600;', text: g ? 'כיתה ' + g : 'ללא כיתה' }));
-        grp.forEach(function (s) {
-          var cb = U.el('input', { type: 'checkbox', checked: !!selected[s.id] });
-          cb.addEventListener('change', function () { selected[s.id] = cb.checked; updateCount(); });
-          listBox.appendChild(U.el('label', { style: 'display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text);padding:2px 0;' }, [cb, s.name]));
-        });
+        grp.forEach(function (s) { listBox.appendChild(rowOf(s)); });
       });
     }
     search.addEventListener('input', function () { build(search.value.trim()); });
@@ -936,23 +957,29 @@
       countEl.textContent = 'נבחרו: ' + Object.keys(selectedMap).filter(function (k) { return selectedMap[k]; }).length;
     }
 
+    var pinned = {};
+    (card.students || []).forEach(function (x) { pinned[x.studentId] = true; }); // המשובצים בפתיחה — למעלה
+    function rowOf(s) {
+      var cb = U.el('input', { type: 'checkbox', checked: !!selectedMap[s.id] });
+      cb.addEventListener('change', function () { selectedMap[s.id] = cb.checked; updateCount(); });
+      return U.el('label', { style: 'display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text);' + (assigned[s.id] && !selectedMap[s.id] ? 'opacity:.5;' : '') },
+        [cb, s.name + (assigned[s.id] && !selectedMap[s.id] ? ' (משובץ באתר אחר)' : '')]);
+    }
     function build(filter) {
       U.clear(listBox);
+      var pin = students.filter(function (s) { return pinned[s.id] && (!filter || s.name.indexOf(filter) !== -1); });
+      if (pin.length) {
+        listBox.appendChild(U.el('div', { style: 'margin:6px 0 2px;font-weight:700;color:var(--green-dark);', text: '✓ משובצים באתר זה (' + pin.length + ')' }));
+        pin.forEach(function (s) { listBox.appendChild(rowOf(s)); });
+      }
       U.GRADES.concat(['']).forEach(function (g) {
         var grp = students.filter(function (s) {
-          return (s.grade || '') === g &&
+          return !pinned[s.id] && (s.grade || '') === g &&
             (!filter || s.name.indexOf(filter) !== -1);
         });
         if (!grp.length) return;
         listBox.appendChild(U.el('div', { class: 'muted', style: 'margin:6px 0 2px;font-weight:600;', text: g ? 'כיתה ' + g : 'ללא כיתה' }));
-        grp.forEach(function (s) {
-          var already = assigned[s.id] || !!selectedMap[s.id];
-          var cb = U.el('input', { type: 'checkbox', checked: !!selectedMap[s.id] });
-          cb.addEventListener('change', function () { selectedMap[s.id] = cb.checked; updateCount(); });
-          var lbl = U.el('label', { style: 'display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text);' + (assigned[s.id] && !selectedMap[s.id] ? 'opacity:.5;' : '') },
-            [cb, s.name + (assigned[s.id] && !selectedMap[s.id] ? ' (משובץ באתר אחר)' : '')]);
-          listBox.appendChild(lbl);
-        });
+        grp.forEach(function (s) { listBox.appendChild(rowOf(s)); });
       });
     }
     search.addEventListener('input', function () { build(search.value.trim()); });
@@ -1319,5 +1346,8 @@
       (unassigned > 0 ? ' · ' + unassigned + ' צוותים לא שובצו' : ''), unfilled ? 'info' : 'success');
   }
 
-  global.DailyView = { render: render };
+  global.DailyView = {
+    render: render,
+    setDate: function (iso) { if (iso) curDate = iso; } // מעבר מהלוח השבועי/חודשי
+  };
 })(window);
