@@ -5,6 +5,14 @@
   var curMonth = U.monthKey(U.todayISO());
   var expandedSites = {}; // כרטיסי פירוט פתוחים (ברירת מחדל: מכווץ) — נשמר בין רינדורים
 
+  // רינדור מחדש בלי לקפוץ לראש הדף (עדכון שעות/עובדים/הנחה בתוך הפירוט)
+  function renderKeepScroll() {
+    var y = window.scrollY;
+    App.render();
+    window.scrollTo(0, y);
+    requestAnimationFrame(function () { window.scrollTo(0, y); });
+  }
+
   // אגרגציה: לכל אתר, רשימת ימים בחודש עם כמות עובדים/שעות/נסיעות
   function computeMonth(mk) {
     var data = Store.get();
@@ -22,6 +30,18 @@
         d.travel = d.travel || (c.travel !== false);
         bySite[c.siteId].days[iso] = d;
       });
+    });
+    return bySite;
+  }
+
+  // יום עם 0 עובדים (אחרי דריסות ידניות) לא נכנס לדרישת התשלום כלל — גם אם שובץ בתכנון
+  function pruneZeroDays(bySite, mk) {
+    Object.keys(bySite).forEach(function (id) {
+      var adjAll = adjFor(mk, id);
+      Object.keys(bySite[id].days).forEach(function (iso) {
+        if (effective(bySite[id].days[iso], adjAll[iso]).workers === 0) delete bySite[id].days[iso];
+      });
+      if (!Object.keys(bySite[id].days).length) delete bySite[id];
     });
     return bySite;
   }
@@ -64,14 +84,14 @@
 
   function render(root) {
     var head = U.el('div', { class: 'page-head' }, [
-      U.el('h2', { text: '🧾 דרישת תשלום חודשית' }),
-      monthInput(),
+      U.el('h2', { text: '🧾 דרישת תשלום חודשית' })
+    ].concat(monthNav(), [
       U.el('div', { class: 'spacer' }),
       U.el('button', { class: 'btn accent', onclick: exportExcel }, '⬇ ייצוא לגבייה (אקסל)')
-    ]);
+    ]));
     root.appendChild(head);
 
-    var bySite = computeMonth(curMonth);
+    var bySite = pruneZeroDays(computeMonth(curMonth), curMonth);
     var siteIds = Object.keys(bySite);
     if (!siteIds.length) {
       root.appendChild(U.el('div', { class: 'card empty' }, 'אין נתוני עבודה בחודש זה. הזינו סידורים יומיים תחילה.'));
@@ -139,15 +159,19 @@
         type: 'number', value: adj.workersOverride !== undefined && adj.workersOverride !== '' ? adj.workersOverride : dd.workers,
         style: 'width:60px;', class: (wOver ? 'overridden' : ''), title: (wOver ? 'עודכן ידנית (מקורי: ' + dd.workers + ')' : '')
       });
-      wInp.addEventListener('change', function () { setAdj(id, iso, 'workersOverride', wInp.value); App.render(); });
+      wInp.addEventListener('change', function () { setAdj(id, iso, 'workersOverride', wInp.value); renderKeepScroll(); });
       var hOver = adj.hoursOverride !== undefined && adj.hoursOverride !== '' && U.num(adj.hoursOverride) !== U.num(dd.hours);
       var hInp = U.el('input', {
         type: 'number', step: '0.5', value: adj.hoursOverride !== undefined && adj.hoursOverride !== '' ? adj.hoursOverride : dd.hours,
         style: 'width:60px;', class: (hOver ? 'overridden' : ''), title: (hOver ? 'עודכן ידנית (מקורי: ' + dd.hours + ')' : '')
       });
-      hInp.addEventListener('change', function () { setAdj(id, iso, 'hoursOverride', hInp.value); App.render(); });
-      var discInpDay = U.el('input', { type: 'number', value: adj.discount !== undefined && adj.discount !== '' ? adj.discount : '', placeholder: '0', style: 'width:70px;', title: 'הנחה ליום זה (₪)' });
-      discInpDay.addEventListener('change', function () { setAdj(id, iso, 'discount', discInpDay.value); App.render(); });
+      hInp.addEventListener('change', function () { setAdj(id, iso, 'hoursOverride', hInp.value); renderKeepScroll(); });
+      var dOver = adj.discount !== undefined && adj.discount !== '' && U.num(adj.discount) !== 0;
+      var discInpDay = U.el('input', {
+        type: 'number', value: adj.discount !== undefined && adj.discount !== '' ? adj.discount : '', placeholder: '0', style: 'width:70px;',
+        class: (dOver ? 'overridden' : ''), title: dOver ? 'הוזנה הנחה ליום זה' : 'הנחה ליום זה (₪)'
+      });
+      discInpDay.addEventListener('change', function () { setAdj(id, iso, 'discount', discInpDay.value); renderKeepScroll(); });
       var noteInp = U.el('input', { type: 'text', value: adj.note || '', placeholder: 'הערה / סיבת הנחה', style: 'width:100%;' });
       noteInp.addEventListener('change', function () { setAdj(id, iso, 'note', noteInp.value); });
 
@@ -187,8 +211,9 @@
     ]);
 
     // הנחה כללית לחודש (אופציונלי) + הערה — בנוסף להנחות היומיות שבטבלה
-    var discInp = U.el('input', { type: 'number', value: adjAll._discount || '', placeholder: '0', style: 'width:90px;' });
-    discInp.addEventListener('change', function () { setAdjMonth(id, '_discount', discInp.value); App.render(); });
+    var mOver = U.num(adjAll._discount) !== 0;
+    var discInp = U.el('input', { type: 'number', value: adjAll._discount || '', placeholder: '0', style: 'width:90px;', class: (mOver ? 'overridden' : ''), title: mOver ? 'הוזנה הנחה כללית לחודש' : '' });
+    discInp.addEventListener('change', function () { setAdjMonth(id, '_discount', discInp.value); renderKeepScroll(); });
     var discNote = U.el('input', { type: 'text', value: adjAll._discountNote || '', placeholder: 'הערה להנחה (תוצג לחקלאי)', style: 'flex:1;min-width:200px;' });
     discNote.addEventListener('change', function () { setAdjMonth(id, '_discountNote', discNote.value); });
     var discRow = U.el('div', { style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;' }, [
@@ -249,10 +274,29 @@
     Store.save();
   }
 
-  function monthInput() {
+  function shiftMonth(delta) {
+    var p = curMonth.split('-');
+    var d = new Date(+p[0], +p[1] - 1 + delta, 1);
+    curMonth = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2);
+    App.render();
+  }
+
+  // ניווט חודשים אחיד: [→ קודם][צ'יפ=חודש נוכחי][← הבא][📅 בורר]
+  function monthNav() {
     var inp = U.el('input', { type: 'month', value: curMonth });
     inp.addEventListener('change', function () { if (inp.value) { curMonth = inp.value; App.render(); } });
-    return U.dateChip(U.monthLabel(curMonth), inp);
+    inp.classList.add('chip-date-input');
+    var pickBtn = U.el('button', { class: 'btn secondary ico no-print', title: 'בחירת חודש…' }, ['📅', inp]);
+    pickBtn.addEventListener('click', function () {
+      try { if (inp.showPicker) { inp.showPicker(); return; } } catch (e) {}
+      inp.click();
+    });
+    return [
+      U.el('button', { class: 'btn secondary ico', title: 'חודש קודם', onclick: function () { shiftMonth(-1); } }, '→'),
+      U.dateChip(U.monthLabel(curMonth), null, { onClick: function () { curMonth = U.monthKey(U.todayISO()); App.render(); }, title: 'לחצו לחזרה לחודש הנוכחי' }),
+      U.el('button', { class: 'btn secondary ico', title: 'חודש הבא', onclick: function () { shiftMonth(1); } }, '←'),
+      pickBtn
+    ];
   }
 
   var THIN = { style: 'thin', color: { rgb: 'CBD5C0' } };
@@ -274,7 +318,7 @@
 
   // ---------- ייצוא אקסל בפורמט הגבייה (מעוצב + RTL) ----------
   function exportExcel() {
-    var bySite = computeMonth(curMonth);
+    var bySite = pruneZeroDays(computeMonth(curMonth), curMonth);
     var siteIds = Object.keys(bySite);
     if (!siteIds.length) { U.toast('אין נתונים לייצוא בחודש זה.', 'info'); return; }
     var wb = XLSX.utils.book_new();
@@ -381,7 +425,7 @@
 
   // ---------- ייצוא פירוט אישי לחקלאי בודד (לשליחה אישית) ----------
   function exportSiteExcel(id) {
-    var bySite = computeMonth(curMonth);
+    var bySite = pruneZeroDays(computeMonth(curMonth), curMonth);
     if (!bySite[id]) { U.toast('אין נתוני עבודה לחקלאי זה בחודש הנבחר.', 'info'); return; }
     var wb = XLSX.utils.book_new();
     wb.Workbook = { Views: [{ RTL: true }] };
@@ -401,7 +445,7 @@
   function billedBySite() { // { siteId: { total, byMonth: { 'YYYY-MM': total } } }
     var out = {};
     allMonths().forEach(function (mk) {
-      var bySite = computeMonth(mk);
+      var bySite = pruneZeroDays(computeMonth(mk), mk);
       Object.keys(bySite).forEach(function (id) {
         var t = siteTotals(bySite[id], mk);
         if (!out[id]) out[id] = { total: 0, byMonth: {} };

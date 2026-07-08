@@ -326,8 +326,11 @@
     var noteInp = U.el('input', { type: 'text', class: 'fstu-note', value: st.note || '', placeholder: '📝 הערה (לא חובה)' });
     noteInp.addEventListener('change', function () { st.note = noteInp.value; Store.save(); });
 
-    row.appendChild(U.el('div', { class: 'fstu-name', text: (st.teamLeader ? '⭐ ' : '') + name }));
-    row.appendChild(U.el('div', { class: 'fstu-controls' }, [wentGrp, U.el('div', { class: 'frate-wrap' }, [U.el('span', { class: 'muted', text: 'ציון' }), rateWrap])]));
+    // שם + כל הכפתורים בשורה אחת קומפקטית (הכפתורים בגובה הטקסט)
+    row.appendChild(U.el('div', { class: 'fstu-line' }, [
+      U.el('div', { class: 'fstu-name', text: (st.teamLeader ? '⭐ ' : '') + name }),
+      U.el('div', { class: 'fstu-controls' }, [wentGrp, U.el('div', { class: 'frate-wrap' }, [rateWrap])])
+    ]));
     row.appendChild(noteInp);
     rbtns.forEach(function (x, i) { x.classList.toggle('on', st.rating === i + 1); });
     syncWent();
