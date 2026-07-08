@@ -7,6 +7,7 @@
 
   // מי שובץ הרגע (להבהוב אישור ירוק אחרי הרינדור) — studentId -> cardId
   var justAssigned = {}, justAssignedAt = 0;
+  var expandedTeams = {}; // 'cardId|teamId' -> true (צוותים פתוחים בכרטיסי אתרים; ברירת מחדל מצומצם)
   function markAssigned(ids, cardId) {
     justAssigned = {};
     ids.forEach(function (id) { justAssigned[id] = cardId; });
@@ -113,7 +114,7 @@
       U.el('button', { class: 'btn secondary ico', title: 'ייצוא תמונה', onclick: exportImage }, '📷'),
       U.el('button', { class: 'btn ico', title: 'שליחה בוואטסאפ', style: 'background:#25D366;color:#fff;border:0;', onclick: openWhatsApp, html: U.WA_SVG }),
       U.el('button', { class: 'btn secondary ico', title: 'שליחת SMS לכולם', onclick: sendAllSms }, '📩'),
-      U.el('button', { class: 'btn secondary', title: 'שיבוץ צוותים אוטומטי לפי היסטוריה', onclick: autoAssign }, '🤖 שבץ אוטומטית'),
+      U.el('button', { class: 'btn accent', title: 'שיבוץ צוותים אוטומטי לפי היסטוריה', onclick: autoAssign }, '🤖 שבץ אוטומטית'),
       U.el('button', { class: 'btn', onclick: addCard }, '+ הוסף אתר')
     ]);
     root.appendChild(head);
@@ -163,6 +164,18 @@
     } else {
       items.push(tot(total, 'משובצים'));
     }
+    // מתוכננים מול הזמינים היום במאגר (פעילים פחות תורנים/חולים/נעדרים) — וידוא שתוכנן מספיק
+    var excluded = excludedSet();
+    var avail = activeList('students').filter(function (s) { return !excluded[s.id]; }).length;
+    if (target > 0) {
+      var cls2 = target > avail ? 'over' : 'ok';
+      items.push(U.el('div', { class: 't tw-tot ' + cls2, title: (target > avail ? 'תוכננו יותר עובדים מהזמינים היום!' : 'התכנון בתוך המאגר הזמין') }, [
+        U.el('b', { text: target + ' / ' + avail }),
+        U.el('span', { text: 'מתוכננים / זמינים היום' })
+      ]));
+    } else {
+      items.push(tot(avail, 'זמינים היום'));
+    }
     return U.el('div', { class: 'totbar' }, items);
   }
   function tot(n, label) { return U.el('div', { class: 't' }, [U.el('b', { text: n }), U.el('span', { text: label })]); }
@@ -187,18 +200,32 @@
       if (site.location) meta.appendChild(U.el('div', { text: '📍 ' + site.location }));
       if (site.contactName || site.phone) meta.appendChild(U.el('div', { text: '☎ ' + [site.contactName, site.phone].filter(Boolean).join(' · ') }));
       if (site.access) meta.appendChild(U.el('div', { text: '🚗 ' + site.access }));
+      // שעות עבודה — שדה קומפקטי בכותרת (נדרש לחישוב דרישת התשלום)
+      var hrsInp = U.el('input', { type: 'number', step: '0.5', min: '0', class: 'hrs-edit no-print', value: card.hours == null ? '' : card.hours, placeholder: '—', title: 'שעות עבודה באתר (משמש לחישוב דרישת התשלום)' });
+      hrsInp.addEventListener('change', function () { card.hours = hrsInp.value === '' ? '' : U.num(hrsInp.value); Store.save(); });
+      meta.appendChild(U.el('div', { class: 'hrs-row' }, [
+        U.el('span', { text: '🕐 שעות:' }), hrsInp,
+        card.hours ? U.el('span', { class: 'print-only', text: String(card.hours) }) : null
+      ]));
     }
 
-    // מונה: משובצים מול הרצוי (אם הוזן בתכנון השבועי), אחרת רק סה"כ המשובצים
+    // מונה: משובצים / רצוי — הרצוי ניתן לעריכה ישירות בכותרת הכרטיס
     var assignedN = (card.students || []).length;
-    var counter;
-    if (card.targetWorkers !== '' && card.targetWorkers != null) {
-      var targetN = U.num(card.targetWorkers);
-      var cls = assignedN < targetN ? 'under' : (assignedN > targetN ? 'over' : 'ok');
-      counter = U.el('div', { class: 'tw-counter ' + cls, text: 'משובצים ' + assignedN + ' / רצוי ' + targetN });
-    } else {
-      counter = U.el('div', { class: 'tw-counter', text: 'משובצים: ' + assignedN });
-    }
+    var hasT = card.targetWorkers !== '' && card.targetWorkers != null;
+    var targetN = hasT ? U.num(card.targetWorkers) : null;
+    var cls = !hasT ? '' : (assignedN < targetN ? ' under' : (assignedN > targetN ? ' over' : ' ok'));
+    var tInp = U.el('input', { type: 'number', min: '0', class: 'tw-edit no-print', value: hasT ? card.targetWorkers : '', placeholder: '—', title: 'כמות עובדים רצויה — ניתן לעריכה' });
+    tInp.addEventListener('change', function () {
+      card.targetWorkers = tInp.value === '' ? '' : U.num(tInp.value);
+      Sync.dayChanged(curDate); // עדכון התכנון השבועי בהתאם
+      Store.save(); App.render();
+    });
+    tInp.addEventListener('click', function (e) { e.stopPropagation(); });
+    var counter = U.el('div', { class: 'tw-counter' + cls }, [
+      U.el('span', { text: 'משובצים ' + assignedN + ' / רצוי ' }),
+      tInp,
+      hasT ? U.el('span', { class: 'print-only', text: String(targetN) }) : null
+    ]);
 
     // חיווי חוסרים — אתר משובץ בלי איש צוות או בלי הסעה
     var warns = [];
@@ -222,20 +249,6 @@
     // הסעה / איש צוות / ראש צוות
     body.appendChild(labeledSelect('הסעה', 'transports', card, 'transportId'));
     body.appendChild(staffMultiControl(day, card));
-
-    // שעות + נסיעות
-    var hoursInp = U.el('input', { type: 'number', value: card.hours == null ? '' : card.hours, style: 'width:70px;', step: '0.5' });
-    hoursInp.addEventListener('change', function () { card.hours = hoursInp.value === '' ? '' : U.num(hoursInp.value); Store.save(); });
-    var targetInp = U.el('input', { type: 'number', value: (card.targetWorkers === '' || card.targetWorkers == null) ? '' : card.targetWorkers, style: 'width:70px;', min: '0', title: 'כמות עובדים רצויה (מהתכנון השבועי)' });
-    targetInp.addEventListener('change', function () {
-      card.targetWorkers = targetInp.value === '' ? '' : U.num(targetInp.value);
-      Sync.dayChanged(curDate); // עדכון התכנון השבועי בהתאם
-      Store.save(); App.render();
-    });
-    body.appendChild(U.el('div', { class: 'row', style: 'margin:6px 0;' }, [
-      U.el('div', null, [U.el('label', { text: 'שעות' }), hoursInp]),
-      U.el('div', null, [U.el('label', { text: 'רצוי' }), targetInp])
-    ]));
 
     // בניית שורת תלמיד בודד
     function buildStudentLi(st) {
@@ -314,22 +327,35 @@
 
       teamOrder.forEach(function (tid) {
         var g = byTeam[tid];
+        var tkey = card.id + '|' + tid;
+        // פתיחה אוטומטית לצוות ששובץ הרגע (הבהוב ירוק) — אחרת לפי המצב השמור (ברירת מחדל: מצומצם)
+        var freshMember = g.items.some(function (st) { return justAssigned[st.studentId] === card.id && Date.now() - justAssignedAt < 1800; });
+        if (freshMember) expandedTeams[tkey] = true;
+        var isOpen = !!expandedTeams[tkey];
         var grip = U.el('span', { class: 'grip no-print', draggable: 'true', title: 'גררו את הצוות לאתר אחר, או הקישו להעברה', text: '⠿' });
         grip.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text/plain', 'team:' + g.team.id); e.dataTransfer.effectAllowed = 'move'; });
-        grip.addEventListener('click', function () {
+        grip.addEventListener('click', function (e) {
+          e.stopPropagation();
           chooseCardFor('העברת צוות — ' + global.TeamUtil.teamLabel(g.team), { allowUnassign: true }, function (target) {
             if (!target) { unassignTeam(day, g.team.id); U.toast('הצוות הוחזר למאגר'); return; }
             if (target.id === card.id) return;
             assignTeamToCard(day, target, g.team.id);
           });
         });
-        var gh = U.el('div', { class: 'sc-team-head' }, [
+        var gh = U.el('div', { class: 'sc-team-head team-toggle', title: isOpen ? 'לחצו לצמצום הצוות' : 'לחצו להרחבת הצוות' }, [
           grip,
           U.el('span', { class: 'sc-team-title', text: global.TeamUtil.teamLabel(g.team) }),
-          U.el('span', { class: 'muted', style: 'font-size:11px;', text: '(' + g.items.length + ')' })
+          U.el('span', { class: 'muted', style: 'font-size:11px;', text: '(' + g.items.length + ')' }),
+          U.el('span', { class: 'bill-chev no-print' + (isOpen ? ' open' : ''), text: '▾' })
         ]);
         var ulT = U.el('ul', { class: 'sc-students' });
         sortLeadersFirst(g.items).forEach(function (st) { ulT.appendChild(buildStudentLi(st)); });
+        if (!isOpen) ulT.style.display = 'none';
+        gh.addEventListener('click', function (e) {
+          if (e.target.closest && e.target.closest('.grip')) return;
+          expandedTeams[tkey] = !expandedTeams[tkey];
+          App.render();
+        });
         body.appendChild(U.el('div', { class: 'sc-team is-team' }, [gh, ulT]));
       });
 
@@ -407,10 +433,7 @@
   function staffMultiControl(day, card) {
     if (!card.staffIds) card.staffIds = card.staffId ? [card.staffId] : [];
     var wrap = U.el('div', { class: 'field', style: 'margin:6px 0;' });
-    wrap.appendChild(U.el('div', { style: 'display:flex;align-items:center;justify-content:space-between;gap:8px;' }, [
-      U.el('label', { text: 'אנשי צוות', style: 'margin:0;' }),
-      U.el('button', { class: 'btn small secondary no-print', title: 'בחירת אנשי צוות', onclick: function () { openAddStaff(day, card); } }, '+ הוסף')
-    ]));
+    wrap.appendChild(U.el('button', { class: 'btn small secondary no-print', title: 'בחירת אנשי צוות לאתר', onclick: function () { openAddStaff(day, card); } }, '+ הוסף אנשי צוות'));
     if (card.staffIds.length) {
       var ul = U.el('ul', { class: 'sc-students staff-list' });
       card.staffIds.forEach(function (id) { ul.appendChild(buildStaffLi(day, card, id)); });
@@ -534,11 +557,12 @@
     Store.save(); App.render();
   }
 
-  // שיבוץ צוות שלם לאתר — ראש הצוות מסומן כראש צוות
+  // שיבוץ צוות שלם לאתר — ראש הצוות מסומן כראש צוות (תורנים/חולים/נעדרים לא משובצים)
   function assignTeamToCard(day, card, teamId) {
     var team = Store.getById('teams', teamId);
     if (!team) return;
-    var ids = global.TeamUtil.orderedStudentIds(team);
+    var ex = excludedSet();
+    var ids = global.TeamUtil.orderedStudentIds(team).filter(function (id) { return !ex[id]; });
     ids.forEach(function (id) { placeStudent(day, card, id, id === team.leaderStudentId); });
     markAssigned(ids, card.id);
     Store.save(); App.render();
@@ -790,9 +814,13 @@
       document.addEventListener('touchend', onEnd);
     }, { passive: false });
 
-    // תלמידים שיורדים מהמאגר היום: תורנים/חולים שבועיים + נעדרים יומיים
+    // תלמידים שיורדים מהמאגר היום (תורנים/חולים/נעדרים) — מוצגים באפור עם הסבר,
+    // לא נספרים ולא ניתנים לגרירה/שיבוץ
     var excluded = excludedSet();
-    function show(id, g) { return gradeVisible(g) && !excluded[id]; }
+    var EX_SHORT = { 'תורן שבועי': 'מטבח', 'חולה השבוע': 'חולה', 'נעדר היום': 'נעדר' };
+    var exTag = {};
+    Object.keys(excluded).forEach(function (id) { exTag[id] = EX_SHORT[excluded[id]] || excluded[id]; });
+    function show(id, g) { return gradeVisible(g); }
 
     if (groupMode === 'grades') {
       // תצוגה לפי כיתות
@@ -801,7 +829,7 @@
       var anyGrade = false;
       U.GRADES.concat(['']).forEach(function (g) {
         var grp = visibleStudents.filter(function (s) { return (s.grade || '') === g; });
-        if (grp.length) { groupsWrap.appendChild(buildGradeGroup(g, grp, assigned)); anyGrade = true; }
+        if (grp.length) { groupsWrap.appendChild(buildGradeGroup(g, grp, assigned, exTag)); anyGrade = true; }
       });
       if (!anyGrade) {
         groupsWrap.appendChild(U.el('div', { class: 'muted', text: 'אין תלמידים. הוסיפו תלמידים ב"נתוני בסיס".' }));
@@ -820,15 +848,15 @@
       });
       if (noTeam.length) groups.push({ type: 'loose', students: noTeam, ids: noTeam.map(function (s) { return s.id; }) });
 
-      // קבוצות שכל חבריהן כבר משובצים יורדות לתחתית — כולל "ללא צוות"
-      groups.sort(function (a, b) {
-        var aa = a.ids.every(function (id) { return assigned[id]; }) ? 1 : 0;
-        var bb = b.ids.every(function (id) { return assigned[id]; }) ? 1 : 0;
-        return aa - bb;
-      });
+      // קבוצות שכל חבריהן הזמינים כבר משובצים (או שאין זמינים) יורדות לתחתית — כולל "ללא צוות"
+      function doneGroup(ids) {
+        var avail = ids.filter(function (id) { return !exTag[id]; });
+        return (!avail.length || avail.every(function (id) { return assigned[id]; })) ? 1 : 0;
+      }
+      groups.sort(function (a, b) { return doneGroup(a.ids) - doneGroup(b.ids); });
       groups.forEach(function (e) {
-        if (e.type === 'team') groupsWrap.appendChild(buildTeamGroup(day, e.team, e.ids, assigned));
-        else groupsWrap.appendChild(buildLooseGroup(e.students, assigned));
+        if (e.type === 'team') groupsWrap.appendChild(buildTeamGroup(day, e.team, e.ids, assigned, exTag));
+        else groupsWrap.appendChild(buildLooseGroup(e.students, assigned, exTag));
       });
 
       if (!groups.length) {
@@ -861,9 +889,17 @@
 
   var chipGradeColors = { 'ט': '#fff3cd', 'י': '#d1ecf1', 'יא': '#d4edda', 'יב': '#f8d7da' };
 
-  function studentChip(id, assigned) {
+  function studentChip(id, assigned, exReason) {
     var s = Store.getById('students', id);
     if (!s) return null;
+    // תלמיד שאינו זמין היום — צ'יפ אפור עם סיבה, ללא גרירה והקשה
+    if (exReason) {
+      return U.el('div', { class: 'chip excluded', title: 'לא זמין היום — ' + exReason }, [
+        s.grade ? gradeBadge(s.grade) : null,
+        U.el('span', { text: s.name }),
+        U.el('span', { class: 'ex-tag', text: exReason })
+      ]);
+    }
     var chip = U.el('div', { class: 'chip' + (assigned[id] ? ' assigned' : ''), draggable: 'true', title: 'גררו לאתר, או הקישו לבחירת אתר' }, [
       s.grade ? gradeBadge(s.grade) : null,
       U.el('span', { text: s.name })
@@ -882,7 +918,7 @@
     return chip;
   }
 
-  function buildTeamGroup(day, team, ids, assigned) {
+  function buildTeamGroup(day, team, ids, assigned, exTag) {
     var grip = U.el('span', { class: 'grip', draggable: 'true', title: 'גררו צוות שלם לאתר, או הקישו לבחירת אתר', text: '⠿' });
     grip.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text/plain', 'team:' + team.id); e.dataTransfer.effectAllowed = 'move'; });
     grip.addEventListener('click', function () {
@@ -892,29 +928,34 @@
       });
     });
 
-    var allAssigned = ids.every(function (id) { return assigned[id]; });
+    var avail = ids.filter(function (id) { return !exTag[id]; });
+    var allAssigned = !avail.length || avail.every(function (id) { return assigned[id]; });
     var header = U.el('div', { class: 'pg-head' + (allAssigned ? ' all-assigned' : '') }, [
       grip,
       U.el('span', { class: 'pg-title', text: '⭐ ' + global.TeamUtil.teamLabel(team) }),
-      U.el('span', { class: 'muted', style: 'font-size:11px;', text: '(' + ids.length + ')' })
+      U.el('span', { class: 'muted', style: 'font-size:11px;', text: '(' + avail.length + ')' })
     ]);
 
     var chips = U.el('div', { class: 'pg-chips' });
-    ids.forEach(function (id) { var c = studentChip(id, assigned); if (c) chips.appendChild(c); });
+    // הזמינים קודם, הלא-זמינים (אפורים) בסוף
+    ids.slice().sort(function (a, b) { return (exTag[a] ? 1 : 0) - (exTag[b] ? 1 : 0); })
+      .forEach(function (id) { var c = studentChip(id, assigned, exTag[id]); if (c) chips.appendChild(c); });
 
     return U.el('div', { class: 'pool-group' }, [header, chips]);
   }
 
-  function buildLooseGroup(students, assigned) {
+  function buildLooseGroup(students, assigned, exTag) {
+    var avail = students.filter(function (s) { return !exTag[s.id]; });
     var header = U.el('div', { class: 'pg-head' }, [U.el('span', { class: 'pg-title', text: 'ללא צוות' }),
-      U.el('span', { class: 'muted', style: 'font-size:11px;', text: '(' + students.length + ')' })]);
+      U.el('span', { class: 'muted', style: 'font-size:11px;', text: '(' + avail.length + ')' })]);
     var chips = U.el('div', { class: 'pg-chips' });
-    students.forEach(function (s) { var c = studentChip(s.id, assigned); if (c) chips.appendChild(c); });
+    students.slice().sort(function (a, b) { return (exTag[a.id] ? 1 : 0) - (exTag[b.id] ? 1 : 0); })
+      .forEach(function (s) { var c = studentChip(s.id, assigned, exTag[s.id]); if (c) chips.appendChild(c); });
     return U.el('div', { class: 'pool-group loose' }, [header, chips]);
   }
 
   // קבוצת מאגר לפי כיתה (מצב "לפי כיתות")
-  function buildGradeGroup(grade, students, assigned) {
+  function buildGradeGroup(grade, students, assigned, exTag) {
     var headChildren = [];
     if (grade) {
       var grip = U.el('span', { class: 'grip', draggable: 'true', title: 'גררו כיתה שלמה לאתר, או הקישו לבחירת אתר', text: '⠿' });
@@ -928,12 +969,14 @@
       });
       headChildren.push(grip);
     }
+    var avail = students.filter(function (s) { return !exTag[s.id]; });
     headChildren.push(U.el('span', { class: 'pg-title', text: grade ? 'כיתה ' + grade : 'ללא כיתה' }));
-    headChildren.push(U.el('span', { class: 'muted', style: 'font-size:11px;', text: '(' + students.length + ')' }));
-    var allAssigned = students.every(function (s) { return assigned[s.id]; });
+    headChildren.push(U.el('span', { class: 'muted', style: 'font-size:11px;', text: '(' + avail.length + ')' }));
+    var allAssigned = !avail.length || avail.every(function (s) { return assigned[s.id]; });
     var header = U.el('div', { class: 'pg-head' + (allAssigned ? ' all-assigned' : '') }, headChildren);
     var chips = U.el('div', { class: 'pg-chips' });
-    students.forEach(function (s) { var c = studentChip(s.id, assigned); if (c) chips.appendChild(c); });
+    students.slice().sort(function (a, b) { return (exTag[a.id] ? 1 : 0) - (exTag[b.id] ? 1 : 0); })
+      .forEach(function (s) { var c = studentChip(s.id, assigned, exTag[s.id]); if (c) chips.appendChild(c); });
     return U.el('div', { class: 'pool-group' }, [header, chips]);
   }
 
