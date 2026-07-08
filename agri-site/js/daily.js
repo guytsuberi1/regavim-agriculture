@@ -200,13 +200,8 @@
       if (site.location) meta.appendChild(U.el('div', { text: '📍 ' + site.location }));
       if (site.contactName || site.phone) meta.appendChild(U.el('div', { text: '☎ ' + [site.contactName, site.phone].filter(Boolean).join(' · ') }));
       if (site.access) meta.appendChild(U.el('div', { text: '🚗 ' + site.access }));
-      // שעות עבודה — שדה קומפקטי בכותרת (נדרש לחישוב דרישת התשלום)
-      var hrsInp = U.el('input', { type: 'number', step: '0.5', min: '0', class: 'hrs-edit no-print', value: card.hours == null ? '' : card.hours, placeholder: '—', title: 'שעות עבודה באתר (משמש לחישוב דרישת התשלום)' });
-      hrsInp.addEventListener('change', function () { card.hours = hrsInp.value === '' ? '' : U.num(hrsInp.value); Store.save(); });
-      meta.appendChild(U.el('div', { class: 'hrs-row' }, [
-        U.el('span', { text: '🕐 שעות:' }), hrsInp,
-        card.hours ? U.el('span', { class: 'print-only', text: String(card.hours) }) : null
-      ]));
+      // שעות העבודה לא מוצגות כאן — נלקחות אוטומטית מנתוני הבסיס של האתר,
+      // וחריגים מעדכנים בגיליון דרישת התשלום
     }
 
     // מונה: משובצים / רצוי — הרצוי ניתן לעריכה ישירות בכותרת הכרטיס

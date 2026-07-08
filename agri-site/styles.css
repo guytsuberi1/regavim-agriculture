@@ -345,9 +345,6 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
 .site-card .sc-team-head .bill-chev { margin-inline-start: auto; }
 /* שדה "רצוי" הניתן לעריכה בתוך המונה שבכותרת הכרטיס */
 .tw-counter .tw-edit { width: 44px; padding: 1px 4px; font-size: 12px; font-weight: 700; text-align: center; border: 1px solid var(--border); border-radius: 6px; background: #fff; color: inherit; }
-/* שורת שעות קומפקטית במטא של הכרטיס */
-.sc-meta .hrs-row { display: flex; align-items: center; gap: 5px; }
-.sc-meta .hrs-edit { width: 52px; padding: 1px 4px; font-size: 12px; border: 1px solid var(--border); border-radius: 6px; }
 /* תלמיד שאינו זמין היום במאגר — אפור עם תג סיבה, ללא גרירה */
 .chip.excluded { background: #f1f5f9; color: var(--muted); border-style: dashed; cursor: default; opacity: .75; }
 .chip.excluded .grade-badge { opacity: .55; }
@@ -395,7 +392,7 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
   table.grid th, table.grid td { border: 1px solid #999; }
 }
 .print-only { display: none; }
-@media print { .print-only { display: block; } .tw-counter .print-only, .hrs-row .print-only { display: inline; } }
+@media print { .print-only { display: block; } .tw-counter .print-only { display: inline; } }
 
 /* ---------- דשבורד מנהלים ---------- */
 .dash-head { align-items: flex-start; }
