@@ -360,15 +360,21 @@
 
   // ---------- סיכום יומי (תכנון מול ביצוע, לפי אתרים) ----------
   function renderDaily(root) {
-    // צ'יפ תאריך יחיד — לחיצה פותחת את בורר התאריך
+    // ניווט אחיד: חצים · צ'יפ=חזרה להיום · 📅 קפיצה לתאריך
     var dInp = U.el('input', { type: 'date', value: dashDate });
     dInp.addEventListener('change', function () { if (dInp.value) { dashDate = dInp.value; App.render(); } });
-    var dateChip = U.dateChip(U.weekdayName(dashDate) + ' · ' + U.gregLabel(dashDate) + ' · ' + dashDate.slice(0, 4), dInp);
+    dInp.classList.add('chip-date-input');
+    var pickBtn = U.el('button', { class: 'btn secondary ico no-print', title: 'קפיצה לתאריך…' }, ['📅', dInp]);
+    pickBtn.addEventListener('click', function () {
+      try { if (dInp.showPicker) { dInp.showPicker(); return; } } catch (e) {}
+      dInp.click();
+    });
     root.appendChild(U.el('div', { style: 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;' }, [
-      U.el('button', { class: 'btn secondary small', onclick: function () { dashDate = U.addDays(dashDate, -1); App.render(); } }, '→ אתמול'),
-      dateChip,
-      U.el('button', { class: 'btn secondary small', onclick: function () { dashDate = U.addDays(dashDate, 1); App.render(); } }, 'מחר ←'),
-      U.el('button', { class: 'btn secondary small', onclick: function () { dashDate = U.todayISO(); App.render(); } }, 'היום'),
+      U.el('button', { class: 'btn secondary ico', title: 'יום קודם', onclick: function () { dashDate = U.addDays(dashDate, -1); App.render(); } }, '→'),
+      U.dateChip(U.weekdayName(dashDate) + ' · ' + U.gregLabel(dashDate) + ' · ' + dashDate.slice(0, 4), null,
+        { onClick: function () { dashDate = U.todayISO(); App.render(); }, title: 'לחצו לחזרה להיום' }),
+      U.el('button', { class: 'btn secondary ico', title: 'יום הבא', onclick: function () { dashDate = U.addDays(dashDate, 1); App.render(); } }, '←'),
+      pickBtn,
       U.el('div', { class: 'spacer' }),
       U.el('div', { class: 'remind-group no-print' }, [
         U.el('div', { class: 'rg-title', text: 'תזכורת' }),

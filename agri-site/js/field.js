@@ -54,14 +54,21 @@
     var identityChip = who ? U.el('span', { class: 'tag', style: 'margin-inline-start:auto;', text: '👤 ' + who }) : null;
     root.appendChild(U.el('div', { class: 'page-head' }, [
       U.el('h2', { text: '🚜 מצב שטח' }),
-      U.el('button', { class: 'btn secondary small', onclick: function () { fieldDate = U.addDays(fieldDate, -1); fieldCardId = null; App.render(); } }, '→ אתמול'),
+      U.el('button', { class: 'btn secondary ico', title: 'יום קודם', onclick: function () { fieldDate = U.addDays(fieldDate, -1); fieldCardId = null; App.render(); } }, '→'),
+      U.dateChip(U.weekdayName(fieldDate) + ' · ' + U.gregLabel(fieldDate), null,
+        { onClick: function () { fieldDate = U.todayISO(); fieldCardId = null; App.render(); }, title: 'לחצו לחזרה להיום' }),
+      U.el('button', { class: 'btn secondary ico', title: 'יום הבא', onclick: function () { fieldDate = U.addDays(fieldDate, 1); fieldCardId = null; App.render(); } }, '←'),
       (function () {
         var dInp = U.el('input', { type: 'date', value: fieldDate });
         dInp.addEventListener('change', function () { if (dInp.value) { fieldDate = dInp.value; fieldCardId = null; App.render(); } });
-        return U.dateChip(U.weekdayName(fieldDate) + ' · ' + U.gregLabel(fieldDate), dInp);
+        dInp.classList.add('chip-date-input');
+        var b = U.el('button', { class: 'btn secondary ico no-print', title: 'קפיצה לתאריך…' }, ['📅', dInp]);
+        b.addEventListener('click', function () {
+          try { if (dInp.showPicker) { dInp.showPicker(); return; } } catch (e) {}
+          dInp.click();
+        });
+        return b;
       })(),
-      U.el('button', { class: 'btn secondary small', onclick: function () { fieldDate = U.addDays(fieldDate, 1); fieldCardId = null; App.render(); } }, 'מחר ←'),
-      U.el('button', { class: 'btn secondary small', onclick: function () { fieldDate = U.todayISO(); fieldCardId = null; App.render(); } }, 'היום'),
       U.el('button', { class: 'btn', onclick: openAbsentField }, '🚫 נעדרים היום' + (absN ? ' (' + absN + ')' : '')),
       identityChip
     ]));

@@ -22,10 +22,10 @@
     var d = Store.get();
     root.appendChild(U.el('div', { class: 'page-head' }, [
       U.el('h2', { text: '🍳 תורני מטבח' }),
-      U.el('button', { class: 'btn secondary small', onclick: function () { kWeek = U.addDays(kWeek, -7); App.render(); } }, '→ שבוע קודם'),
-      U.dateChip(U.gregLabel(kWeek) + ' – ' + U.gregLabel(U.addDays(kWeek, 6))),
-      U.el('button', { class: 'btn secondary small', onclick: function () { kWeek = U.addDays(kWeek, 7); App.render(); } }, 'שבוע הבא ←'),
-      U.el('button', { class: 'btn secondary small', onclick: function () { kWeek = U.startOfWeek(U.todayISO()); App.render(); } }, 'השבוע')
+      U.el('button', { class: 'btn secondary ico', title: 'שבוע קודם', onclick: function () { kWeek = U.addDays(kWeek, -7); App.render(); } }, '→'),
+      U.dateChip(U.gregLabel(kWeek) + ' – ' + U.gregLabel(U.addDays(kWeek, 5)), null,
+        { onClick: function () { kWeek = U.startOfWeek(U.todayISO()); App.render(); }, title: 'לחצו לחזרה לשבוע הנוכחי' }),
+      U.el('button', { class: 'btn secondary ico', title: 'שבוע הבא', onclick: function () { kWeek = U.addDays(kWeek, 7); App.render(); } }, '←')
     ]));
 
     var ids = (d.weeklyDuty && d.weeklyDuty[kWeek]) || [];
