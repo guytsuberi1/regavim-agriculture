@@ -68,6 +68,12 @@
   var ROW_ID = 'agri'; // רשומה נפרדת לאפליקציית החקלאות (התקציב משתמש ב-'main')
   var sb = (global.supabase && global.supabase.createClient) ? global.supabase.createClient(SB_URL, SB_KEY) : null;
   var cloudMode = !!sb;
+  // כניסה דרך קישור "איפוס סיסמה" מהמייל — נזהה ונבקש סיסמה חדשה אחרי הטעינה
+  var pendingRecovery = false;
+  try { if (/type=recovery/.test(String(location.hash))) pendingRecovery = true; } catch (e) {}
+  if (sb && sb.auth && sb.auth.onAuthStateChange) {
+    sb.auth.onAuthStateChange(function (ev) { if (ev === 'PASSWORD_RECOVERY') pendingRecovery = true; });
+  }
   var applyingRemote = false;
   var pendingRemote = null; // עדכון מהענן שממתין כל עוד חלון עריכה (מודאל) פתוח
 
@@ -378,7 +384,37 @@
       updateUserBar();
       setStatus('מחובר לענן');
       cb && cb(true);
+      // הגעה מקישור איפוס סיסמה — מבקשים סיסמה חדשה מיד אחרי הטעינה
+      if (pendingRecovery) { pendingRecovery = false; setTimeout(openNewPasswordDialog, 400); }
     });
+  }
+
+  // דיאלוג בחירת סיסמה חדשה (אחרי לחיצה על הקישור מהמייל)
+  function openNewPasswordDialog() {
+    var U = global.U, Modal = global.Modal;
+    if (!U || !Modal) return;
+    var p1 = U.el('input', { type: 'password', placeholder: 'סיסמה חדשה (6 תווים לפחות)', autocomplete: 'new-password', style: 'width:100%;' });
+    var p2 = U.el('input', { type: 'password', placeholder: 'אימות הסיסמה', autocomplete: 'new-password', style: 'width:100%;' });
+    var err = U.el('div', { class: 'login-err', style: 'min-height:18px;' });
+    Modal.open('🔑 בחירת סיסמה חדשה', U.el('div', null, [
+      U.el('p', { class: 'muted', style: 'margin-top:0;', text: 'נכנסתם דרך קישור איפוס הסיסמה. בחרו סיסמה חדשה לחשבון.' }),
+      U.el('div', { class: 'field' }, [p1]),
+      U.el('div', { class: 'field' }, [p2]),
+      err
+    ]), [
+      { label: 'ביטול', class: 'secondary' },
+      { label: 'שמירת סיסמה', onClick: function (close) {
+        var v1 = p1.value || '', v2 = p2.value || '';
+        if (v1.length < 6) { err.textContent = 'הסיסמה חייבת להכיל לפחות 6 תווים'; p1.focus(); return; }
+        if (v1 !== v2) { err.textContent = 'הסיסמאות אינן זהות'; p2.focus(); return; }
+        err.textContent = '';
+        sb.auth.updateUser({ password: v1 }).then(function (res) {
+          if (res.error) { err.textContent = 'שמירת הסיסמה נכשלה — נסו שוב'; return; }
+          close();
+          global.U.toast('הסיסמה עודכנה בהצלחה');
+        });
+      } }
+    ]);
   }
 
   function showLogin(cb) {
@@ -401,6 +437,23 @@
       });
     }
     if (btn) btn.onclick = doLogin;
+    // שכחתי סיסמה — שליחת מייל עם קישור איפוס לכתובת שהוזנה
+    var forgot = document.getElementById('forgotBtn');
+    if (forgot) forgot.onclick = function () {
+      var email = (emailEl.value || '').trim();
+      if (!email) {
+        if (errEl) { errEl.classList.remove('ok'); errEl.textContent = 'מלאו את האימייל למעלה ואז לחצו שוב על "שכחתי סיסמה"'; }
+        emailEl.focus(); return;
+      }
+      forgot.disabled = true; forgot.textContent = 'שולח…';
+      sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname }).then(function (res) {
+        forgot.disabled = false; forgot.textContent = 'שכחתי סיסמה';
+        if (!errEl) return;
+        if (res.error) { errEl.classList.remove('ok'); errEl.textContent = 'שליחת המייל נכשלה — נסו שוב בעוד רגע'; return; }
+        errEl.classList.add('ok');
+        errEl.textContent = '✓ נשלח מייל עם קישור לאיפוס — בדקו את תיבת הדואר (גם בספאם)';
+      });
+    };
     if (passEl) passEl.onkeydown = function (e) { if (e.key === 'Enter') doLogin(); };
     if (emailEl) emailEl.onkeydown = function (e) { if (e.key === 'Enter') { passEl && passEl.focus(); } };
     // עין להצגת/הסתרת הסיסמה

@@ -566,7 +566,7 @@ tr.detail-total td { background: #f4f0e8; border-top: 2px solid #d9cfbc; }
 
 /* קבוצת תזכורת (סיכום יומי) */
 .remind-group { text-align: center; }
-.rg-title { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: .05em; margin-bottom: 3px; }
+.rg-title { font-size: 14px; font-weight: 700; color: var(--green-dark); margin-bottom: 3px; }
 .rg-btns { display: flex; gap: 6px; justify-content: center; }
 
 /* הערות שטח — סטטוס והערת רכז */
@@ -734,3 +734,9 @@ body.dark .ds-report.done, body.dark .field-report.done { color: #1c2733; }
 .brand-logo img { width: 100%; height: 100%; object-fit: cover; border-radius: 11px; display: block; }
 .logo-prev { width: 40px; height: 40px; border-radius: 11px; background: var(--brown); display: inline-flex; align-items: center; justify-content: center; font-size: 22px; overflow: hidden; flex: 0 0 auto; }
 .logo-prev img { width: 100%; height: 100%; object-fit: cover; }
+
+/* שכחתי סיסמה — קישור עדין מתחת לכפתור הכניסה */
+.login-forgot { background: none; border: 0; color: var(--green-dark); font-family: inherit; font-size: 13px; cursor: pointer; margin-top: 10px; text-decoration: underline; }
+.login-forgot:hover { color: var(--green); }
+.login-forgot:disabled { opacity: .6; cursor: wait; }
+.login-err.ok { color: #16a34a; }
