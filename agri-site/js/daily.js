@@ -185,7 +185,8 @@
 
     var meta = U.el('div', { class: 'sc-meta' });
     if (site) {
-      if (site.location) meta.appendChild(U.el('div', { text: '📍 ' + site.location }));
+      // שורת מיקום תמיד מוצגת — גם כשאין מיקום — כדי שכל הכרטיסים יהיו באותו גובה
+      meta.appendChild(U.el('div', { class: site.location ? '' : 'muted', text: '📍 ' + (site.location || 'ללא מיקום') }));
       if (site.contactName || site.phone) meta.appendChild(U.el('div', { text: '☎ ' + [site.contactName, site.phone].filter(Boolean).join(' · ') }));
       if (site.access) meta.appendChild(U.el('div', { text: '🚗 ' + site.access }));
       // שעות העבודה לא מוצגות כאן — נלקחות אוטומטית מנתוני הבסיס של האתר,

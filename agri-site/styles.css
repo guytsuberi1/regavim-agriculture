@@ -738,6 +738,8 @@ body.dark .field-student.done { background: #17281c; }
 body.dark .field-student.absent, body.dark .tw-counter.under,
 body.dark .sc-del:hover, body.dark .ds-status.absent { background: #35211f; }
 body.dark input.invalid, body.dark select.invalid, body.dark textarea.invalid { background: #3a2020; }
+/* שדה "רצוי" במונה — רקע בהיר וטקסט כהה גם במצב לילה (המונה עצמו בגוונים בהירים) */
+body.dark .tw-counter .tw-edit { background: rgba(255,255,255,.9); color: #1c2733; border-color: rgba(0,0,0,.25); }
 body.dark input.overridden { background: #3a2c17; }
 /* רקעים בהירים קבועים (הדגשות צהבהבות/ירקרקות) — טקסט כהה כדי להישאר קריא */
 body.dark .site-card .sc-students li.duty, body.dark .site-card .sc-students li.leader,
