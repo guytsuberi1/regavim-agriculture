@@ -257,6 +257,17 @@
     return h;
   }
 
+  // כמה תלמידים זמינים ביום נתון: פעילים פחות תורני מטבח/חולים (שבועי) ונעדרים (יומי)
+  function availableOn(iso) {
+    var d = Store.get();
+    var wk = U.startOfWeek(iso);
+    var ex = {};
+    (((d.weeklyDuty || {})[wk]) || []).forEach(function (id) { ex[id] = 1; });
+    (((d.weeklySick || {})[wk]) || []).forEach(function (id) { ex[id] = 1; });
+    (((d.dailyAbsent || {})[iso]) || []).forEach(function (id) { ex[id] = 1; });
+    return (d.students || []).filter(function (s) { return s.active !== false && !ex[s.id]; }).length;
+  }
+
   function buildDay(iso, items) {
     var cell = U.el('div', { class: 'week-day' + (iso === U.todayISO() ? ' today' : '') });
     var h4 = U.el('h4', { class: 'day-link', title: 'מעבר לסידור היומי של יום זה', text: U.weekdayName(iso) });
@@ -278,10 +289,14 @@
     // תיבת יומן בגודל קבוע — מוצגת בכל הימים (במצב שבועי) כשיש אירועים כלשהם בשבוע
     if (viewMode === 'week' && weekHasAnyEvents()) cell.appendChild(buildEventsBox(eventsOn(iso)));
 
-    // סה"כ עובדים שתוכננו ליום זה
+    // סה"כ מתוכננים ליום מול הזמינים בו (פעילים פחות תורני מטבח/חולים של השבוע ונעדרי היום)
     var totWorkers = items.reduce(function (sum, it) { return sum + U.num(it.workers); }, 0);
     if (totWorkers > 0) {
-      cell.appendChild(U.el('div', { class: 'day-total', text: 'סה"כ מתוכננים: ' + totWorkers }));
+      var avail = availableOn(iso);
+      cell.appendChild(U.el('div', {
+        class: 'day-total' + (totWorkers > avail ? ' over' : ''),
+        title: totWorkers > avail ? 'תוכננו יותר עובדים מהזמינים ביום זה!' : 'מתוכננים מתוך הזמינים ביום זה'
+      }, totWorkers + ' / ' + avail + ' מתוכננים / זמינים'));
     }
 
     items.forEach(function (it, idx) {

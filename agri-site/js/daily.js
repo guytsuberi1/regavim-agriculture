@@ -164,18 +164,6 @@
     } else {
       items.push(tot(total, 'משובצים'));
     }
-    // מתוכננים מול הזמינים היום במאגר (פעילים פחות תורנים/חולים/נעדרים) — וידוא שתוכנן מספיק
-    var excluded = excludedSet();
-    var avail = activeList('students').filter(function (s) { return !excluded[s.id]; }).length;
-    if (target > 0) {
-      var cls2 = target > avail ? 'over' : 'ok';
-      items.push(U.el('div', { class: 't tw-tot ' + cls2, title: (target > avail ? 'תוכננו יותר עובדים מהזמינים היום!' : 'התכנון בתוך המאגר הזמין') }, [
-        U.el('b', { text: target + ' / ' + avail }),
-        U.el('span', { text: 'מתוכננים / זמינים היום' })
-      ]));
-    } else {
-      items.push(tot(avail, 'זמינים היום'));
-    }
     return U.el('div', { class: 'totbar' }, items);
   }
   function tot(n, label) { return U.el('div', { class: 't' }, [U.el('b', { text: n }), U.el('span', { text: label })]); }
