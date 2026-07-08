@@ -43,7 +43,22 @@
     if (allowed.indexOf(current) === -1) current = allowed[0];
   }
 
+  // לוגו מותאם מההגדרות — מחליף את ה-🌱 בסרגל הצד (מסונכרן לכל המשתמשים)
+  function applyBrandLogo() {
+    var el = document.querySelector('.brand-logo');
+    if (!el || !global.Store || !Store.get) return;
+    var url = (Store.get().settings || {}).logoDataUrl || '';
+    var im = el.querySelector('img');
+    if (url) {
+      if (!im) { el.textContent = ''; im = document.createElement('img'); im.alt = 'לוגו'; el.appendChild(im); }
+      if (im.getAttribute('src') !== url) im.setAttribute('src', url);
+    } else if (im) {
+      el.textContent = '🌱';
+    }
+  }
+
   function render() {
+    applyBrandLogo();
     var view = U.$('#view');
     U.clear(view);
     var mod = TABS[current];

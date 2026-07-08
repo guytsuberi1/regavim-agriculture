@@ -53,10 +53,42 @@
     var hoursInp = U.el('input', { type: 'number', step: '0.5', value: data.settings.defaultHours || 8, style: 'width:100%;' });
     hoursInp.addEventListener('change', function () { data.settings.defaultHours = U.num(hoursInp.value, 8); Store.save(); });
 
+    // ---- לוגו מותאם (מחליף את ה-🌱 בסרגל הצד, מסונכרן לכל המשתמשים) ----
+    var curLogo = data.settings.logoDataUrl || '';
+    var logoPrev = U.el('span', { class: 'logo-prev' }, curLogo ? [U.el('img', { src: curLogo, alt: 'לוגו' })] : '🌱');
+    var logoFile = U.el('input', { type: 'file', accept: 'image/*', style: 'display:none;' });
+    logoFile.addEventListener('change', function () {
+      var f = logoFile.files[0]; if (!f) return;
+      readLogoFile(f, function (url) {
+        if (!url) { U.toast('לא ניתן לקרוא את קובץ התמונה', 'error'); return; }
+        data.settings.logoDataUrl = url;
+        Store.save(); App.render();
+        U.toast('הלוגו עודכן');
+      });
+    });
+    var logoRow = U.el('div', { class: 'field' }, [
+      U.el('label', { text: 'סמל / לוגו' }),
+      U.el('div', { style: 'display:flex;align-items:center;gap:10px;flex-wrap:wrap;' }, [
+        logoPrev,
+        U.el('button', { class: 'btn small secondary', onclick: function () { logoFile.click(); } }, '🖼 העלאת תמונה'),
+        curLogo ? U.el('button', { class: 'btn small secondary', title: 'חזרה לסמל המקורי 🌱', onclick: function () {
+          delete data.settings.logoDataUrl;
+          Store.save(); App.render();
+          U.toast('חזרנו לסמל המקורי');
+        } }, '✕ הסרה') : null,
+        logoFile
+      ]),
+      U.el('div', { class: 'muted', style: 'font-size:12px;margin-top:2px;', text: 'התמונה מוקטנת אוטומטית ומוצגת במקום ה-🌱 בסרגל הצד, אצל כל המשתמשים.' })
+    ]);
+
     root.appendChild(U.el('div', { class: 'card', style: 'margin-bottom:16px;max-width:520px;' }, [
       U.el('h3', { style: 'margin-top:0;', text: 'הגדרות כלליות' }),
       U.el('div', { class: 'field' }, [U.el('label', { text: 'שם המוסד' }), nameInp]),
-      U.el('div', { class: 'field' }, [U.el('label', { text: 'שעות ברירת מחדל ליום עבודה' }), hoursInp])
+      logoRow,
+      U.el('div', { class: 'field' }, [
+        U.el('label', { text: 'שעות ברירת מחדל ליום עבודה' }), hoursInp,
+        U.el('div', { class: 'muted', style: 'font-size:12px;margin-top:2px;', text: 'ערך כללי לכל האתרים. אתר שהוגדרו לו "שעות ברירת מחדל" משלו בנתוני הבסיס — הערך שלו גובר.' })
+      ])
     ]));
 
     // ---- סיסמת כניסה להגדרות ----
@@ -110,10 +142,12 @@
     // ---- אזור סכנה ----
     var danger = U.el('div', { class: 'card danger-zone', style: 'max-width:520px;' });
     danger.appendChild(U.el('h3', { style: 'margin-top:0;color:var(--danger);', text: '⚠ אזור מסוכן' }));
-    danger.appendChild(U.el('p', { class: 'muted', text: 'מחיקת כל הנתונים (תלמידים, אתרים, סידורים והכל). פעולה בלתי הפיכה — מומלץ להוריד גיבוי קודם.' }));
+    danger.appendChild(U.el('p', { class: 'muted', text: 'מחיקת כל הנתונים (תלמידים, אתרים, סידורים והכל). פעולה בלתי הפיכה — קובץ גיבוי מלא יורד אוטומטית לפני המחיקה.' }));
     danger.appendChild(U.el('button', { class: 'btn danger', onclick: function () {
       Modal.confirm({ title: '⚠ מחיקת כל הנתונים', text: 'כל הנתונים יימחקו — תלמידים, אתרים, סידורים, חובות והכל.\nבטוחים?', okLabel: 'המשך', danger: true }, function () {
-        Modal.confirm({ title: '⚠ אזהרה אחרונה', text: 'הפעולה בלתי הפיכה. מומלץ להוריד גיבוי קודם.\nלמחוק את הכל?', okLabel: 'מחק את הכל', danger: true }, function () {
+        Modal.confirm({ title: '⚠ אזהרה אחרונה', text: 'הפעולה בלתי הפיכה.\nקובץ גיבוי מלא יירד אוטומטית לפני המחיקה — שמרו אותו במקום בטוח.\nלמחוק את הכל?', okLabel: 'מחק את הכל', danger: true }, function () {
+          // גיבוי-מצנח אוטומטי לפני המחיקה
+          try { Store.exportJSON(); } catch (e) {}
           var fresh = Store.defaultData();
           var d = Store.get();
           Object.keys(fresh).forEach(function (k) { d[k] = fresh[k]; });
@@ -140,6 +174,28 @@
       U.toast(data.settings.settingsPassword ? 'הסיסמה נשמרה' : 'הסיסמה הוסרה');
     } }, 'שמור סיסמה'));
     return box;
+  }
+
+  // ---------- קריאת קובץ לוגו: הקטנה ל-128px ושמירה כ-Data URL (קטן מספיק לסנכרון ענן) ----------
+  function readLogoFile(f, cb) {
+    var rd = new FileReader();
+    rd.onload = function () {
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var max = 128, sc = Math.min(1, max / Math.max(img.width, img.height));
+          var cv = document.createElement('canvas');
+          cv.width = Math.max(1, Math.round(img.width * sc));
+          cv.height = Math.max(1, Math.round(img.height * sc));
+          cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+          cb(cv.toDataURL('image/png'));
+        } catch (e) { cb(null); }
+      };
+      img.onerror = function () { cb(null); };
+      img.src = rd.result;
+    };
+    rd.onerror = function () { cb(null); };
+    rd.readAsDataURL(f);
   }
 
   // ---------- גיבוי אוטומטי: snapshots ב-localStorage ----------
