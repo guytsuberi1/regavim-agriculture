@@ -785,7 +785,7 @@ select.t-asg { max-width: 130px; }
 body.dark .pi-cnt.under { background: #232e3a; }
 .plan-item .cap-flag { color: var(--danger) !important; font-weight: 700; }
 .plan-item.drop-hint { outline: 2px dashed var(--green); outline-offset: 2px; background: var(--green-light); }
-.sc-warn.cap-over { background: var(--danger); color: #fff; }
+.sc-warn.cap-over { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
 .team-drawer { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 10px 12px; margin-top: 14px; }
 .team-drawer .td-head { display: flex; align-items: center; gap: 8px; cursor: pointer; flex-wrap: wrap; }
 .team-drawer .td-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }

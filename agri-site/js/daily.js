@@ -223,7 +223,7 @@
       var capC = trC ? U.num(trC.capacity) : 0;
       var riders = (card.students || []).length + cardStaffIds(card).length;
       if (capC > 0 && riders > capC) {
-        capWarnEl = U.el('div', { class: 'sc-warn cap-over no-print', title: 'משובצים (כולל אנשי צוות) יותר ממקומות ההסעה', text: '🚨 חריגה מקיבולת ההסעה: ' + riders + ' נוסעים / ' + capC + ' מקומות' });
+        capWarnEl = U.el('div', { class: 'sc-warn cap-over no-print', title: 'משובצים (כולל אנשי צוות) יותר ממקומות ההסעה', text: '⚠ חריגה מקיבולת ההסעה: ' + riders + ' / ' + capC });
       }
     }
 
