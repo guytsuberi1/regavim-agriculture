@@ -69,9 +69,7 @@
         });
         return b;
       })(),
-      U.actionMenu([
-        { icon: '🚫', label: 'נעדרים היום' + (absN ? ' (' + absN + ')' : ''), title: 'סימון תלמידים שלא הגיעו היום', onClick: openAbsentField }
-      ]),
+      U.el('button', { class: 'btn', onclick: openAbsentField }, '🚫 נעדרים היום' + (absN ? ' (' + absN + ')' : '')),
       identityChip
     ]));
 
