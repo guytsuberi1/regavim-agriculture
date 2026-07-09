@@ -133,12 +133,15 @@
     var head = U.el('div', { class: 'page-head' }, [
       U.el('h2', { text: '💰 ניהול חובות חקלאים' }),
       U.el('div', { class: 'spacer' }),
-      U.el('button', { class: 'btn secondary ico no-print', title: 'אקסל לדוגמה לייבוא', onclick: downloadDebtTemplate }, '📄'),
-      U.el('button', { class: 'btn secondary ico no-print', title: 'ייבוא מאקסל', html: U.XLS_SVG, onclick: importDebtsExcel }),
-      (Store.serverMode ? U.el('button', { class: 'btn secondary ico no-print', title: 'ייבוא PDF מהעמותה — ניתוח AI', onclick: importDebtsPdf }, '🤖') : null),
-      U.el('button', { class: 'btn secondary ico', title: 'ייצוא לאקסל', onclick: exportExcel }, '⬇'),
-      U.el('button', { class: 'btn secondary ico no-print', title: 'הדפסה', onclick: function () { window.print(); } }, '🖨️'),
-      U.el('button', { class: 'btn', onclick: function () { openRecord(null, selectedSiteId || ''); } }, '+ חוב חדש')
+      U.el('button', { class: 'btn', onclick: function () { openRecord(null, selectedSiteId || ''); } }, '+ חוב חדש'),
+      U.actionMenu([
+        (Store.serverMode ? { icon: '🤖', label: 'ייבוא PDF מהעמותה (AI)', onClick: importDebtsPdf } : null) ,
+        { html: U.XLS_SVG, label: 'ייבוא מאקסל', onClick: importDebtsExcel },
+        { icon: '📄', label: 'אקסל לדוגמה לייבוא', onClick: downloadDebtTemplate },
+        null,
+        { icon: '⬇', label: 'ייצוא לאקסל', onClick: exportExcel },
+        { icon: '🖨️', label: 'הדפסה', onClick: function () { window.print(); } }
+      ].filter(Boolean))
     ]);
     root.appendChild(head);
 

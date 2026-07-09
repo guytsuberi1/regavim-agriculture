@@ -168,6 +168,42 @@
     return chip;
   }
 
+  // ---------- תפריט פעולות אחיד (⋮) — מרכז פעולות משניות בכותרות הגיליונות ----------
+  // items: [{ icon | html, label, title?, onClick }] ; null = קו מפריד
+  var amenuCloserBound = false;
+  function actionMenu(items) {
+    var wrap = el('div', { class: 'amenu no-print' });
+    var btn = el('button', { class: 'btn secondary ico amenu-btn', title: 'פעולות נוספות', 'aria-label': 'פעולות נוספות' }, '⋮');
+    var pop = el('div', { class: 'amenu-pop' });
+    items.forEach(function (it) {
+      if (!it) { pop.appendChild(el('div', { class: 'amenu-sep' })); return; }
+      var b = el('button', { class: 'amenu-item', title: it.title || '' }, [
+        it.html ? el('span', { class: 'amenu-ic', html: it.html }) : el('span', { class: 'amenu-ic', text: it.icon || '' }),
+        el('span', { text: it.label })
+      ]);
+      b.addEventListener('click', function (e) {
+        e.stopPropagation();
+        pop.classList.remove('open');
+        if (it.onClick) it.onClick();
+      });
+      pop.appendChild(b);
+    });
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var wasOpen = pop.classList.contains('open');
+      $all('.amenu-pop.open').forEach(function (p) { p.classList.remove('open'); });
+      if (!wasOpen) pop.classList.add('open');
+    });
+    if (!amenuCloserBound) {
+      amenuCloserBound = true;
+      document.addEventListener('click', function () {
+        $all('.amenu-pop.open').forEach(function (p) { p.classList.remove('open'); });
+      });
+    }
+    wrap.appendChild(btn); wrap.appendChild(pop);
+    return wrap;
+  }
+
   global.U = {
     el: el, clear: clear, $: $, $all: $all,
     todayISO: todayISO, toISO: toISO, fromISO: fromISO, addDays: addDays,
@@ -175,6 +211,6 @@
     hebrewDate: hebrewDate, gregLabel: gregLabel,
     monthKey: monthKey, monthLabel: monthLabel,
     GRADES: GRADES, WEEKDAYS: WEEKDAYS, num: num, escapeCsv: escapeCsv,
-    WA_SVG: WA_SVG, XLS_SVG: XLS_SVG, toast: toast, dateChip: dateChip
+    WA_SVG: WA_SVG, XLS_SVG: XLS_SVG, toast: toast, dateChip: dateChip, actionMenu: actionMenu
   };
 })(window);

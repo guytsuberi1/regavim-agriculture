@@ -84,13 +84,21 @@
     var isTeams = sub === 'teams';
     var headBtns = [U.el('h2', { text: '🗂️ נתוני בסיס' }), U.el('div', { class: 'spacer' })];
     if (!isTeams) {
-      headBtns.push(U.el('button', { class: 'btn secondary ico', title: showArchive ? 'חזרה לפעילים' : 'ארכיון', onclick: function () { showArchive = !showArchive; App.render(); } }, showArchive ? '↩' : '📦'));
-      if (!showArchive) {
-        if (sub === 'students') headBtns.push(U.el('button', { class: 'btn secondary ico', title: 'איחוד כפילויות', onclick: mergeDuplicateStudents }, '🧹'));
-        if (sub === 'students') headBtns.push(U.el('button', { class: 'btn secondary ico', title: 'מילוי כיתה לפי שכבה (ט→ט1)', onclick: fillClassFromGrade }, '🏷️'));
-        headBtns.push(U.el('button', { class: 'btn secondary ico', title: 'אקסל לדוגמה', onclick: function () { if (global.ImportExcel) global.ImportExcel.downloadTemplate(sub); } }, '📄'));
-        headBtns.push(U.el('button', { class: 'btn secondary ico', title: 'ייבוא מאקסל', html: U.XLS_SVG, onclick: openImport }));
+      if (showArchive) {
+        headBtns.push(U.el('button', { class: 'btn secondary', title: 'חזרה לרשומות הפעילות', onclick: function () { showArchive = false; App.render(); } }, '↩ חזרה לפעילים'));
+      } else {
         headBtns.push(U.el('button', { class: 'btn', onclick: function () { openForm(null); } }, '+ הוספה'));
+        var menuItems = [];
+        if (sub === 'students') {
+          menuItems.push({ icon: '🧹', label: 'איחוד כפילויות', onClick: mergeDuplicateStudents });
+          menuItems.push({ icon: '🏷️', label: 'מילוי כיתה לפי שכבה (ט→ט1)', onClick: fillClassFromGrade });
+          menuItems.push(null);
+        }
+        menuItems.push({ html: U.XLS_SVG, label: 'ייבוא מאקסל', onClick: openImport });
+        menuItems.push({ icon: '📄', label: 'אקסל לדוגמה', onClick: function () { if (global.ImportExcel) global.ImportExcel.downloadTemplate(sub); } });
+        menuItems.push(null);
+        menuItems.push({ icon: '📦', label: 'ארכיון', title: 'הצגת רשומות שהועברו לארכיון', onClick: function () { showArchive = true; App.render(); } });
+        headBtns.push(U.actionMenu(menuItems));
       }
     }
     var head = U.el('div', { class: 'page-head' }, headBtns);

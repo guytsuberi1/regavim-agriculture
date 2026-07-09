@@ -187,9 +187,12 @@
       weatherSelect(),
       U.el('div', { class: 'spacer' }),
       viewMode === 'week' ? U.el('button', { class: 'btn accent no-print', title: 'שיבוץ צוותים אוטומטי לכל ימי השבוע לפי היסטוריה', onclick: autoAssignWeek }, '🤖 שבץ שבוע') : null,
-      U.el('button', { class: 'btn secondary ico no-print', title: 'תורנים שבועיים' + countSuffix('weeklyDuty'), onclick: function () { editWeekList('weeklyDuty', 'תורנים שבועיים'); } }, '🧹'),
-      U.el('button', { class: 'btn secondary ico no-print', title: 'חולים השבוע' + countSuffix('weeklySick'), onclick: function () { editWeekList('weeklySick', 'חולים השבוע'); } }, '🤒'),
-      U.el('button', { class: 'btn secondary ico no-print', title: 'ייצוא תמונה', onclick: exportImage }, '📷')
+      U.actionMenu([
+        { icon: '🧹', label: 'תורנים שבועיים' + countSuffix('weeklyDuty'), onClick: function () { editWeekList('weeklyDuty', 'תורנים שבועיים'); } },
+        { icon: '🤒', label: 'חולים השבוע' + countSuffix('weeklySick'), onClick: function () { editWeekList('weeklySick', 'חולים השבוע'); } },
+        null,
+        { icon: '📷', label: 'ייצוא תמונה', onClick: exportImage }
+      ])
     ]));
     root.appendChild(head);
 

@@ -110,12 +110,15 @@
         return b;
       })(),
       U.el('div', { class: 'spacer' }),
-      U.el('button', { class: 'btn secondary', title: 'ניהול הנעדרים של היום', onclick: openAbsentDialog }, '🚫 נעדרים' + (Store.get().dailyAbsent[curDate] && Store.get().dailyAbsent[curDate].length ? ' (' + Store.get().dailyAbsent[curDate].length + ')' : '')),
-      U.el('button', { class: 'btn secondary ico', title: 'ייצוא תמונה', onclick: exportImage }, '📷'),
-      U.el('button', { class: 'btn ico', title: 'שליחה בוואטסאפ', style: 'background:#25D366;color:#fff;border:0;', onclick: openWhatsApp, html: U.WA_SVG }),
-      U.el('button', { class: 'btn secondary ico', title: 'שליחת SMS לכולם', onclick: sendAllSms }, '📩'),
       U.el('button', { class: 'btn accent', title: 'שיבוץ צוותים אוטומטי לפי היסטוריה', onclick: autoAssign }, '🤖 שבץ אוטומטית'),
-      U.el('button', { class: 'btn', onclick: addCard }, '+ הוסף אתר')
+      U.el('button', { class: 'btn', onclick: addCard }, '+ הוסף אתר'),
+      U.actionMenu([
+        { icon: '🚫', label: 'נעדרים היום' + (Store.get().dailyAbsent[curDate] && Store.get().dailyAbsent[curDate].length ? ' (' + Store.get().dailyAbsent[curDate].length + ')' : ''), title: 'ניהול הנעדרים של היום', onClick: openAbsentDialog },
+        null,
+        { html: U.WA_SVG, label: 'שליחה בוואטסאפ', onClick: openWhatsApp },
+        { icon: '📩', label: 'שליחת SMS לכולם', onClick: sendAllSms },
+        { icon: '📷', label: 'ייצוא תמונה', onClick: exportImage }
+      ])
     ]);
     root.appendChild(head);
 
