@@ -233,7 +233,9 @@
     var head = U.el('div', { class: 'page-head' }, [
       U.el('h2', { text: '📊 דוחות' }),
       U.el('div', { class: 'spacer' }),
-      U.el('button', { class: 'btn secondary ico', title: 'ייצוא אקסל', onclick: exportExcel }, '⬇')
+      U.actionMenu([
+        { icon: '⬇', label: 'ייצוא כל הדוחות (אקסל)', title: 'כיתות, אתרים, צוות והסעות — קובץ אחד', onClick: exportExcel }
+      ])
     ]);
     root.appendChild(head);
     root.appendChild(datePresetBar());

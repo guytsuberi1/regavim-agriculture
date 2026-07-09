@@ -395,12 +395,9 @@
       U.el('button', { class: 'btn secondary ico', title: 'יום הבא', onclick: function () { dashDate = U.addDays(dashDate, 1); App.render(); } }, '←'),
       pickBtn,
       U.el('div', { class: 'spacer' }),
-      U.el('div', { class: 'remind-group no-print' }, [
-        U.el('div', { class: 'rg-title', text: 'תזכורת' }),
-        U.el('div', { class: 'rg-btns' }, [
-          U.el('button', { class: 'btn small ico secondary', title: 'תזכורת SMS למחנכים — מילוי נעדרים יומיים', onclick: sendHomeroomReminder }, '📩'),
-          U.el('button', { class: 'btn small ico', style: 'background:#25D366;color:#fff;border:0;', title: 'תזכורת וואטסאפ לאנשי צוות שלא השלימו דיווח שטח', onclick: staffWaReminder, html: U.WA_SVG })
-        ])
+      U.actionMenu([
+        { icon: '📩', label: 'תזכורת SMS למחנכים', title: 'מילוי נעדרים יומיים', onClick: sendHomeroomReminder },
+        { html: U.WA_SVG, label: 'תזכורת וואטסאפ לצוות', title: 'לאנשי צוות שלא השלימו דיווח שטח', onClick: staffWaReminder }
       ])
     ]));
     root.appendChild(U.el('div', { class: 'muted', style: 'font-size:12.5px;margin-bottom:10px;', text: 'מוצגים רק תלמידים הטעונים תשומת לב: לא יצאו · לא סומנו · ציון 1 או 5.' }));

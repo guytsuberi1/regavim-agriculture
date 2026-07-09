@@ -87,7 +87,9 @@
       U.el('h2', { text: '🧾 דרישת תשלום חודשית' })
     ].concat(monthNav(), [
       U.el('div', { class: 'spacer' }),
-      U.el('button', { class: 'btn accent', onclick: exportExcel }, '⬇ ייצוא לגבייה (אקסל)')
+      U.actionMenu([
+        { icon: '⬇', label: 'ייצוא לגבייה (אקסל)', title: 'קובץ אקסל מרוכז לכל החקלאים', onClick: exportExcel }
+      ])
     ]));
     root.appendChild(head);
 
