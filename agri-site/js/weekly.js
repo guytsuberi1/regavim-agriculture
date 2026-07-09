@@ -296,7 +296,7 @@
       cell.appendChild(U.el('div', {
         class: 'day-total' + (totWorkers > avail ? ' over' : ''),
         title: totWorkers > avail ? 'תוכננו יותר עובדים מהזמינים ביום זה!' : 'מתוכננים מתוך הזמינים ביום זה'
-      }, totWorkers + ' / ' + avail + ' מתוכננים / זמינים'));
+      }, 'מתוכננים ' + totWorkers + ' / זמינים ' + avail));
     }
 
     items.forEach(function (it, idx) {
