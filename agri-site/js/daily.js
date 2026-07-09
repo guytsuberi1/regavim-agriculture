@@ -216,6 +216,16 @@
     if (site && !cardStaffIds(card).length) warns.push('חסר איש צוות');
     if (site && !card.transportId) warns.push('חסרה הסעה');
     var warnEl = warns.length ? U.el('div', { class: 'sc-warn no-print', text: '⚠ ' + warns.join(' · ') }) : null;
+    // דגל אדום — חריגה מקיבולת ההסעה (תלמידים + אנשי צוות מול הקיבולת בנתוני הבסיס)
+    var capWarnEl = null;
+    if (site && card.transportId) {
+      var trC = Store.getById('transports', card.transportId);
+      var capC = trC ? U.num(trC.capacity) : 0;
+      var riders = (card.students || []).length + cardStaffIds(card).length;
+      if (capC > 0 && riders > capC) {
+        capWarnEl = U.el('div', { class: 'sc-warn cap-over no-print', title: 'משובצים (כולל אנשי צוות) יותר ממקומות ההסעה', text: '🚨 חריגה מקיבולת ההסעה: ' + riders + ' נוסעים / ' + capC + ' מקומות' });
+      }
+    }
 
     var head = U.el('div', { class: 'sc-head' }, [
       U.el('div', { style: 'display:flex;gap:4px;align-items:center;' }, [
@@ -224,7 +234,8 @@
       ]),
       meta,
       counter,
-      warnEl
+      warnEl,
+      capWarnEl
     ]);
 
     // ---- גוף ----
@@ -398,6 +409,8 @@
     var opts = [U.el('option', { value: '' }, placeholder)];
     items.forEach(function (it) {
       var label = it.name;
+      // הסעות — הקיבולת בסוגריים ליד השם
+      if (coll === 'transports' && U.num(it.capacity) > 0) label += ' (' + U.num(it.capacity) + ')';
       var o = U.el('option', { value: it.id }, label);
       opts.push(o);
     });
@@ -657,14 +670,15 @@
     localStorage.setItem('agri_pool_grades', JSON.stringify(h));
   }
 
-  // תלמידים שיורדים מהמאגר היום (תורנים/חולים שבועיים + נעדרים יומיים) → { studentId: 'סיבה' }
-  function excludedSet() {
+  // תלמידים שיורדים מהמאגר ביום נתון (תורנים/חולים שבועיים + נעדרים יומיים) → { studentId: 'סיבה' }
+  function excludedSet(iso) {
+    iso = iso || curDate;
     var d = Store.get();
-    var wk = U.startOfWeek(curDate);
+    var wk = U.startOfWeek(iso);
     var set = {};
     (d.weeklyDuty[wk] || []).forEach(function (id) { set[id] = 'תורן שבועי'; });
     (d.weeklySick[wk] || []).forEach(function (id) { set[id] = 'חולה השבוע'; });
-    (d.dailyAbsent[curDate] || []).forEach(function (id) { set[id] = 'נעדר היום'; });
+    (d.dailyAbsent[iso] || []).forEach(function (id) { set[id] = 'נעדר היום'; });
     return set;
   }
 
@@ -1308,12 +1322,13 @@
   // ---------- שיבוץ אוטומטי צוותי לפי היסטוריה (#8) ----------
   // בונה מפות היסטוריה: כמה עבד כל תלמיד בכל אתר, עומס החודש, וממוצע ציון לפי אתר.
   // מחריג את היום הנוכחי מהספירה (הוא בתהליך תכנון).
-  function historyCounts() {
+  function historyCounts(forIso) {
+    forIso = forIso || curDate;
     var days = Store.get().days || {};
     var perSite = {}, monthLoad = {}, ratingSum = {}, ratingCnt = {};
-    var mk = U.monthKey(curDate);
+    var mk = U.monthKey(forIso);
     Object.keys(days).forEach(function (iso) {
-      if (iso === curDate) return;
+      if (iso === forIso) return;
       var inMonth = U.monthKey(iso) === mk;
       (days[iso].cards || []).forEach(function (c) {
         if (!c.siteId) return;
@@ -1333,11 +1348,13 @@
     return { perSite: perSite, monthLoad: monthLoad, ratingSum: ratingSum, ratingCnt: ratingCnt };
   }
 
-  function autoAssign() {
-    var day = getDay(curDate);
+  // ליבת השיבוץ האוטומטי — עובדת על כל תאריך; silent=true מחזירה סיכום בלי טוסט/רינדור (ללולאת השבוע)
+  function autoAssignCore(iso, silent) {
+    if (global.Sync) Sync.mergeDate(iso); // יצירת כרטיסים מהתכנון (כולל "נדרש") אם עוד לא קיימים
+    var day = getDay(iso);
     var TU = global.TeamUtil;
-    if (!TU) { U.toast('מודול הצוותים אינו זמין.', 'error'); return; }
-    var excluded = excludedSet();
+    if (!TU) { if (!silent) U.toast('מודול הצוותים אינו זמין.', 'error'); return null; }
+    var excluded = excludedSet(iso);
     var already = assignedSet(day);
 
     // אתרים עם "רצוי" ומקום פנוי
@@ -1346,7 +1363,7 @@
     }).map(function (c) {
       return { card: c, remaining: U.num(c.targetWorkers) - (c.students || []).length };
     }).filter(function (x) { return x.remaining > 0; });
-    if (!siteSlots.length) { U.toast('אין אתרים עם "רצוי" ומקום פנוי. הגדירו "רצוי" לאתרים בסידור.', 'info'); return; }
+    if (!siteSlots.length) { if (!silent) U.toast('אין אתרים עם "רצוי" ומקום פנוי. הגדירו "רצוי" לאתרים בסידור.', 'info'); return { teams: 0 }; }
 
     // צוותים פנויים: אף חבר לא משובץ ידנית, ויש לפחות חבר אחד לא-מוחרג
     var teams = TU.allTeams().map(function (t) {
@@ -1355,9 +1372,9 @@
       var anyAssigned = members.some(function (id) { return already[id]; });
       return { team: t, members: avail, skip: anyAssigned || !avail.length };
     }).filter(function (e) { return !e.skip; });
-    if (!teams.length) { U.toast('אין צוותים פנויים לשיבוץ (כולם כבר משובצים או מוחרגים).', 'info'); return; }
+    if (!teams.length) { if (!silent) U.toast('אין צוותים פנויים לשיבוץ (כולם כבר משובצים או מוחרגים).', 'info'); return { teams: 0 }; }
 
-    var H = historyCounts();
+    var H = historyCounts(iso);
     function affinity(m, siteId) { return m.reduce(function (a, id) { return a + ((H.perSite[id] || {})[siteId] || 0); }, 0); }
     function load(m) { return m.reduce(function (a, id) { return a + (H.monthLoad[id] || 0); }, 0); }
     function ratingAt(m, siteId) {
@@ -1387,27 +1404,52 @@
       p.sl.remaining -= te.members.length; // ייתכן שלילי (צוות אטומי — חריגה מותרת)
       proposals.push({ team: te.team, members: te.members, card: p.sl.card, aff: p.aff, load: p.load, rate: p.rate });
     });
-    if (!proposals.length) { U.toast('לא נמצאו שיבוצים מתאימים.', 'info'); return; }
+    if (!proposals.length) { if (!silent) U.toast('לא נמצאו שיבוצים מתאימים.', 'info'); return { teams: 0 }; }
 
-    // שיבוץ ישיר (ללא תצוגה מקדימה) + סימון להבהוב אישור
-    justAssigned = {};
+    // שיבוץ ישיר (ללא תצוגה מקדימה) + סימון להבהוב אישור (רק כשמדובר ביום המוצג)
+    if (iso === curDate) justAssigned = {};
     proposals.forEach(function (p) {
       p.members.forEach(function (id) {
         placeStudent(day, p.card, id, id === p.team.leaderStudentId);
-        justAssigned[id] = p.card.id;
+        if (iso === curDate) justAssigned[id] = p.card.id;
       });
     });
-    justAssignedAt = Date.now();
-    Store.save(); App.render();
+    if (iso === curDate) justAssignedAt = Date.now();
+    Store.save();
     var unfilled = siteSlots.filter(function (sl) { return sl.remaining > 0; }).length;
     var unassigned = teams.length - proposals.length;
-    U.toast('שובצו ' + proposals.length + ' צוותים אוטומטית' +
-      (unfilled ? ' · ⚠ ' + unfilled + ' אתרים עדיין חסרים' : '') +
-      (unassigned > 0 ? ' · ' + unassigned + ' צוותים לא שובצו' : ''), unfilled ? 'info' : 'success');
+    if (!silent) {
+      App.render();
+      U.toast('שובצו ' + proposals.length + ' צוותים אוטומטית' +
+        (unfilled ? ' · ⚠ ' + unfilled + ' אתרים עדיין חסרים' : '') +
+        (unassigned > 0 ? ' · ' + unassigned + ' צוותים לא שובצו' : ''), unfilled ? 'info' : 'success');
+    }
+    return { teams: proposals.length, unfilled: unfilled, unassigned: unassigned };
+  }
+  function autoAssign() { autoAssignCore(curDate, false); }
+
+  // שיבוץ צוות לאתר בתאריך נתון — לשימוש מגירת הצוותים בתכנון השבועי/חודשי
+  function assignTeamOnDate(iso, teamId, siteId) {
+    if (global.Sync) Sync.mergeDate(iso);
+    var day = getDay(iso);
+    var card = day.cards.filter(function (c) { return c.siteId === siteId; })[0];
+    var team = Store.getById('teams', teamId);
+    if (!card || !team) return 0;
+    var ex = excludedSet(iso);
+    var ids = global.TeamUtil.orderedStudentIds(team).filter(function (id) {
+      var s = Store.getById('students', id);
+      return s && s.active !== false && !ex[id];
+    });
+    // placeStudent מסיר קודם מכל אתר אחר באותו יום — צוות משובץ פעם אחת ביום לכל היותר
+    ids.forEach(function (id) { placeStudent(day, card, id, id === team.leaderStudentId); });
+    if (ids.length) Store.save();
+    return ids.length;
   }
 
   global.DailyView = {
     render: render,
-    setDate: function (iso) { if (iso) curDate = iso; } // מעבר מהלוח השבועי/חודשי
+    setDate: function (iso) { if (iso) curDate = iso; }, // מעבר מהלוח השבועי/חודשי
+    autoAssignOn: function (iso) { return autoAssignCore(iso, true); }, // שיבוץ אוטומטי שקט ליום נתון (לשבועי)
+    assignTeamOnDate: assignTeamOnDate // שיבוץ צוות לאתר+יום (מגירת הצוותים בתכנון)
   };
 })(window);

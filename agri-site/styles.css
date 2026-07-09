@@ -776,3 +776,18 @@ input.t-due { width: 128px; font-size: 12.5px; }
 input.t-due.overdue { border-color: var(--danger); background: #fdecea; color: var(--danger); font-weight: 700; }
 body.dark input.t-due.overdue { background: #35211f; }
 select.t-asg { max-width: 130px; }
+
+/* ---------- תכנון שבועי/חודשי: משובצים/נדרש, קיבולת הסעה, מגירת צוותים ---------- */
+.pi-cnt { display: inline-block; margin-inline-start: 6px; padding: 1px 7px; border-radius: 8px; font-size: 11px; font-weight: 700; }
+.pi-cnt.under { background: #eef1f4; color: var(--muted); border: 1px solid var(--border); }
+.pi-cnt.ok { background: var(--green-light); color: var(--green-dark); border: 1px solid var(--green); }
+.pi-cnt.over { background: #fff8e1; color: #8a6d00; border: 1px solid var(--accent); }
+body.dark .pi-cnt.under { background: #232e3a; }
+.plan-item .cap-flag { color: var(--danger) !important; font-weight: 700; }
+.plan-item.drop-hint { outline: 2px dashed var(--green); outline-offset: 2px; background: var(--green-light); }
+.sc-warn.cap-over { background: var(--danger); color: #fff; }
+.team-drawer { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 10px 12px; margin-top: 14px; }
+.team-drawer .td-head { display: flex; align-items: center; gap: 8px; cursor: pointer; flex-wrap: wrap; }
+.team-drawer .td-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+.team-chip { font-weight: 600; cursor: grab; }
+.team-chip:active { cursor: grabbing; }
