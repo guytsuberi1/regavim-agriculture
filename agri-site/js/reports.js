@@ -158,13 +158,33 @@
   }
 
   // ---------- רכיבי UI ----------
-  function statCardR(value, label, fg, bg) {
-    return U.el('div', { class: 'rep-stat', style: bg ? ('background:' + bg + ';') : '' }, [
-      U.el('div', { class: 'rep-stat-val', style: fg ? ('color:' + fg + ';') : '', text: String(value) }),
-      U.el('div', { class: 'rep-stat-lbl', text: label })
+  // כרטיס KPI — אותו עיצוב בדיוק כמו בדשבורד (אייקון בעיגול צבעוני, ערך גדול, פס צבע צדי)
+  function repKpi(icon, value, label, tone, sub) {
+    return U.el('div', { class: 'kpi kpi-' + (tone || 'neutral') }, [
+      U.el('div', { class: 'kpi-ic', text: icon }),
+      U.el('div', { class: 'kpi-body' }, [
+        U.el('div', { class: 'kpi-row' }, [U.el('div', { class: 'kpi-val', text: String(value) })]),
+        U.el('div', { class: 'kpi-lbl', text: label }),
+        sub ? U.el('div', { class: 'kpi-sub', text: sub }) : null
+      ])
     ]);
   }
-  function statRow(cards) { return U.el('div', { class: 'rep-stats' }, cards); }
+  function kpiGrid(cards) { return U.el('div', { class: 'kpi-grid rep-kpis' }, cards); }
+  // טון לפי אחוז יציאה: גבוה=ירוק, בינוני=כתום, נמוך=אדום
+  function pctTone(pct) { return pct == null ? 'neutral' : (pct >= 75 ? 'good' : (pct >= 50 ? 'warn' : 'bad')); }
+  // גרף פסים אופקיים (טופ־N) — באותו דפוס של גרף השוואת הכיתות
+  function hbar(items, color) {
+    var max = items.reduce(function (a, it) { return Math.max(a, it.value); }, 0) || 1;
+    return U.el('div', { class: 'cls-chart' }, items.map(function (it) {
+      return U.el('div', { class: 'cls-row' }, [
+        U.el('span', { class: 'hbar-lbl', title: it.label, text: (it.prefix || '') + it.label }),
+        U.el('div', { class: 'cls-track', title: it.label + ': ' + it.value + (it.unit ? ' ' + it.unit : '') }, [
+          U.el('div', { class: 'cls-fill', style: 'width:' + Math.round(it.value / max * 100) + '%;background:' + (it.color || color || 'var(--green)') + ';' })
+        ]),
+        U.el('span', { class: 'cls-val', text: it.value.toLocaleString('he-IL') })
+      ]);
+    }));
+  }
 
   function spot(icon, label, name, value, tone) {
     return U.el('div', { class: 'spot spot-' + (tone || 'n') }, [
@@ -303,7 +323,6 @@
     });
     var total = work + absU;
     var pct = total ? Math.round(work / total * 100) : null;
-    var pctCol = pct == null ? ['#475569', '#f1f5f9'] : (pct >= 75 ? ['#15803d', '#dcfce7'] : (pct >= 50 ? ['#b45309', '#fef3c7'] : ['#b91c1c', '#fee2e2']));
 
     var spots = U.el('div', { class: 'spot-row' }, [
       spot('🏆', 'אחוז היציאה הגבוה ביותר', bestAtt ? bestAtt.name : null, bestAtt ? Math.round(bestAttP * 100) + '%' : null, 'good'),
@@ -314,12 +333,12 @@
 
     return U.el('div', { style: 'margin-bottom:16px;' }, [
       U.el('h3', { style: 'color:var(--green-dark);margin:0 0 8px;', text: 'סיכום כיתה ' + grade }),
-      statRow([
-        statCardR(pct == null ? '—' : pct + '%', 'אחוז יציאה כיתתי', pctCol[0], pctCol[1]),
-        statCardR(rCnt ? (rSum / rCnt).toFixed(1) : '—', 'ציון ממוצע כיתתי'),
-        statCardR(rows.length, 'תלמידים'),
-        statCardR(work, 'סה"כ ימי עבודה'),
-        statCardR(absU, 'היעדרויות בלי אישור')
+      kpiGrid([
+        repKpi('🚀', pct == null ? '—' : pct + '%', 'אחוז יציאה כיתתי', pctTone(pct)),
+        repKpi('⭐', rCnt ? (rSum / rCnt).toFixed(1) : '—', 'ציון ממוצע כיתתי', 'purple'),
+        repKpi('👥', rows.length, 'תלמידים', 'info'),
+        repKpi('💪', work, 'סה"כ ימי עבודה', 'good'),
+        repKpi('🚫', absU, 'היעדרויות בלי אישור', absU > 0 ? 'bad' : 'neutral')
       ]),
       spots
     ]);
@@ -407,7 +426,14 @@
     var totWorkers = si.reduce(function (a, r) { return a + r.workers; }, 0);
     var totHours = si.reduce(function (a, r) { return a + r.hours; }, 0);
     var top = si[0]; // ממוין לפי שעות — הראשון הוא המוביל
-    if (si.length) wrap.appendChild(U.el('div', { class: 'muted', style: 'font-size:12.5px;margin-bottom:8px;', text: '🏆 החקלאי המוביל (לפי שעות) מודגש בטבלה · לחיצה על כותרת עמודה ממיינת' }));
+    // טופ 5 חקלאים לפי שעות — רואים במבט מי מוביל
+    if (si.length > 1) {
+      wrap.appendChild(U.el('h3', { style: 'color:var(--green-dark);margin:0 0 8px;', text: '🏆 טופ 5 חקלאים לפי שעות' }));
+      wrap.appendChild(U.el('div', { style: 'margin-bottom:16px;' }, [hbar(si.slice(0, 5).map(function (r, i) {
+        return { label: r.name, value: Math.round(r.hours), prefix: i === 0 ? '🏆 ' : '', unit: 'שעות' };
+      }))]));
+    }
+    if (si.length) wrap.appendChild(U.el('div', { class: 'muted', style: 'font-size:12.5px;margin-bottom:8px;', text: 'החקלאי המוביל מודגש בטבלה · לחיצה על כותרת עמודה ממיינת' }));
     wrap.appendChild(sortableTable(['אתר', 'מיקום', 'ימי פעילות', 'סה"כ עובדים', 'סה"כ שעות'],
       si.map(function (r) { return [(top && r.id === top.id ? '🏆 ' : '') + r.name, r.location || '—', r.days, r.workers, Math.round(r.hours)]; }),
       null, {
@@ -424,14 +450,18 @@
     var totDays = sf.reduce(function (a, r) { return a + r.days; }, 0);
     var totHours = sf.reduce(function (a, r) { return a + r.hours; }, 0);
     var most = sf[0];
-    var least = sf.length ? sf[sf.length - 1] : null;
-    wrap.appendChild(statRow([
-      statCardR(sf.length, 'אנשי צוות פעילים'),
-      statCardR(totDays, 'סה"כ ימי עבודה'),
-      statCardR(Math.round(totHours).toLocaleString('he-IL'), 'סה"כ שעות עבודה'),
-      statCardR(most ? most.name : '—', 'הכי הרבה ימים'),
-      statCardR(least ? least.name : '—', 'הכי מעט ימים')
+    wrap.appendChild(kpiGrid([
+      repKpi('👤', sf.length, 'אנשי צוות פעילים', 'info'),
+      repKpi('💪', totDays, 'סה"כ ימי עבודה', 'good'),
+      repKpi('🕐', Math.round(totHours).toLocaleString('he-IL'), 'סה"כ שעות עבודה', 'purple'),
+      most ? repKpi('🏆', most.name, 'הכי הרבה ימי עבודה', 'warn', most.days + ' ימים') : null
     ]));
+    if (sf.length > 1) {
+      wrap.appendChild(U.el('h3', { style: 'color:var(--green-dark);margin:0 0 8px;', text: 'ימי עבודה לפי איש צוות' }));
+      wrap.appendChild(U.el('div', { style: 'margin-bottom:16px;' }, [hbar(sf.slice(0, 6).map(function (r, i) {
+        return { label: r.name, value: r.days, prefix: i === 0 ? '🏆 ' : '', unit: 'ימים' };
+      }))]));
+    }
     wrap.appendChild(sortableTable(['שם', 'ימי עבודה', 'סה"כ שעות'],
       sf.map(function (r) { return [r.name, r.days, Math.round(r.hours)]; })));
     return wrap;
@@ -441,6 +471,14 @@
   function renderTransports() {
     var tp = transportReport();
     var wrap = U.el('div');
+    var totRides = tp.reduce(function (a, r) { return a + r.days; }, 0);
+    var totRiders = tp.reduce(function (a, r) { return a + r.workers; }, 0);
+    wrap.appendChild(kpiGrid([
+      repKpi('🚌', tp.length, 'הסעות פעילות', 'info'),
+      repKpi('🛣️', totRides, 'סה"כ נסיעות', 'good'),
+      repKpi('👥', totRiders.toLocaleString('he-IL'), 'סה"כ נוסעים', 'purple'),
+      repKpi('📊', totRides ? (totRiders / totRides).toFixed(1) : '—', 'ממוצע נוסעים לנסיעה', 'neutral')
+    ]));
     wrap.appendChild(U.el('p', { class: 'muted', style: 'font-size:12.5px;margin:0 0 10px;', text: 'הסעה יוצאת פעם אחת ביום — לכן "מספר נסיעות" שווה למספר ימי הפעילות (גם אם ההסעה מורידה תלמידים בכמה אתרים באותו יום).' }));
     wrap.appendChild(sortableTable(['הסעה', 'מספר נסיעות (= ימי פעילות)', 'סה"כ נוסעים'],
       tp.map(function (r) { return [r.name, r.days, r.workers]; })));
@@ -529,7 +567,6 @@
     });
     var total = work + absUnapproved;
     var pct = total ? Math.round(work / total * 100) : null;
-    var pctCol = pct == null ? ['#475569', '#f1f5f9'] : (pct >= 75 ? ['#15803d', '#dcfce7'] : (pct >= 50 ? ['#b45309', '#fef3c7'] : ['#b91c1c', '#fee2e2']));
 
     // חקלאי שעבד אצלו הכי הרבה
     var topSiteId = null, topSiteN = 0;
@@ -545,13 +582,13 @@
         U.el('div', { style: 'font-weight:800;font-size:18px;color:var(--green-dark);', text: '🌱 דוח תלמיד — ' + stu.name + ((stu.className || stu.grade) ? ' · ' + (stu.className || stu.grade) : '') }),
         U.el('div', { class: 'muted', style: 'font-size:13px;', text: 'רגבים בנימין · ' + U.gregLabel(fromDate) + ' – ' + U.gregLabel(toDate) })
       ]),
-      statRow([
-        statCardR(pct == null ? '—' : pct + '%', 'אחוז יציאה', pctCol[0], pctCol[1]),
-        statCardR(work, 'ימים שיצא'),
-        statCardR(hoursSum, 'סה"כ שעות'),
-        statCardR(rCnt ? (rSum / rCnt).toFixed(1) : '—', 'ציון ממוצע'),
-        statCardR(absApproved, 'לא יצא — באישור'),
-        statCardR(absUnapproved, 'לא יצא — בלי אישור')
+      kpiGrid([
+        repKpi('🚀', pct == null ? '—' : pct + '%', 'אחוז יציאה', pctTone(pct)),
+        repKpi('💪', work, 'ימים שיצא', 'good'),
+        repKpi('🕐', hoursSum, 'סה"כ שעות', 'info'),
+        repKpi('⭐', rCnt ? (rSum / rCnt).toFixed(1) : '—', 'ציון ממוצע', 'purple'),
+        repKpi('📝', absApproved, 'לא יצא — באישור', 'neutral'),
+        repKpi('🚫', absUnapproved, 'לא יצא — בלי אישור', absUnapproved > 0 ? 'bad' : 'neutral')
       ]),
       U.el('div', { class: 'spot-row', style: 'margin-bottom:14px;' }, [
         spot('🏆', 'חקלאי שעבד אצלו הכי הרבה', topSiteName, topSiteN ? topSiteN + ' ימים' : null, 'good'),

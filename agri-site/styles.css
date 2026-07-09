@@ -459,11 +459,14 @@ body.dark .day-total.under { background: #232e3a; }
 .fn-text { font-size: 14px; color: var(--text); line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
 
 /* ---------- דוחות ---------- */
-/* קוביות סיכום בדוחות — קומפקטיות */
-.rep-stats { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 12px; }
-.rep-stat { flex: 0 1 auto; min-width: 86px; background: #fff; border: 1px solid var(--border); border-radius: 9px; padding: 5px 12px; text-align: center; }
-.rep-stat-val { font-size: 15px; font-weight: 800; color: var(--green-dark); line-height: 1.2; word-break: break-word; }
-.rep-stat-lbl { font-size: 11px; color: var(--muted); margin-top: 1px; }
+/* דוחות — כרטיסי KPI בעיצוב הדשבורד, צפופים מעט יותר */
+.rep-kpis { grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 10px; margin: 4px 0 14px; }
+.rep-kpis .kpi { padding: 11px 13px; gap: 10px; border-radius: 13px; }
+.rep-kpis .kpi-ic { width: 38px; height: 38px; font-size: 19px; border-radius: 11px; }
+.rep-kpis .kpi-val { font-size: 20px; }
+.rep-kpis .kpi-lbl { font-size: 12px; }
+/* תווית בגרפי הפסים של הדוחות (שמות ארוכים) */
+.hbar-lbl { flex: 0 0 auto; width: 130px; font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .spot-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 14px; }
 .spot { display: flex; align-items: center; gap: 12px; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; box-shadow: var(--shadow); border-inline-start: 5px solid var(--green); }
 .spot-good { border-inline-start-color: #16a34a; }
@@ -729,7 +732,7 @@ body.dark {
 body.dark input, body.dark select, body.dark textarea,
 body.dark .btn.secondary, body.dark .btn.danger,
 body.dark .subtabs button, body.dark .chip, body.dark .fbtn, body.dark .frbtn,
-body.dark .fadd-item, body.dark .modal, body.dark .rep-stat, body.dark .stu-report,
+body.dark .fadd-item, body.dark .modal, body.dark .stu-report,
 body.dark .tw-counter .tw-edit, body.dark .login-box, body.dark .ai-load { background: var(--card); }
 body.dark table.grid tr:hover td { background: #1f2a36; }
 body.dark table.grid th.sortable:hover, body.dark table.grid th.sorted-col { background: #24402b; }
