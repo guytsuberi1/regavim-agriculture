@@ -571,6 +571,27 @@
     Store.save(); App.render();
   }
 
+  // ---------- שיבוץ/הסרה של כל התלמידים ללא צוות ----------
+  function looseStudentIds() {
+    var ex = excludedSet();
+    return (Store.get().students || []).filter(function (s) {
+      return s.active !== false && !ex[s.id] && !global.TeamUtil.teamOfStudent(s.id);
+    }).map(function (s) { return s.id; });
+  }
+  function assignLooseToCard(day, card) {
+    var ids = looseStudentIds();
+    if (!ids.length) { U.toast('אין תלמידים ללא צוות זמינים לשיבוץ', 'info'); return; }
+    ids.forEach(function (id) { placeStudent(day, card, id, false); });
+    markAssigned(ids, card.id);
+    Store.save(); App.render();
+  }
+  function unassignLoose(day) {
+    day.cards.forEach(function (c) {
+      c.students = (c.students || []).filter(function (s) { return !!global.TeamUtil.teamOfStudent(s.studentId); });
+    });
+    Store.save(); App.render();
+  }
+
   // ---------- שיבוץ/הסרה של כיתה שלמה (תצוגת "לפי כיתות") ----------
   function gradeStudentIds(grade) {
     var ex = excludedSet();
@@ -608,6 +629,7 @@
       }
       assignTeamToCard(day, card, teamId);
     }
+    else if (payload === 'loose:all') assignLooseToCard(day, card);
     else if (payload.indexOf('grade:') === 0) assignGradeToCard(day, card, payload.slice(6));
     else if (payload.indexOf('student:') === 0) { var sid = payload.slice(8); placeStudent(day, card, sid, false); markAssigned([sid], card.id); Store.save(); App.render(); }
     else if (payload.indexOf('staff:') === 0) { placeStaff(day, card, payload.slice(6)); Store.save(); App.render(); }
@@ -735,6 +757,7 @@
       e.preventDefault(); pool.classList.remove('drag-over');
       var p = e.dataTransfer.getData('text/plain');
       if (p.indexOf('team:') === 0) unassignTeam(day, p.slice(5));
+      else if (p === 'loose:all') unassignLoose(day);
       else if (p.indexOf('grade:') === 0) unassignGrade(day, p.slice(6));
       else if (p.indexOf('student:') === 0) unassignStudent(day, p.slice(8));
     });
@@ -930,7 +953,17 @@
 
   function buildLooseGroup(students, assigned, exTag) {
     var avail = students.filter(function (s) { return !exTag[s.id]; });
-    var header = U.el('div', { class: 'pg-head' }, [U.el('span', { class: 'pg-title', text: 'ללא צוות' }),
+    // ידית גרירה — כל חסרי הצוות כקבוצה (כמו צוות/כיתה)
+    var grip = U.el('span', { class: 'grip', draggable: 'true', title: 'גררו את כל חסרי הצוות לאתר, או הקישו לבחירת אתר', text: '⠿' });
+    grip.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text/plain', 'loose:all'); e.dataTransfer.effectAllowed = 'move'; });
+    grip.addEventListener('click', function () {
+      var day = getDay(curDate);
+      chooseCardFor('שיבוץ חסרי צוות (' + avail.length + ')', { allowUnassign: true }, function (card) {
+        if (!card) { unassignLoose(day); U.toast('חסרי הצוות הוחזרו למאגר'); return; }
+        assignLooseToCard(day, card);
+      });
+    });
+    var header = U.el('div', { class: 'pg-head' }, [grip, U.el('span', { class: 'pg-title', text: 'ללא צוות' }),
       U.el('span', { class: 'muted', style: 'font-size:11px;', text: '(' + avail.length + ')' })]);
     var chips = U.el('div', { class: 'pg-chips' });
     students.slice().sort(function (a, b) { return (exTag[a.id] ? 1 : 0) - (exTag[b.id] ? 1 : 0); })
