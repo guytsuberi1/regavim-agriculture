@@ -293,9 +293,12 @@
     var totWorkers = items.reduce(function (sum, it) { return sum + U.num(it.workers); }, 0);
     if (totWorkers > 0) {
       var avail = availableOn(iso);
+      // ירוק רק כשכל הזמינים תוכננו; פחות — אפור ניטרלי; יותר מדי — כתום אזהרה
+      var dtCls = totWorkers > avail ? ' over' : (totWorkers < avail ? ' under' : '');
       cell.appendChild(U.el('div', {
-        class: 'day-total' + (totWorkers > avail ? ' over' : ''),
-        title: totWorkers > avail ? 'תוכננו יותר עובדים מהזמינים ביום זה!' : 'מתוכננים מתוך הזמינים ביום זה'
+        class: 'day-total' + dtCls,
+        title: totWorkers > avail ? 'תוכננו יותר עובדים מהזמינים ביום זה!'
+          : (totWorkers < avail ? 'עוד לא כולם תוכננו ליום זה' : 'כל הזמינים תוכננו ✓')
       }, 'מתוכננים ' + totWorkers + ' / זמינים ' + avail));
     }
 

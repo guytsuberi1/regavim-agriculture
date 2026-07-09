@@ -233,6 +233,8 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
 /* סה"כ מתוכננים ביום (תכנון שבועי) */
 .day-total { background: var(--green-light); color: var(--green-dark); border-radius: 6px; padding: 3px 6px; font-size: 12px; font-weight: 700; margin-bottom: 5px; text-align: center; }
 .day-total.over { background: #fff8e1; color: #8a6d00; border: 1px solid var(--accent); }
+.day-total.under { background: #eef1f4; color: var(--muted); border: 1px solid var(--border); }
+body.dark .day-total.under { background: #232e3a; }
 
 /* הדגשת כרטיס אתר בזמן גרירה מעליו */
 .site-card.drag-over { outline: 2px solid var(--green); outline-offset: -3px; background: #f2f9f2; box-shadow: 0 0 0 4px rgba(46,125,50,.14); }
