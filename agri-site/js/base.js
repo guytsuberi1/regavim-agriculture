@@ -89,7 +89,7 @@
         if (sub === 'students') headBtns.push(U.el('button', { class: 'btn secondary ico', title: 'איחוד כפילויות', onclick: mergeDuplicateStudents }, '🧹'));
         if (sub === 'students') headBtns.push(U.el('button', { class: 'btn secondary ico', title: 'מילוי כיתה לפי שכבה (ט→ט1)', onclick: fillClassFromGrade }, '🏷️'));
         headBtns.push(U.el('button', { class: 'btn secondary ico', title: 'אקסל לדוגמה', onclick: function () { if (global.ImportExcel) global.ImportExcel.downloadTemplate(sub); } }, '📄'));
-        headBtns.push(U.el('button', { class: 'btn secondary ico', title: 'ייבוא מאקסל', onclick: openImport }, '📥'));
+        headBtns.push(U.el('button', { class: 'btn secondary ico', title: 'ייבוא מאקסל', html: U.XLS_SVG, onclick: openImport }));
         headBtns.push(U.el('button', { class: 'btn', onclick: function () { openForm(null); } }, '+ הוספה'));
       }
     }

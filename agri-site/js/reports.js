@@ -90,11 +90,24 @@
       });
     });
     return Object.keys(stats).map(function (id) {
-      var stu = Store.getById('students', id) || { name: '(נמחק)', grade: '' };
+      var stu = Store.getById('students', id) || { name: '(נמחק)', grade: '', className: '' };
       var st = stats[id];
       var avg = st.ratingCount ? (st.ratingSum / st.ratingCount).toFixed(1) : '';
-      return { id: id, name: stu.name, grade: stu.grade || '', work: st.work, absApproved: st.absApproved, absUnapproved: st.absUnapproved, rating: avg, ratingSum: st.ratingSum, ratingCount: st.ratingCount };
+      return { id: id, name: stu.name, grade: stu.grade || '', className: stu.className || stu.grade || '', work: st.work, absApproved: st.absApproved, absUnapproved: st.absUnapproved, rating: avg, ratingSum: st.ratingSum, ratingCount: st.ratingCount };
     }).sort(function (a, b) { return b.work - a.work; });
+  }
+
+  // כיתה מדויקת (ט1/ט2) — הפיצול בדוח הכיתות הוא לפי שדה "כיתה" של התלמיד
+  function classGradeOf(cn) { return String(cn || '').replace(/[0-9\s\-'"׳״.]/g, ''); }
+  function classCmp(a, b) {
+    var d = gi(classGradeOf(a)) - gi(classGradeOf(b));
+    if (d) return d;
+    return String(a || '').localeCompare(String(b || ''), 'he');
+  }
+  function distinctClasses(rep) {
+    var set = {};
+    rep.forEach(function (r) { if (r.className) set[r.className] = true; });
+    return Object.keys(set).sort(classCmp);
   }
 
   function siteReport() {
@@ -166,7 +179,7 @@
 
   // טבלה הניתנת למיון (לחיצה על כותרת)
   function cellCmp(va, vb, header) {
-    if (header === 'כיתה') return gi(va) - gi(vb);
+    if (header === 'כיתה') return classCmp(va, vb);
     var sa = String(va == null ? '' : va), sb = String(vb == null ? '' : vb);
     var na = parseFloat(sa.replace(/[^0-9.\-]/g, '')), nb = parseFloat(sb.replace(/[^0-9.\-]/g, ''));
     var aNum = sa !== '' && !isNaN(na) && /[0-9]/.test(sa);
@@ -175,7 +188,8 @@
     if (aNum !== bNum) return aNum ? -1 : 1;
     return sa.localeCompare(sb, 'he');
   }
-  function sortableTable(headers, rows, emptyText) {
+  function sortableTable(headers, rows, emptyText, opts) {
+    opts = opts || {};
     if (!rows.length) return U.el('div', { class: 'card empty' }, emptyText || 'אין נתונים בטווח התאריכים שנבחר.');
     var st = { col: -1, dir: 1 };
     var tbody = U.el('tbody');
@@ -183,7 +197,13 @@
       U.clear(tbody);
       var sorted = rows.slice();
       if (st.col >= 0) sorted.sort(function (a, b) { return cellCmp(a[st.col], b[st.col], headers[st.col]) * st.dir; });
-      sorted.forEach(function (r) { tbody.appendChild(U.el('tr', null, r.map(function (c, i) { return U.el('td', { class: (i === 0 ? '' : 'center') + (st.col === i ? ' sorted-col' : ''), text: c }); }))); });
+      sorted.forEach(function (r) {
+        tbody.appendChild(U.el('tr', { class: opts.rowClass ? (opts.rowClass(r) || '') : '' },
+          r.map(function (c, i) { return U.el('td', { class: (i === 0 ? '' : 'center') + (st.col === i ? ' sorted-col' : ''), text: c }); })));
+      });
+      // שורת סה"כ — נשארת תמיד בתחתית, גם אחרי מיון
+      if (opts.totals) tbody.appendChild(U.el('tr', { class: 'total-row' },
+        opts.totals.map(function (c, i) { return U.el('td', { class: i === 0 ? '' : 'center', html: '<b>' + (c == null ? '' : c) + '</b>' }); })));
     }
     var thRow = U.el('tr', null, headers.map(function (h, i) {
       var th = U.el('th', { class: 'sortable', title: 'מיון לפי ' + h, text: h });
@@ -220,7 +240,7 @@
 
     // כרטיס תלמיד ראשון (הכי מימין)
     root.appendChild(U.el('div', { class: 'subtabs' }, [
-      ['card', 'כרטיס תלמיד'], ['students', 'תלמידים'], ['sites', 'אתרים'], ['staff', 'צוות'], ['transports', 'הסעה']
+      ['card', 'כרטיס תלמיד'], ['students', 'כיתות'], ['sites', 'אתרים'], ['staff', 'צוות'], ['transports', 'הסעה']
     ].map(function (p) {
       return U.el('button', { class: sub === p[0] ? 'active' : '', onclick: function () { sub = p[0]; App.render(); } }, p[1]);
     })));
@@ -238,7 +258,11 @@
     var today = U.todayISO();
     if (kind === 'week') { fromDate = U.startOfWeek(today); toDate = U.addDays(fromDate, 6); }
     else if (kind === 'month') { var d = U.fromISO(today); fromDate = U.toISO(new Date(d.getFullYear(), d.getMonth(), 1)); toDate = U.toISO(new Date(d.getFullYear(), d.getMonth() + 1, 0)); }
-    else if (kind === 'year') { var y = U.fromISO(today).getFullYear(); fromDate = y + '-01-01'; toDate = y + '-12-31'; }
+    else if (kind === 'year') { // שנת פעילות: 1.9 עד 31.8
+      var d0 = U.fromISO(today);
+      var sy = d0.getFullYear() - (d0.getMonth() < 8 ? 1 : 0);
+      fromDate = sy + '-09-01'; toDate = (sy + 1) + '-08-31';
+    }
     App.render();
   }
   function datePresetBar() {
@@ -247,20 +271,23 @@
     });
     var children = [U.el('span', { class: 'muted', text: 'תקופה:' })].concat(seg);
     if (datePreset === 'custom') {
+      // צ'יפים בעיצוב האחיד — לחיצה פותחת את בורר התאריך
       var f = U.el('input', { type: 'date', value: fromDate });
       f.addEventListener('change', function () { if (f.value) { fromDate = f.value; App.render(); } });
       var t = U.el('input', { type: 'date', value: toDate });
       t.addEventListener('change', function () { if (t.value) { toDate = t.value; App.render(); } });
-      children.push(U.el('span', { style: 'display:inline-flex;gap:6px;align-items:center;' }, [U.el('label', { style: 'margin:0;', text: 'מ' }), f, U.el('label', { style: 'margin:0;', text: 'עד' }), t]));
+      children.push(U.dateChip(U.gregLabel(fromDate), f, { title: 'מתאריך — לחצו לבחירה' }));
+      children.push(U.el('span', { class: 'muted', text: '–' }));
+      children.push(U.dateChip(U.gregLabel(toDate), t, { title: 'עד תאריך — לחצו לבחירה' }));
     } else {
-      children.push(U.el('span', { class: 'tag', text: U.gregLabel(fromDate) + ' – ' + U.gregLabel(toDate) }));
+      children.push(U.dateChip(U.gregLabel(fromDate) + ' – ' + U.gregLabel(toDate), null, { title: 'הטווח שנבחר' }));
     }
     return U.el('div', { style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px;' }, children);
   }
 
   // ---------- דוח תלמידים ----------
   var STU_HEADERS = ['תלמיד', 'כיתה', 'ימי עבודה', 'לא יצא באישור', 'לא יצא בלי אישור', 'ציון ממוצע'];
-  function stuRow(r) { return [r.name, r.grade, r.work, r.absApproved, r.absUnapproved, r.rating]; }
+  function stuRow(r) { return [r.name, r.className, r.work, r.absApproved, r.absUnapproved, r.rating]; }
 
   function classSummary(grade, rows) {
     var work = 0, absU = 0, rSum = 0, rCnt = 0;
@@ -299,20 +326,21 @@
   function renderStudents() {
     var rep = studentReport();
     var wrap = U.el('div');
-    var gradeFilter = U.el('select', { style: 'margin-bottom:12px;' }, [U.el('option', { value: '' }, 'כל הכיתות')].concat(U.GRADES.map(function (g) { return U.el('option', { value: g }, 'כיתה ' + g); })));
+    var classes = distinctClasses(rep);
+    var gradeFilter = U.el('select', { style: 'margin-bottom:12px;' }, [U.el('option', { value: '' }, 'כל הכיתות')].concat(classes.map(function (g) { return U.el('option', { value: g }, 'כיתה ' + g); })));
     var summaryWrap = U.el('div'), tableWrap = U.el('div');
     function rebuild() {
       var g = gradeFilter.value;
       U.clear(summaryWrap); U.clear(tableWrap);
       if (g) {
-        var rows = rep.filter(function (r) { return r.grade === g; });
+        var rows = rep.filter(function (r) { return r.className === g; });
         if (rows.length) summaryWrap.appendChild(classSummary(g, rows));
         tableWrap.appendChild(sortableTable(STU_HEADERS, rows.map(stuRow)));
       } else {
-        // מקובץ לפי כיתות
+        // מקובץ לפי כיתות מדויקות (ט1/ט2…)
         var any = false;
-        U.GRADES.concat(['']).forEach(function (gr) {
-          var rows = rep.filter(function (r) { return (r.grade || '') === gr; });
+        classes.concat(['']).forEach(function (gr) {
+          var rows = rep.filter(function (r) { return (r.className || '') === gr; });
           if (!rows.length) return;
           any = true;
           tableWrap.appendChild(U.el('h3', { class: 'rep-grade-head', text: gr ? 'כיתה ' + gr : 'ללא כיתה' }));
@@ -331,11 +359,11 @@
     return wrap;
   }
 
-  // השוואת כיתות (#16) — גרף + טבלה, מוצג לפני הסינון
+  // השוואת כיתות (#16) — גרף + טבלה, מוצג לפני הסינון; לפי כיתה מדויקת (ט1/ט2)
   function classComparison(rep) {
     var byG = {};
-    rep.forEach(function (r) { var g = r.grade || ''; (byG[g] = byG[g] || []).push(r); });
-    var order = U.GRADES.filter(function (g) { return byG[g]; });
+    rep.forEach(function (r) { var g = r.className || ''; if (g) (byG[g] = byG[g] || []).push(r); });
+    var order = Object.keys(byG).sort(classCmp);
     if (order.length < 2) return null; // אין טעם בהשוואה עם כיתה אחת
     var GRADE_COLORS = { 'ט': '#2563eb', 'י': '#16a34a', 'יא': '#d97706', 'יב': '#7c3aed' };
     var stats = order.map(function (g) {
@@ -345,12 +373,14 @@
       return { g: g, n: list.length, pct: total ? Math.round(work / total * 100) : null, avg: rCnt ? (rSum / rCnt).toFixed(1) : '—', work: work, absU: absU };
     });
 
-    // גרף אחוז יציאה לפי כיתה — בצבעי תגי הכיתות
+    // גרף אחוז יציאה לפי כיתה — בצבעי השכבה (ט1 ו-ט2 באותו צבע, תג נפרד)
     var chart = U.el('div', { class: 'cls-chart' }, stats.map(function (s2) {
+      var gr = classGradeOf(s2.g);
+      var gidx = U.GRADES.indexOf(gr);
       return U.el('div', { class: 'cls-row' }, [
-        U.el('span', { class: 'grade-badge gb' + U.GRADES.indexOf(s2.g), text: s2.g }),
+        U.el('span', { class: 'grade-badge gb' + (gidx < 0 ? 'x' : gidx), text: s2.g }),
         U.el('div', { class: 'cls-track', title: 'כיתה ' + s2.g + ': ' + (s2.pct == null ? '—' : s2.pct + '% יציאה') }, [
-          U.el('div', { class: 'cls-fill', style: 'width:' + (s2.pct == null ? 0 : s2.pct) + '%;background:' + GRADE_COLORS[s2.g] + ';' })
+          U.el('div', { class: 'cls-fill', style: 'width:' + (s2.pct == null ? 0 : s2.pct) + '%;background:' + (GRADE_COLORS[gr] || '#475569') + ';' })
         ]),
         U.el('span', { class: 'cls-val', text: s2.pct == null ? '—' : s2.pct + '%' })
       ]);
@@ -372,16 +402,16 @@
     var si = siteReport();
     var wrap = U.el('div');
     var totDays = si.reduce(function (a, r) { return a + r.days; }, 0);
+    var totWorkers = si.reduce(function (a, r) { return a + r.workers; }, 0);
     var totHours = si.reduce(function (a, r) { return a + r.hours; }, 0);
-    var top = si[0];
-    wrap.appendChild(statRow([
-      statCardR(si.length, 'אתרים פעילים'),
-      statCardR(totDays, 'סה"כ ימי פעילות'),
-      statCardR(Math.round(totHours).toLocaleString('he-IL'), 'סה"כ שעות עבודה'),
-      statCardR(top ? top.name : '—', 'חקלאי מוביל (שעות)')
-    ]));
+    var top = si[0]; // ממוין לפי שעות — הראשון הוא המוביל
+    if (si.length) wrap.appendChild(U.el('div', { class: 'muted', style: 'font-size:12.5px;margin-bottom:8px;', text: '🏆 החקלאי המוביל (לפי שעות) מודגש בטבלה · לחיצה על כותרת עמודה ממיינת' }));
     wrap.appendChild(sortableTable(['אתר', 'מיקום', 'ימי פעילות', 'סה"כ עובדים', 'סה"כ שעות'],
-      si.map(function (r) { return [r.name, r.location || '—', r.days, r.workers, Math.round(r.hours)]; })));
+      si.map(function (r) { return [(top && r.id === top.id ? '🏆 ' : '') + r.name, r.location || '—', r.days, r.workers, Math.round(r.hours)]; }),
+      null, {
+        rowClass: function (r) { return String(r[0]).indexOf('🏆') === 0 ? 'lead-row' : ''; },
+        totals: ['סה"כ (' + si.length + ' אתרים)', '', totDays, totWorkers, Math.round(totHours).toLocaleString('he-IL')]
+      }));
     return wrap;
   }
 
@@ -527,11 +557,40 @@
       ]),
       renderTable(['תאריך', 'אתר', 'יצא?', 'ציון', 'אישור', 'סיבה/הערה'], rows, 'אין פעילות לתלמיד בטווח שנבחר.')
     ]);
-    wrap.appendChild(U.el('div', { class: 'no-print', style: 'margin-bottom:8px;' }, [
-      U.el('button', { class: 'btn secondary ico', title: 'ייצוא כרטיס התלמיד כתמונה', onclick: function () { exportStudentCard(report, stu); } }, '📷')
+    wrap.appendChild(U.el('div', { class: 'no-print', style: 'margin-bottom:8px;display:flex;gap:8px;' }, [
+      U.el('button', {
+        class: 'btn ico', style: 'background:#25D366;color:#fff;border:0;',
+        title: 'שליחת כרטיס התלמיד כתמונה בוואטסאפ', html: U.WA_SVG,
+        onclick: function () { shareStudentCard(report, stu); }
+      }),
+      U.el('button', { class: 'btn secondary ico', title: 'הורדת הכרטיס כתמונה', onclick: function () { exportStudentCard(report, stu); } }, '📷')
     ]));
     wrap.appendChild(report);
     return wrap;
+  }
+
+  // שליחת כרטיס התלמיד כתמונה ישירות לוואטסאפ:
+  // בנייד — חלון השיתוף של המכשיר (בוחרים וואטסאפ ונמען); בדסקטופ — הורדה + פתיחת וואטסאפ לצירוף
+  function shareStudentCard(node, stu) {
+    if (typeof global.html2canvas === 'undefined') { U.toast('רכיב הייצוא עדיין נטען — נסו שוב בעוד רגע.', 'info'); return; }
+    global.html2canvas(node, { scale: 2, backgroundColor: '#ffffff' }).then(function (canvas) {
+      canvas.toBlob(function (blob) {
+        var fname = 'דוח-תלמיד-' + (stu.name || '') + '.png';
+        try {
+          var file = new File([blob], fname, { type: 'image/png' });
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            navigator.share({ files: [file], title: 'דוח תלמיד — ' + (stu.name || '') }).catch(function () {});
+            return;
+          }
+        } catch (e) {}
+        var url = URL.createObjectURL(blob), a = document.createElement('a');
+        a.href = url; a.download = fname;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+        U.toast('התמונה הורדה — צרפו אותה בשיחת הוואטסאפ שנפתחה', 'info');
+        window.open('https://wa.me/', '_blank');
+      });
+    }).catch(function (e) { U.toast('שגיאה בשיתוף: ' + e.message, 'error'); });
   }
 
   function exportStudentCard(node, stu) {

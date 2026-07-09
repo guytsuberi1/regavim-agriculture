@@ -134,7 +134,7 @@
       U.el('h2', { text: '💰 ניהול חובות חקלאים' }),
       U.el('div', { class: 'spacer' }),
       U.el('button', { class: 'btn secondary ico no-print', title: 'אקסל לדוגמה לייבוא', onclick: downloadDebtTemplate }, '📄'),
-      U.el('button', { class: 'btn secondary ico no-print', title: 'ייבוא מאקסל', onclick: importDebtsExcel }, '📥'),
+      U.el('button', { class: 'btn secondary ico no-print', title: 'ייבוא מאקסל', html: U.XLS_SVG, onclick: importDebtsExcel }),
       (Store.serverMode ? U.el('button', { class: 'btn secondary ico no-print', title: 'ייבוא PDF מהעמותה — ניתוח AI', onclick: importDebtsPdf }, '🤖') : null),
       U.el('button', { class: 'btn secondary ico', title: 'ייצוא לאקסל', onclick: exportExcel }, '⬇'),
       U.el('button', { class: 'btn secondary ico no-print', title: 'הדפסה', onclick: function () { window.print(); } }, '🖨️'),
