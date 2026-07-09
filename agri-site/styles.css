@@ -758,3 +758,19 @@ body.dark .ds-report.done, body.dark .field-report.done { color: #1c2733; }
 .login-forgot:hover { color: var(--green); }
 .login-forgot:disabled { opacity: .6; cursor: wait; }
 .login-err.ok { color: #16a34a; }
+
+/* ---------- טבלת משימות מהשטח (דשבורד) ---------- */
+.task-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.task-chip { border: 1.5px solid var(--border); background: var(--card); border-radius: 999px; padding: 4px 13px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; transition: filter .15s; }
+.task-chip:hover { filter: brightness(.96); }
+.task-chip.on { color: #fff; }
+.task-ctrl { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+.task-q { min-width: 200px; flex: 1; max-width: 300px; }
+.task-tbl td { vertical-align: top; }
+.t-age { font-size: 11px; color: var(--muted); margin-top: 1px; }
+td.t-old .t-age { color: #d97706; font-weight: 700; }
+.task-text-by { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+input.t-due { width: 128px; font-size: 12.5px; }
+input.t-due.overdue { border-color: var(--danger); background: #fdecea; color: var(--danger); font-weight: 700; }
+body.dark input.t-due.overdue { background: #35211f; }
+select.t-asg { max-width: 130px; }
