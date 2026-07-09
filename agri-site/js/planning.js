@@ -10,7 +10,7 @@
       U.el('h2', { text: '📋 תכנון' })
     ]));
     root.appendChild(U.el('div', { class: 'subtabs no-print' }, [
-      ['daily', '🗓️ יומי'], ['week', '📅 שבועי'], ['month', '🗓 חודשי']
+      ['daily', '🗓️ יומי'], ['week', '📅 שבועי'], ['month', '📆 חודשי']
     ].map(function (p) {
       return U.el('button', { class: mode === p[0] ? 'active' : '', onclick: function () { setMode(p[0]); } }, p[1]);
     })));
