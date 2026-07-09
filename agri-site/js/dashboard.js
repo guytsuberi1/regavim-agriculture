@@ -70,8 +70,10 @@
       return { start: s, end: U.addDays(s, 6), kind: 'week' };
     }
     if (p === 'year') {
-      var y = U.fromISO(today).getFullYear() + offset;
-      return { start: y + '-01-01', end: y + '-12-31', kind: 'year' };
+      // שנת פעילות (שנת לימודים): 1.9 עד 31.8
+      var d0 = U.fromISO(today);
+      var sy = d0.getFullYear() - (d0.getMonth() < 8 ? 1 : 0) + offset; // לפני ספטמבר — עדיין בשנה שהתחילה אשתקד
+      return { start: sy + '-09-01', end: (sy + 1) + '-08-31', kind: 'year' };
     }
     var d = U.fromISO(today);
     var first = new Date(d.getFullYear(), d.getMonth() + offset, 1);
@@ -81,7 +83,7 @@
   function periodShortLabel(p, offset) {
     var r = rangeOf(p, offset);
     if (p === 'week') return U.gregLabel(r.start);
-    if (p === 'year') return r.start.slice(0, 4);
+    if (p === 'year') return r.start.slice(0, 4) + '/' + r.end.slice(2, 4); // למשל 2025/26
     return U.monthLabel(U.monthKey(r.start)).split(' ')[0].slice(0, 4);
   }
   function periodWord() { return period === 'week' ? 'השבוע' : (period === 'year' ? 'השנה' : 'החודש'); }
