@@ -18,6 +18,93 @@
     return s.name + (s.className || s.grade ? ' (' + (s.className || s.grade) + ')' : '');
   }
 
+  // ---------- שיבוץ אוטומטי לפי הקריטריונים של מנהל המטבח ----------
+  // עדיפות 1: מי שעוד לא עשה תורנות · עדיפות 2: אחד מ-ט, אחד מ-י, אחד מ-יא/יב · עדיפות 3: כיסוי דירוגים 1-3
+  function gradeSlot(s) {
+    if (s.grade === 'ט') return 0;
+    if (s.grade === 'י') return 1;
+    if (s.grade === 'יא' || s.grade === 'יב') return 2;
+    return -1;
+  }
+  function kRating(s) { var r = U.num(s.kitchenRating); return (r >= 1 && r <= 3) ? r : 0; }
+
+  function autoAssignDuty() {
+    var d = Store.get();
+    if (!d.weeklyDuty) d.weeklyDuty = {};
+
+    function run() {
+      var counts = dutyCounts(kWeek);
+      var groups = [[], [], []]; // ט / י / יא-יב
+      (d.students || []).forEach(function (s) {
+        if (s.active === false) return;
+        var g = gradeSlot(s);
+        if (g >= 0) groups[g].push(s);
+      });
+      var slotNames = ['ט', 'י', 'יא/יב'];
+      var missing = slotNames.filter(function (nm, i) { return !groups[i].length; });
+      if (missing.length === 3) { U.toast('אין תלמידים פעילים עם שכבה — עדכנו כיתות בנתוני הבסיס.', 'error'); return; }
+
+      // בכל שכבה: קודם מי שעשה הכי מעט תורנויות (0 = ראשונים)
+      groups.forEach(function (arr) {
+        arr.sort(function (a, b) {
+          var ca = counts[a.id] || 0, cb = counts[b.id] || 0;
+          if (ca !== cb) return ca - cb;
+          return (a.name || '').localeCompare(b.name || '', 'he');
+        });
+      });
+
+      // בחינת כל הצירופים מתוך המובילים בכל שכבה, לפי סדר העדיפויות:
+      // (1) כמה מהנבחרים כבר עשו תורנות — מינימום · (2) סך תורנויות — מינימום · (3) כיסוי דירוגים שונים — מקסימום
+      var K = 8;
+      var pool = groups.map(function (arr) { return arr.slice(0, K); });
+      var opts = pool.map(function (arr) { return arr.length ? arr : [null]; });
+      var best = null;
+      function score(trio) {
+        var did = 0, sum = 0, cover = {};
+        trio.forEach(function (s) {
+          var c = counts[s.id] || 0;
+          if (c > 0) did++;
+          sum += c;
+          var r = kRating(s);
+          if (r) cover[r] = 1;
+        });
+        return [did, sum, -Object.keys(cover).length];
+      }
+      function better(a, b) {
+        for (var i = 0; i < a.length; i++) { if (a[i] !== b[i]) return a[i] < b[i]; }
+        return false;
+      }
+      opts[0].forEach(function (a) {
+        opts[1].forEach(function (b) {
+          opts[2].forEach(function (c) {
+            var trio = [a, b, c].filter(Boolean);
+            if (!trio.length) return;
+            var sc = score(trio);
+            if (!best || better(sc, best.sc)) best = { sc: sc, trio: trio };
+          });
+        });
+      });
+      if (!best) { U.toast('לא נמצאו מועמדים לשיבוץ.', 'info'); return; }
+
+      d.weeklyDuty[kWeek] = best.trio.map(function (s) { return s.id; });
+      Store.save(); App.render();
+
+      var names = best.trio.map(function (s) { return s.name; }).join(', ');
+      var notes = [];
+      if (missing.length) notes.push('⚠ אין תלמידים בשכבת ' + missing.join(' ו-'));
+      var covered = -best.sc[2];
+      var ratedAll = (d.students || []).some(function (s) { return kRating(s) > 0; });
+      if (ratedAll && covered < Math.min(3, best.trio.length)) notes.push('לא נמצא כיסוי מלא של דירוגים 1-3');
+      U.toast('שובצו לתורנות: ' + names + (notes.length ? ' · ' + notes.join(' · ') : ''), notes.length ? 'info' : 'success');
+    }
+
+    // אם כבר יש תורנים לשבוע — מאשרים החלפה
+    var cur = d.weeklyDuty[kWeek] || [];
+    if (cur.length) {
+      Modal.confirm({ title: 'שיבוץ אוטומטי', text: 'כבר משובצים ' + cur.length + ' תורנים לשבוע זה.\nלהחליף אותם בשיבוץ האוטומטי?', okLabel: 'החלף' }, run);
+    } else run();
+  }
+
   function render(root) {
     var d = Store.get();
     root.appendChild(U.el('div', { class: 'page-head' }, [
@@ -25,7 +112,9 @@
       U.el('button', { class: 'btn secondary ico', title: 'שבוע קודם', onclick: function () { kWeek = U.addDays(kWeek, -7); App.render(); } }, '→'),
       U.dateChip(U.gregLabel(kWeek) + ' – ' + U.gregLabel(U.addDays(kWeek, 5)), null,
         { onClick: function () { kWeek = U.startOfWeek(U.todayISO()); App.render(); }, title: 'לחצו לחזרה לשבוע הנוכחי' }),
-      U.el('button', { class: 'btn secondary ico', title: 'שבוע הבא', onclick: function () { kWeek = U.addDays(kWeek, 7); App.render(); } }, '←')
+      U.el('button', { class: 'btn secondary ico', title: 'שבוע הבא', onclick: function () { kWeek = U.addDays(kWeek, 7); App.render(); } }, '←'),
+      U.el('div', { class: 'spacer' }),
+      U.el('button', { class: 'btn accent', title: 'שיבוץ אוטומטי: מי שטרם עשה תורנות · אחד מכל שכבה (ט/י/יא-יב) · כיסוי דירוגים 1-3', onclick: autoAssignDuty }, '🤖 שיבוץ אוטומטי')
     ]));
 
     var ids = (d.weeklyDuty && d.weeklyDuty[kWeek]) || [];
@@ -38,7 +127,8 @@
         var gi = U.GRADES.indexOf(s.grade || '');
         return U.el('span', { class: 'chip', style: 'cursor:default;' }, [
           (s.grade || s.className) ? U.el('span', { class: 'grade-badge gb' + (gi < 0 ? 'x' : gi), text: s.className || s.grade }) : null,
-          U.el('span', { text: s.name })
+          U.el('span', { text: s.name }),
+          kRating(s) ? U.el('span', { class: 'tag', title: 'דירוג מטבח', text: '⭐' + kRating(s) }) : null
         ]);
       }));
     } else {
@@ -49,7 +139,8 @@
       U.el('p', { class: 'muted', text: 'בחרו את תורני המטבח לשבוע זה. הם יורדים אוטומטית ממאגר העבודה החקלאית לכל השבוע.' }),
       duty.length ? U.el('div', { style: 'font-weight:600;', text: 'תורנים (' + duty.length + '):' }) : null,
       chipsEl,
-      U.el('button', { class: 'btn', onclick: edit }, '✏️ עריכת תורני מטבח')
+      U.el('button', { class: 'btn', onclick: edit }, '✏️ עריכת תורני מטבח'),
+      U.el('div', { class: 'muted', style: 'font-size:12px;margin-top:8px;', text: '🤖 השיבוץ האוטומטי בוחר לפי: 1) מי שטרם עשה תורנות · 2) אחד מכל שכבה (ט / י / יא-יב) · 3) אחד מכל דירוג מטבח (⭐1-3, נקבע בחלון העריכה)' })
     ]));
 
     // ---- היסטוריית תורנויות (#22) ----
@@ -100,9 +191,19 @@
         var cnt = counts[s.id] || 0;
         var cb = U.el('input', { type: 'checkbox', checked: !!selected[s.id] });
         cb.addEventListener('change', function () { selected[s.id] = cb.checked; updateCount(); });
+        // דירוג מטבח 1-3 — נערך כאן ומשמש את השיבוץ האוטומטי (אחד מכל דרגה)
+        var rSel = U.el('select', { title: 'דירוג מטבח (1-3) — לשיבוץ האוטומטי', style: 'width:56px;padding:3px 4px;font-size:12.5px;' },
+          [U.el('option', { value: '' }, '⭐—')].concat([1, 2, 3].map(function (n) { return U.el('option', { value: String(n) }, '⭐' + n); })));
+        rSel.value = kRating(s) ? String(kRating(s)) : '';
+        rSel.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); });
+        rSel.addEventListener('change', function () {
+          s.kitchenRating = rSel.value === '' ? '' : U.num(rSel.value);
+          Store.save();
+        });
         listBox.appendChild(U.el('label', { style: 'display:flex;gap:8px;align-items:center;font-weight:400;color:var(--text);padding:4px 0;' }, [
           cb,
           U.el('span', { style: 'flex:1;', text: studentLabel(s) }),
+          rSel,
           U.el('span', { class: 'tag', style: cnt === 0 ? 'background:#dcfce7;color:#166534;' : '', text: cnt + ' תורנויות' })
         ]));
       });
