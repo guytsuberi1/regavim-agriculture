@@ -68,12 +68,52 @@
   .scroll{overflow-x:auto}
   .right{text-align:left}
   @media print{nav,header .sub,.noprint{display:none}.card{box-shadow:none}}
+  /* ===== תקציב מול ביצוע — העמקה ===== */
+  .alert{border-radius:8px;padding:10px 12px;font-size:13px;font-weight:600;margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .alert.red{background:var(--red-bg);color:var(--red)}
+  .alert.orange{background:var(--orange-bg);color:var(--orange)}
+  .alert.okk{background:var(--green-bg);color:var(--green)}
+  .pb{position:relative;height:22px;background:#eef2f6;border-radius:6px;min-width:110px;overflow:hidden}
+  .pb-fill{position:absolute;inset-block:0;inset-inline-start:0;border-radius:6px;transition:width .3s}
+  .pb-green .pb-fill{background:#22c55e}
+  .pb-orange .pb-fill{background:#f59e0b}
+  .pb-red .pb-fill{background:#ef4444}
+  .pb-marker{position:absolute;inset-block:0;width:2px;background:#1f2933;opacity:.55}
+  .pb-label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#1f2933}
+  tr.row-exc td{background:#fff6f6}
+  td.neg,.val.neg,.neg{color:var(--red)}
+  .dash-controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .dash-controls select{width:auto}
+  .dash-chart{display:flex;flex-direction:column;gap:9px}
+  .chart-row{display:grid;grid-template-columns:140px 1fr 165px;align-items:center;gap:10px;font-size:13px}
+  .chart-lbl{font-weight:600;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .chart-track{position:relative;height:20px;background:#f1f5f9;border-radius:6px;overflow:hidden}
+  .chart-annual{position:absolute;inset-block:0;inset-inline-start:0;background:#dbe3ee}
+  .chart-actual{position:absolute;inset-block:0;inset-inline-start:0;border-radius:6px}
+  .chart-actual.pb-green{background:#22c55e}.chart-actual.pb-orange{background:#f59e0b}.chart-actual.pb-red{background:#ef4444}
+  .chart-marker{position:absolute;inset-block:-1px;width:2px;background:#1f2933;opacity:.6}
+  .chart-val{font-size:12px;color:#475569;text-align:left;direction:ltr;font-variant-numeric:tabular-nums}
+  .mbar-row{display:grid;grid-template-columns:92px 1fr 120px;align-items:center;gap:10px;font-size:13px;margin-bottom:6px}
+  .mbar-lbl{color:#334155;font-weight:600}
+  .mbar-track{position:relative;height:18px;background:#f1f5f9;border-radius:6px;overflow:hidden}
+  .mbar-fill{position:absolute;inset-block:0;inset-inline-start:0;background:#1d4e89;border-radius:6px}
+  .mbar-fill.over{background:#ef4444}
+  .mbar-marker{position:absolute;inset-block:0;width:2px;background:#1f2933;opacity:.5}
+  .mbar-val{font-size:12px;color:#475569;text-align:left;direction:ltr;font-variant-numeric:tabular-nums}
+  @media (max-width:640px){
+    .chart-row{grid-template-columns:96px 1fr 96px}
+    .chart-val,.mbar-val{font-size:11px}
+    .mbar-row{grid-template-columns:64px 1fr 86px}
+  }
 </style>
 </head>
 <body>
-<header>
-  <h1>ניהול תקציב שנתי — ישיבת רגבים בנימין</h1>
-  <div class="sub">שנת תקציב <span id="fyLabel"></span> · כל הנתונים נשמרים במחשב שלך בלבד</div>
+<header style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+  <div>
+    <h1>ניהול תקציב שנתי — ישיבת רגבים בנימין</h1>
+    <div class="sub">שנת תקציב <span id="fyLabel"></span> · כל הנתונים נשמרים במחשב שלך בלבד</div>
+  </div>
+  <div id="headerSync" class="noprint"></div>
 </header>
 <nav>
   <button data-tab="entry" class="active">➕ הזנת חשבונית</button>
@@ -81,7 +121,7 @@
   <button data-tab="suppliers">🏷️ סיכום ספקים</button>
   <button data-tab="employees">👤 סיכום עובדים</button>
   <button data-tab="catinv">🔎 חשבוניות לפי קטגוריה</button>
-  <button data-tab="reports">📈 דוחות וגרפים</button>
+  <button data-tab="directory">📇 ספקים ואנשי קשר</button>
   <button data-tab="planning">⚙️ תכנון ונתונים</button>
 </nav>
 <main>
@@ -111,11 +151,12 @@
         <div id="invoiceFields">
           <div class="grid" style="margin-top:14px">
             <div><label>ספק</label><input id="f_supplier" list="supplierList" autocomplete="off"><datalist id="supplierList"></datalist></div>
+            <div><label>סוג מסמך</label><select id="f_docType"><option>חשבונית מס</option><option>דרישת תשלום</option><option>קבלה</option><option>חשבון עסקה</option><option>אחר</option></select></div>
             <div><label>מספר חשבונית</label><input id="f_invoice" autocomplete="off"></div>
           </div>
           <div style="margin-top:16px;border-top:1px solid var(--line);padding-top:14px">
             <label style="color:var(--blue);font-size:14px">פרטים להזמנת רכש (לא חובה — יופיעו ב-PDF, ונשמרים לפעם הבאה)</label>
-            <div style="margin-bottom:12px"><label>תיאור (אם יישאר ריק — יופיע "בגין חשבונית מס: [המספר]")</label><input id="f_desc" autocomplete="off"></div>
+            <div style="margin-bottom:12px"><label>תיאור / פירוט (יופיע בשורה נפרדת בהזמנה, מתחת ל"בגין...")</label><input id="f_desc" autocomplete="off"></div>
             <div class="grid">
               <div><label>איש קשר לאספקה</label><input id="f_contact" list="contactList" autocomplete="off"><datalist id="contactList"></datalist></div>
               <div><label>טלפון איש קשר</label><input id="f_contactPhone" list="contactPhoneList" autocomplete="off"><datalist id="contactPhoneList"></datalist></div>
@@ -159,27 +200,66 @@
     <div class="card">
       <div class="stat" id="dashStats"></div>
       <p class="hint" id="paceHint"></p>
+      <div id="dashAlerts"></div>
     </div>
+
     <div class="card">
-      <h2>תקציב מול ביצוע</h2>
-      <p class="hint">"תקציב יחסי" = כמה היית אמור להוציא עד היום לפי קצב השנה. הצבע מציין חריגה מהקצב: 🟢 בקצב · 🟠 קרוב · 🔴 חורג.</p>
+      <h2>ניצול לפי קטגוריה ראשית</h2>
+      <p class="hint">הפס הצבעוני = ביצוע · הרקע הבהיר = התקציב השנתי · הקו האנכי = הקצב הראוי עד היום.</p>
+      <div id="dashChart" class="dash-chart"></div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:6px">
+        <h2 style="margin:0">תקציב מול ביצוע</h2>
+        <div class="dash-controls">
+          <label style="margin:0;display:flex;gap:6px;align-items:center">מיון:
+            <select id="dashSort" onchange="renderDashboard()">
+              <option value="default">לפי קטגוריה</option>
+              <option value="pace">חריגה מהקצב</option>
+              <option value="remaining">יתרה נמוכה</option>
+              <option value="actual">ביצוע גבוה</option>
+            </select>
+          </label>
+          <label class="seg" style="padding:8px 14px"><input type="checkbox" id="dashOnlyExc" onchange="renderDashboard()"> רק חריגות</label>
+        </div>
+      </div>
+      <p class="hint">"תחזית סוף שנה" = הערכה לפי קצב ההוצאה עד כה · "קצב" = ביצוע מול התקציב היחסי (🟢 בקצב · 🟠 קרוב · 🔴 חורג).</p>
       <div class="scroll">
         <table id="dashTable">
-          <thead><tr><th>קטגוריה</th><th>תקציב שנתי</th><th>ביצוע בפועל</th><th>% ביצוע</th><th>תקציב יחסי</th><th>% מול יחסי</th></tr></thead>
+          <thead><tr><th>קטגוריה</th><th>תקציב שנתי</th><th>ביצוע</th><th>יתרה</th><th>התקדמות</th><th>תחזית סוף שנה</th><th>קצב</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <h2 style="margin:0">חתך חודשי</h2>
+        <div style="min-width:220px"><label>קטגוריה</label><select id="m_scope" onchange="renderMonthly()"></select></div>
+      </div>
+      <p class="hint">הוצאה בפועל בכל חודש בשנת התקציב. הקו האנכי = תקציב חודשי ממוצע (תקציב שנתי ÷ 12).</p>
+      <div class="stat" id="monthStats" style="margin-bottom:12px"></div>
+      <div id="monthlyBars"></div>
     </div>
   </section>
 
   <!-- ===== סיכום ספקים ===== -->
   <section id="suppliers" class="tab">
     <div class="card">
-      <h2>סיכום ספקים</h2>
-      <p class="hint">מחושב אוטומטית מכל התנועות — כל ספק פעם אחת.</p>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <h2 style="margin:0">סיכום ספקים</h2>
+        <div style="min-width:220px"><label>סינון לפי ספק</label><select id="s_supplier"></select></div>
+      </div>
+      <p class="hint">בחר ספק כדי לראות את כל התנועות שלו, או "כל הספקים" לסיכום כללי.</p>
+      <div class="stat" id="supStats" style="margin-bottom:10px;display:none"></div>
       <div class="scroll">
         <table id="supTable">
           <thead><tr><th>#</th><th>שם ספק</th><th>סה"כ הוצאות</th><th>מספר עסקאות</th><th>ממוצע לעסקה</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <table id="supDetailTable" style="display:none">
+          <thead><tr><th>תאריך</th><th>קטגוריה ראשית</th><th>תת-קטגוריה</th><th>מס' חשבונית</th><th>סכום</th><th class="noprint"></th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -189,11 +269,19 @@
   <!-- ===== סיכום עובדים ===== -->
   <section id="employees" class="tab">
     <div class="card">
-      <h2>סיכום עובדים (החזרים)</h2>
-      <p class="hint">מחושב אוטומטית מכל החזרי העובדים — כל עובד פעם אחת.</p>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <h2 style="margin:0">סיכום עובדים (החזרים)</h2>
+        <div style="min-width:220px"><label>סינון לפי עובד</label><select id="e_emp"></select></div>
+      </div>
+      <p class="hint">בחר עובד כדי לראות את כל ההחזרים שלו, או "כל העובדים" לסיכום כללי.</p>
+      <div class="stat" id="empStats" style="margin-bottom:10px;display:none"></div>
       <div class="scroll">
         <table id="empTable">
           <thead><tr><th>#</th><th>שם עובד</th><th>מס' זהות</th><th>סה"כ החזרים</th><th>מספר החזרים</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <table id="empDetailTable" style="display:none">
+          <thead><tr><th>תאריך</th><th>קטגוריה ראשית</th><th>תת-קטגוריה</th><th>רכישה עבור</th><th>החזר ב</th><th>סכום</th><th class="noprint"></th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -225,28 +313,29 @@
     </div>
   </section>
 
-  <!-- ===== דוחות וגרפים ===== -->
-  <section id="reports" class="tab">
-    <div class="card noprint">
-      <div class="btnbar">
-        <button class="btn sec mini" onclick="window.print()" title="הדפסה" style="font-size:18px;padding:6px 10px">🖨️</button>
-        <button class="btn sec mini" id="exportCsv" title="ייצוא תנועות ל-CSV (Excel)" style="font-size:18px;padding:6px 10px">⬇️</button>
+  <!-- ===== ספקים ואנשי קשר ===== -->
+  <section id="directory" class="tab">
+    <div class="card">
+      <h2>ספקים</h2>
+      <p class="hint">פרטי הספקים שלכם. כשתפיק הזמנת רכש לספק שמופיע כאן — פרטיו (כתובת, איש קשר, טלפון, מייל) יתמלאו אוטומטית בטופס.</p>
+      <div class="scroll">
+        <table id="supplierDirTable">
+          <thead><tr><th>שם ספק</th><th>כתובת</th><th>איש קשר</th><th>טלפון</th><th>מייל</th><th class="noprint"></th></tr></thead>
+          <tbody></tbody>
+        </table>
       </div>
+      <div class="btnbar"><button class="btn sec mini" id="addSupplierDir">➕ הוספת ספק</button></div>
     </div>
     <div class="card">
-      <h2>הוצאות לפי קטגוריה ראשית</h2>
-      <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:center">
-        <canvas id="pie" width="260" height="260"></canvas>
-        <div id="pieLegend" class="legend" style="flex-direction:column;align-items:flex-start"></div>
+      <h2>אנשי קשר לאספקה</h2>
+      <p class="hint">רשימת אנשי קשר עם טלפון. הם יוצעו בשדה "איש קשר לאספקה" בהזנת חשבונית, והטלפון יתמלא אוטומטית בבחירה.</p>
+      <div class="scroll">
+        <table id="contactTable">
+          <thead><tr><th>שם</th><th>טלפון</th><th class="noprint"></th></tr></thead>
+          <tbody></tbody>
+        </table>
       </div>
-    </div>
-    <div class="card">
-      <h2>תקציב מול ביצוע (לפי קטגוריה ראשית)</h2>
-      <div id="barChart"></div>
-      <div class="legend">
-        <span><span class="dot" style="background:#94a3b8"></span> תקציב שנתי</span>
-        <span><span class="dot" style="background:var(--blue)"></span> ביצוע בפועל</span>
-      </div>
+      <div class="btnbar"><button class="btn sec mini" id="addContact">➕ הוספת איש קשר</button></div>
     </div>
   </section>
 
@@ -369,7 +458,9 @@ function defaults(){
     categories: SEED_CATEGORIES.map((c,i)=>({id:"c"+i, main:c[0], sub:c[1], annualBudget:c[2]})),
     transactions: [],
     poNext: 1001,
-    poDefaults: {}
+    poDefaults: {},
+    contacts: [],
+    suppliers: []
   };
 }
 function load(){
@@ -434,7 +525,8 @@ function fillSubSelect(){
   sel.innerHTML='<option value="">— בחר —</option>'+subs.map(s=>`<option>${esc(s)}</option>`).join("");
 }
 function fillSupplierList(){
-  const names=[...new Set(state.transactions.map(t=>t.supplier).filter(Boolean))].sort();
+  const dir=(state.suppliers||[]).map(s=>s.name).filter(Boolean);
+  const names=[...new Set([...dir, ...state.transactions.map(t=>t.supplier).filter(Boolean)])].sort();
   document.getElementById("supplierList").innerHTML=names.map(n=>`<option value="${esc(n)}">`).join("");
 }
 document.getElementById("f_main").addEventListener("change",fillSubSelect);
@@ -443,12 +535,16 @@ document.getElementById("f_main").addEventListener("change",fillSubSelect);
 function uniqVals(key){ return [...new Set(state.transactions.map(t=>t[key]).filter(Boolean))].sort(); }
 function fillPoDatalists(){
   const set=(id,key)=>{ document.getElementById(id).innerHTML=uniqVals(key).map(v=>`<option value="${esc(v)}">`).join(""); };
-  set("contactList","contact"); set("contactPhoneList","contactPhone");
+  const dirNames=(state.contacts||[]).map(c=>c.name).filter(Boolean);
+  const dirPhones=(state.contacts||[]).map(c=>c.phone).filter(Boolean);
+  document.getElementById("contactList").innerHTML=[...new Set([...dirNames,...uniqVals("contact")])].sort().map(v=>`<option value="${esc(v)}">`).join("");
+  document.getElementById("contactPhoneList").innerHTML=[...new Set([...dirPhones,...uniqVals("contactPhone")])].sort().map(v=>`<option value="${esc(v)}">`).join("");
   set("employeeList","employee"); set("purposeList","purpose");
   set("issuerList","issuer"); set("ordererList","orderer"); set("managerList","manager");
 }
 function contactPhoneMap(){
-  const m={}; for(const t of state.transactions){ if(t.contact && t.contactPhone) m[t.contact]=t.contactPhone; } return m;
+  const m={}; for(const t of state.transactions){ if(t.contact && t.contactPhone) m[t.contact]=t.contactPhone; }
+  (state.contacts||[]).forEach(c=>{ if(c.name && c.phone) m[c.name]=c.phone; }); return m;
 }
 /* איש קשר לאספקה → ממלא אוטומטית שם מזמין + טלפון איש קשר */
 document.getElementById("f_contact").addEventListener("input",function(){
@@ -471,6 +567,7 @@ document.getElementById("txForm").addEventListener("submit",function(e){
   if(kind==="invoice"){
     Object.assign(tx,{
       supplier:g("f_supplier").trim(), invoiceNo:g("f_invoice").trim(),
+      docType:g("f_docType"),
       description:g("f_desc").trim(), contact:g("f_contact").trim(),
       contactPhone:g("f_contactPhone").trim(), supplyBy:g("f_supplyBy"),
       issuer:g("f_issuer").trim(), orderer:g("f_orderer").trim()||g("f_contact").trim(),
@@ -485,7 +582,7 @@ document.getElementById("txForm").addEventListener("submit",function(e){
   const editing=g("editId");
   if(editing){
     const i=state.transactions.findIndex(t=>t.id===editing);
-    if(i>-1) state.transactions[i]=tx;
+    if(i>-1){ tx.poNumber=state.transactions[i].poNumber; state.transactions[i]=tx; }
     toast("התנועה עודכנה");
   }else{
     state.transactions.push(tx);
@@ -499,6 +596,8 @@ function resetForm(){
   document.getElementById("cancelEdit").style.display="none";
   document.getElementById("saveBtn").textContent="שמירה";
   document.getElementById("f_date").value=new Date().toISOString().slice(0,10);
+  document.getElementById("f_issuer").value="אביטל עמאר";
+  document.getElementById("f_manager").value="גיא צוברי";
   document.querySelector('input[name="kind"][value="invoice"]').checked=true;
   applyKind();
   fillSubSelect();
@@ -517,6 +616,36 @@ function empIdMap(){ const m={}; for(const t of state.transactions){ if(t.employ
 document.getElementById("f_employee").addEventListener("input",function(){
   const id=empIdMap()[this.value.trim()]; if(id) document.getElementById("f_empId").value=id;
 });
+
+/* ניהול אנשי קשר לאספקה (שם + טלפון) */
+function renderContacts(){
+  const tb=document.querySelector("#contactTable tbody");
+  tb.innerHTML=(state.contacts||[]).map((c,i)=>`<tr>
+    <td><input value="${esc(c.name)}" onchange="updContact(${i},'name',this.value)"></td>
+    <td><input value="${esc(c.phone)}" onchange="updContact(${i},'phone',this.value)"></td>
+    <td class="noprint"><button class="btn danger" onclick="delContact(${i})">מחק</button></td></tr>`).join("")
+    || `<tr><td colspan="3" style="text-align:center;color:var(--muted)">אין אנשי קשר — לחץ "הוספת איש קשר"</td></tr>`;
+}
+function updContact(i,field,val){ if(!state.contacts||!state.contacts[i])return; state.contacts[i][field]=val.trim(); save(); fillPoDatalists(); toast("עודכן"); }
+function delContact(i){ if(!confirm("למחוק איש קשר?"))return; state.contacts.splice(i,1); save(); renderContacts(); fillPoDatalists(); }
+document.getElementById("addContact").onclick=()=>{ if(!state.contacts)state.contacts=[]; state.contacts.push({name:"",phone:""}); save(); renderContacts(); };
+
+/* מאגר ספקים (שם, כתובת, איש קשר, טלפון, מייל) */
+function renderSuppliersDir(){
+  const tb=document.querySelector("#supplierDirTable tbody");
+  tb.innerHTML=(state.suppliers||[]).map((s,i)=>`<tr>
+    <td><input value="${esc(s.name)}" onchange="updSupplierDir(${i},'name',this.value)"></td>
+    <td><input value="${esc(s.address||'')}" onchange="updSupplierDir(${i},'address',this.value)"></td>
+    <td><input value="${esc(s.contact||'')}" onchange="updSupplierDir(${i},'contact',this.value)"></td>
+    <td><input value="${esc(s.phone||'')}" onchange="updSupplierDir(${i},'phone',this.value)"></td>
+    <td><input value="${esc(s.email||'')}" onchange="updSupplierDir(${i},'email',this.value)"></td>
+    <td class="noprint"><button class="btn danger" onclick="delSupplierDir(${i})">מחק</button></td></tr>`).join("")
+    || `<tr><td colspan="6" style="text-align:center;color:var(--muted)">אין ספקים — לחץ "הוספת ספק"</td></tr>`;
+}
+function updSupplierDir(i,field,val){ if(!state.suppliers||!state.suppliers[i])return; state.suppliers[i][field]=val.trim(); save(); fillSupplierList(); toast("עודכן"); }
+function delSupplierDir(i){ if(!confirm("למחוק ספק מהמאגר?"))return; state.suppliers.splice(i,1); save(); renderSuppliersDir(); fillSupplierList(); }
+function supplierDirMap(){ const m={}; (state.suppliers||[]).forEach(s=>{ if(s.name) m[s.name]=s; }); return m; }
+document.getElementById("addSupplierDir").onclick=()=>{ if(!state.suppliers)state.suppliers=[]; state.suppliers.push({name:"",address:"",contact:"",phone:"",email:""}); save(); renderSuppliersDir(); };
 function editTx(id){
   const t=state.transactions.find(x=>x.id===id); if(!t) return;
   const kind=t.kind||"invoice";
@@ -530,6 +659,7 @@ function editTx(id){
   if(kind==="invoice"){
     document.getElementById("f_supplier").value=t.supplier||"";
     document.getElementById("f_invoice").value=t.invoiceNo||"";
+    document.getElementById("f_docType").value=t.docType||"חשבונית מס";
     document.getElementById("f_desc").value=t.description||"";
     document.getElementById("f_contact").value=t.contact||"";
     document.getElementById("f_contactPhone").value=t.contactPhone||"";
@@ -559,7 +689,8 @@ function delTx(id){
 /* ====== יצירת הזמנת רכש (PDF דרך הדפסת הדפדפן) ====== */
 function makePO(id){
   const t=state.transactions.find(x=>x.id===id); if(!t) return;
-  const poNum=state.poNext||1001; state.poNext=poNum+1; save();
+  let poNum=t.poNumber;
+  if(!poNum){ poNum=state.poNext||1001; state.poNext=poNum+1; t.poNumber=poNum; save(); }
   const amount=Number(t.amount||0);
   const amt=new Intl.NumberFormat("he-IL",{minimumFractionDigits:2,maximumFractionDigits:2}).format(amount);
   const dateHe=(t.date||new Date().toISOString().slice(0,10)).split("-").reverse().join("/");
@@ -568,6 +699,13 @@ function makePO(id){
   const v=(val)=> val ? esc(val) : `<span ${fill}></span>`;
   const notes=PO_NOTES.map(n=>`<div>• ${esc(n)}</div>`).join("");
   const sigImg=(SIGNATURE && SIGNATURE.indexOf("data:")===0)?`<img src="${SIGNATURE}" style="height:60px" alt="חתימה">`:"";
+  const docType=t.docType||"חשבונית מס";
+  const line1="בגין "+esc(docType)+" מס: "+esc(t.invoiceNo||"");
+  const line2=t.description?esc(t.description):"";
+  const sd=supplierDirMap()[t.supplier]||{};
+  const mailSubject=encodeURIComponent("הזמנת רכש "+poNum+(t.supplier?(" - "+t.supplier):""));
+  const mailBody=encodeURIComponent("מצורפת הזמנת רכש מס' "+poNum+".");
+  const mailto="https://outlook.office.com/mail/deeplink/compose?to=regavimbinyamin@dokka.co.il&subject="+mailSubject+"&body="+mailBody;
   const html=`<!DOCTYPE html><html lang="he" dir="rtl"><head><meta charset="UTF-8">
 <title>הזמנת רכש ${poNum}</title><style>
   *{box-sizing:border-box} body{font-family:"Segoe UI",Arial,sans-serif;color:#111;margin:0;background:#e9edf2}
@@ -592,12 +730,14 @@ function makePO(id){
   .bar{position:fixed;top:0;left:0;right:0;background:#1d4e89;color:#fff;padding:10px;text-align:center}
   .bar button{font-size:15px;padding:8px 22px;margin:0 6px;border:none;border-radius:6px;cursor:pointer;font-weight:700}
   .bar .p{background:#fff;color:#1d4e89} .bar .c{background:transparent;color:#fff;border:1px solid #fff}
-  @media print{.bar{display:none}.page{box-shadow:none;margin:0;width:auto}body{background:#fff}}
+  @media print{.bar{display:none}.page{box-shadow:none;margin:0;width:auto;min-height:0}body{background:#fff}}
+  @page{size:A4;margin:10mm}
 </style></head><body>
 <div class="bar">
-  <button class="p" onclick="window.print()">🖨️ הדפסה / שמירה כ-PDF</button>
+  <button class="p" onclick="window.print()" title="הדפסה / שמירה כ-PDF" style="font-size:19px;padding:7px 14px">🖨️</button>
+  <a class="p" href="${mailto}" target="_blank" rel="noopener" title="שלח למייל (DOKKA)" style="text-decoration:none;display:inline-block;padding:7px 14px;margin:0 6px;border-radius:6px;font-size:19px">📧</a>
   <button class="c" onclick="window.close()">סגירה</button>
-  <span style="font-size:13px;margin-right:10px">טיפ: בחלון ההדפסה בחר "יעד: שמירה כ-PDF"</span>
+  <span style="font-size:13px;margin-right:10px">טיפ: קודם "שמירה כ-PDF", אחר כך "שלח למייל" וצרפו את הקובץ</span>
 </div>
 <div class="page" style="margin-top:60px">
   <div class="top">
@@ -620,15 +760,15 @@ function makePO(id){
   <div class="box">
     <h3>פרטי ספק</h3>
     <div><span class="lbl">שם הספק:</span> ${esc(t.supplier)}</div>
-    <div><span class="lbl">כתובת:</span> <span ${fill}></span> &nbsp; <span class="lbl">איש קשר:</span> <span ${fill}></span></div>
-    <div><span class="lbl">טלפון:</span> <span ${fill}></span> &nbsp; <span class="lbl">מייל:</span> <span ${fill}></span></div>
+    <div><span class="lbl">כתובת:</span> ${v(sd.address)} &nbsp; <span class="lbl">איש קשר:</span> ${v(sd.contact)}</div>
+    <div><span class="lbl">טלפון:</span> ${v(sd.phone)} &nbsp; <span class="lbl">מייל:</span> ${v(sd.email)}</div>
   </div>
   <div class="box"><span class="lbl">סעיף תקציבי (לשימוש פנימי):</span> ${esc(t.main)}${t.sub?" / "+esc(t.sub):""}</div>
   <table>
     <thead><tr><th style="width:40px">מס'</th><th>תיאור</th><th style="width:70px">כמות</th><th style="width:110px">מחיר ליח'</th><th style="width:130px">סה"כ</th></tr></thead>
     <tbody>
-      <tr><td>1</td><td contenteditable="true">${t.description?esc(t.description):"בגין חשבונית מס: "+esc(t.invoiceNo||"")}</td><td class="n">1.00</td><td class="n">₪ ${amt}</td><td class="n">₪ ${amt}</td></tr>
-      <tr><td>2</td><td contenteditable="true"></td><td class="n"></td><td class="n"></td><td class="n"></td></tr>
+      <tr><td>1</td><td contenteditable="true">${line1}</td><td class="n">1.00</td><td class="n">₪ ${amt}</td><td class="n">₪ ${amt}</td></tr>
+      <tr><td>2</td><td contenteditable="true">${line2}</td><td class="n"></td><td class="n"></td><td class="n"></td></tr>
       <tr><td>3</td><td contenteditable="true"></td><td class="n"></td><td class="n"></td><td class="n"></td></tr>
       <tr class="tot"><td colspan="4">סה"כ לתשלום</td><td class="n">₪ ${amt}</td></tr>
     </tbody>
@@ -660,6 +800,9 @@ function makeReimburse(id){
   const v=(val)=> val ? esc(val) : `<span ${fill}></span>`;
   const sigImg=(SIGNATURE && SIGNATURE.indexOf("data:")===0)?`<img src="${SIGNATURE}" style="height:60px" alt="חתימה">`:"";
   const methodHtml=["משכורת","המחאה","העברה בנקאית"].map(m=> m===t.method ? `<b style="text-decoration:underline">${m}</b>` : `<span style="color:#777">${m}</span>`).join("&nbsp;/&nbsp;");
+  const mailSubject=encodeURIComponent("החזר לעובד"+(t.employee?(" - "+t.employee):""));
+  const mailBody=encodeURIComponent("מצורף טופס החזר לעובד"+(t.employee?(" - "+t.employee):"")+".");
+  const mailto="https://outlook.office.com/mail/deeplink/compose?to=regavimbinyamin@dokka.co.il&subject="+mailSubject+"&body="+mailBody;
   const html=`<!DOCTYPE html><html lang="he" dir="rtl"><head><meta charset="UTF-8">
 <title>החזר לעובד</title><style>
   *{box-sizing:border-box} body{font-family:"Segoe UI",Arial,sans-serif;color:#111;margin:0;background:#e9edf2}
@@ -678,12 +821,14 @@ function makeReimburse(id){
   .bar{position:fixed;top:0;left:0;right:0;background:#1d4e89;color:#fff;padding:10px;text-align:center}
   .bar button{font-size:15px;padding:8px 22px;margin:0 6px;border:none;border-radius:6px;cursor:pointer;font-weight:700}
   .bar .p{background:#fff;color:#1d4e89} .bar .c{background:transparent;color:#fff;border:1px solid #fff}
-  @media print{.bar{display:none}.page{box-shadow:none;margin:0;width:auto}body{background:#fff}}
+  @media print{.bar{display:none}.page{box-shadow:none;margin:0;width:auto;min-height:0}body{background:#fff}}
+  @page{size:A4;margin:10mm}
 </style></head><body>
 <div class="bar">
-  <button class="p" onclick="window.print()">🖨️ הדפסה / שמירה כ-PDF</button>
+  <button class="p" onclick="window.print()" title="הדפסה / שמירה כ-PDF" style="font-size:19px;padding:7px 14px">🖨️</button>
+  <a class="p" href="${mailto}" target="_blank" rel="noopener" title="שלח למייל (DOKKA)" style="text-decoration:none;display:inline-block;padding:7px 14px;margin:0 6px;border-radius:6px;font-size:19px">📧</a>
   <button class="c" onclick="window.close()">סגירה</button>
-  <span style="font-size:13px;margin-right:10px">טיפ: בחלון ההדפסה בחר "יעד: שמירה כ-PDF"</span>
+  <span style="font-size:13px;margin-right:10px">טיפ: קודם "שמירה כ-PDF", אחר כך "שלח למייל" וצרפו את הקובץ</span>
 </div>
 <div class="page" style="margin-top:60px">
   <div class="bsd">בס"ד</div>
@@ -726,78 +871,259 @@ function renderTxTable(){
 }
 
 /* ====== לוח מחוונים: תקציב מול ביצוע ====== */
+function relPctOf(annual, actual, frac){ const rel=annual*frac; return rel>0?actual/rel:(actual>0?2:0); }
+function isExc(annual, actual, frac){ return (annual>0 && actual>annual) || relPctOf(annual,actual,frac) > 1.0; }
+function projForecast(actual, frac){ return frac>0 ? actual/frac : null; }
+function paceCls(annual, actual, frac){
+  if(annual>0 && actual>annual) return "pb-red";
+  return {"p-red":"pb-red","p-orange":"pb-orange","p-green":"pb-green"}[paceClass(relPctOf(annual,actual,frac))];
+}
+function progressBar(actual, annual, frac){
+  const ratio = annual>0 ? actual/annual : (actual>0?1:0);
+  const fill = Math.min(100, ratio*100);
+  const marker = Math.min(100, frac*100);
+  const label = annual>0 ? pct(actual/annual) : (actual>0?"∞":"—");
+  return `<div class="pb ${paceCls(annual,actual,frac)}"><div class="pb-fill" style="width:${fill.toFixed(1)}%"></div>`+
+    `<div class="pb-marker" style="inset-inline-start:${marker.toFixed(1)}%"></div><span class="pb-label">${label}</span></div>`;
+}
+function projCell(actual, annual, frac){
+  const proj = projForecast(actual, frac);
+  if(proj==null) return '<span class="muted">—</span>';
+  const diff = proj - annual;
+  if(annual>0 && diff > annual*0.005) return `<span style="color:var(--red);font-weight:700">${ils(proj)}</span><div style="font-size:11px;color:var(--red)">חריגה צפויה ${ils(diff)}</div>`;
+  if(annual===0 && proj>0) return `<span style="color:var(--red);font-weight:700">${ils(proj)}</span><div style="font-size:11px;color:var(--red)">ללא תקציב</div>`;
+  return `<span>${ils(proj)}</span>`;
+}
+function sortSubs(subs, mode, frac){
+  if(mode==="default") return subs;
+  const a=subs.slice();
+  if(mode==="remaining") a.sort((x,y)=>(x.annual-x.actual)-(y.annual-y.actual));
+  else if(mode==="actual") a.sort((x,y)=>y.actual-x.actual);
+  else a.sort((x,y)=>relPctOf(y.annual,y.actual,frac)-relPctOf(x.annual,x.actual,frac));
+  return a;
+}
+
 function renderDashboard(){
   const frac=fyFraction(), actual=actualBySub();
+  const sortMode=(document.getElementById("dashSort")||{}).value||"default";
+  const onlyExc=!!(document.getElementById("dashOnlyExc")||{}).checked;
   const tb=document.querySelector("#dashTable tbody"); tb.innerHTML="";
-  let gB=0,gA=0,gR=0;
-  for(const main of mainOrder()){
-    const cats=state.categories.filter(c=>c.main===main);
-    let mB=0,mA=0,mR=0;
-    const rows=cats.map(c=>{
-      const a=actual[c.main+"||"+c.sub]||0;
-      const rb=c.annualBudget*frac;
-      mB+=c.annualBudget; mA+=a; mR+=rb;
-      const relPct = rb>0 ? a/rb : (a>0?2:0);
-      return `<tr><td style="padding-right:24px">${esc(c.sub)}</td>
-        <td class="num">${ils(c.annualBudget)}</td>
-        <td class="num">${ils(a)}</td>
-        <td class="num">${c.annualBudget>0?pct(a/c.annualBudget):"—"}</td>
-        <td class="num">${ils(rb)}</td>
-        <td class="num"><span class="pill ${paceClass(relPct)}">${rb>0?pct(relPct):"—"}</span></td></tr>`;
-    }).join("");
-    gB+=mB; gA+=mA; gR+=mR;
-    const mRel=mR>0?mA/mR:(mA>0?2:0);
+
+  const mains = mainOrder().map(main=>({
+    main,
+    cats: state.categories.filter(c=>c.main===main).map(c=>({sub:c.sub, annual:c.annualBudget, actual:actual[c.main+"||"+c.sub]||0}))
+  }));
+
+  // סיכומים כלליים + ספירת חריגות (על כל הנתונים — ללא תלות בסינון)
+  let gB=0,gA=0, overCount=0, overSum=0, projOverCount=0;
+  for(const m of mains) for(const c of m.cats){
+    gB+=c.annual; gA+=c.actual;
+    if(c.annual>0 && c.actual>c.annual){ overCount++; overSum+=c.actual-c.annual; }
+    else { const p=projForecast(c.actual,frac); if(p!=null && c.annual>0 && p>c.annual) projOverCount++; }
+  }
+  const gR=gB*frac;
+
+  for(const {main,cats} of mains){
+    let mB=0,mA=0; cats.forEach(c=>{mB+=c.annual;mA+=c.actual;});
+    let subs = cats.map(c=>({...c, relPct:relPctOf(c.annual,c.actual,frac), exc:isExc(c.annual,c.actual,frac)}));
+    if(onlyExc) subs=subs.filter(s=>s.exc);
+    if(onlyExc && !subs.length) continue;
+    subs = sortSubs(subs, sortMode, frac);
+    const mRelPct = relPctOf(mB,mA,frac);
     tb.insertAdjacentHTML("beforeend",
-      `<tr class="main-row"><td>${esc(main)}</td><td class="num">${ils(mB)}</td><td class="num">${ils(mA)}</td>
-       <td class="num">${mB>0?pct(mA/mB):"—"}</td><td class="num">${ils(mR)}</td>
-       <td class="num"><span class="pill ${paceClass(mRel)}">${mR>0?pct(mRel):"—"}</span></td></tr>`+rows);
+      `<tr class="main-row"><td>${esc(main)}</td>
+        <td class="num">${ils(mB)}</td><td class="num">${ils(mA)}</td>
+        <td class="num ${mB-mA<0?"neg":""}">${ils(mB-mA)}</td>
+        <td>${progressBar(mA,mB,frac)}</td>
+        <td class="num">${projCell(mA,mB,frac)}</td>
+        <td class="num"><span class="pill ${paceClass(mRelPct)}">${mB*frac>0?pct(mRelPct):"—"}</span></td></tr>`);
+    for(const c of subs){
+      tb.insertAdjacentHTML("beforeend",
+        `<tr class="${c.exc?"row-exc":""}"><td style="padding-right:24px">${esc(c.sub)}</td>
+          <td class="num">${ils(c.annual)}</td><td class="num">${ils(c.actual)}</td>
+          <td class="num ${c.annual-c.actual<0?"neg":""}">${ils(c.annual-c.actual)}</td>
+          <td>${progressBar(c.actual,c.annual,frac)}</td>
+          <td class="num">${projCell(c.actual,c.annual,frac)}</td>
+          <td class="num"><span class="pill ${paceClass(c.relPct)}">${c.annual*frac>0?pct(c.relPct):"—"}</span></td></tr>`);
+    }
   }
   tb.insertAdjacentHTML("beforeend",
     `<tr class="grand"><td>סה"כ כללי</td><td class="num">${ils(gB)}</td><td class="num">${ils(gA)}</td>
-     <td class="num">${gB>0?pct(gA/gB):"—"}</td><td class="num">${ils(gR)}</td>
-     <td class="num">${gR>0?pct(gA/gR):"—"}</td></tr>`);
+      <td class="num">${ils(gB-gA)}</td><td>${progressBar(gA,gB,frac)}</td>
+      <td class="num">${projCell(gA,gB,frac)}</td>
+      <td class="num">${gR>0?pct(gA/gR):"—"}</td></tr>`);
 
+  // כרטיסי סיכום
+  const gProj=projForecast(gA,frac), projDelta=gProj==null?null:gProj-gB;
   document.getElementById("dashStats").innerHTML=`
     <div class="box"><div class="lbl">תקציב שנתי כולל</div><div class="val">${ils(gB)}</div></div>
     <div class="box"><div class="lbl">ביצוע בפועל (YTD)</div><div class="val">${ils(gA)}</div></div>
-    <div class="box"><div class="lbl">יתרה לניצול</div><div class="val">${ils(gB-gA)}</div></div>
+    <div class="box"><div class="lbl">יתרה לניצול</div><div class="val ${gB-gA<0?"neg":""}">${ils(gB-gA)}</div></div>
+    <div class="box"><div class="lbl">תחזית סוף שנה</div><div class="val">${gProj==null?"—":ils(gProj)}</div>${projDelta==null?"":`<div style="font-size:12px;font-weight:700;color:${projDelta>0?"var(--red)":"var(--green)"}">${projDelta>0?"חריגה צפויה ":"בתקציב · יתרה "}${ils(Math.abs(projDelta))}</div>`}</div>
     <div class="box"><div class="lbl">תקציב יחסי עד היום</div><div class="val">${ils(gR)}</div></div>`;
-  document.getElementById("paceHint").textContent=
-    "חלף "+pct(frac)+" משנת התקציב. צבע 🟢 = בקצב, 🟠 = מתקרב לתקרה היחסית, 🔴 = חורג מהקצב.";
+  document.getElementById("paceHint").textContent="חלף "+pct(frac)+" משנת התקציב. צבע 🟢 = בקצב, 🟠 = מתקרב לתקרה היחסית, 🔴 = חורג מהקצב.";
+
+  // התראות
+  const al=document.getElementById("dashAlerts");
+  if(!overCount && !projOverCount){ al.innerHTML='<div class="alert okk">✅ אין חריגות — כל הקטגוריות בקצב התקציב.</div>'; }
+  else {
+    let h="";
+    if(overCount) h+=`<div class="alert red">🔴 ${overCount} קטגוריות חרגו מהתקציב השנתי · סה"כ חריגה ${ils(overSum)} <button class="btn mini sec" onclick="document.getElementById('dashOnlyExc').checked=true;renderDashboard()">הצג רק חריגות</button></div>`;
+    if(projOverCount) h+=`<div class="alert orange">🟠 ${projOverCount} קטגוריות צפויות לחרוג עד סוף השנה לפי הקצב הנוכחי.</div>`;
+    al.innerHTML=h;
+  }
+
+  renderDashChart(mains, frac);
+  renderMonthly();
+}
+
+function renderDashChart(mains, frac){
+  const el=document.getElementById("dashChart"); if(!el) return;
+  const data=mains.map(m=>{let B=0,A=0;m.cats.forEach(c=>{B+=c.annual;A+=c.actual;});return {main:m.main,B,A};})
+    .filter(d=>d.B>0||d.A>0).sort((a,b)=>b.A-a.A);
+  const maxV=Math.max(1,...data.map(d=>Math.max(d.B,d.A)));
+  el.innerHTML = data.map(d=>`<div class="chart-row">
+      <div class="chart-lbl" title="${esc(d.main)}">${esc(d.main)}</div>
+      <div class="chart-track">
+        <div class="chart-annual" style="width:${(d.B/maxV*100).toFixed(1)}%"></div>
+        <div class="chart-actual ${paceCls(d.B,d.A,frac)}" style="width:${(d.A/maxV*100).toFixed(1)}%"></div>
+        <div class="chart-marker" style="inset-inline-start:${(d.B*frac/maxV*100).toFixed(1)}%"></div>
+      </div>
+      <div class="chart-val">${ils(d.A)} / ${ils(d.B)}</div>
+    </div>`).join("") || '<p class="hint">אין נתונים.</p>';
+}
+
+/* ====== חתך לפי חודשים ====== */
+const HE_MONTHS=["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
+function fyMonths(){
+  const s=new Date(state.fiscalYear.start), e=new Date(state.fiscalYear.end);
+  const out=[]; let d=new Date(s.getFullYear(), s.getMonth(), 1);
+  const end=new Date(e.getFullYear(), e.getMonth(), 1);
+  let guard=0;
+  while(d<end && guard<60){ out.push(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")); d.setMonth(d.getMonth()+1); guard++; }
+  return out;
+}
+function monthLabel(ym){ const p=ym.split("-"); return HE_MONTHS[Number(p[1])-1]+" "+p[0].slice(2); }
+function renderMonthly(){
+  const sel=document.getElementById("m_scope"); if(!sel) return;
+  const mains=mainOrder();
+  if(sel.options.length===0){
+    sel.innerHTML='<option value="">כל הקטגוריות</option>'+mains.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join("");
+  }
+  const scope=sel.value;
+  const months=fyMonths(), sums={}; months.forEach(m=>sums[m]=0);
+  for(const t of state.transactions){
+    if(scope && t.main!==scope) continue;
+    const ym=(t.date||"").slice(0,7);
+    if(ym in sums) sums[ym]+=Number(t.amount||0);
+  }
+  let scopeAnnual=0;
+  for(const c of state.categories){ if(!scope || c.main===scope) scopeAnnual+=c.annualBudget; }
+  const monthlyBudget=scopeAnnual/12;
+  const vals=months.map(m=>sums[m]);
+  const maxV=Math.max(1, monthlyBudget, ...vals);
+  const total=vals.reduce((a,b)=>a+b,0);
+  const activeN=vals.filter(v=>v>0).length;
+  const avg=activeN?total/activeN:0;
+  let peak=0, peakM=""; months.forEach(m=>{ if(sums[m]>peak){peak=sums[m];peakM=m;} });
+
+  document.getElementById("monthStats").innerHTML=`
+    <div class="box"><div class="lbl">סה"כ בתחום</div><div class="val">${ils(total)}</div></div>
+    <div class="box"><div class="lbl">ממוצע חודשי (פעיל)</div><div class="val">${ils(avg)}</div></div>
+    <div class="box"><div class="lbl">תקציב חודשי ממוצע</div><div class="val">${ils(monthlyBudget)}</div></div>
+    <div class="box"><div class="lbl">החודש הגבוה ביותר</div><div class="val" style="font-size:18px">${peakM?monthLabel(peakM)+" · "+ils(peak):"—"}</div></div>`;
+
+  const markerPos=Math.min(100, monthlyBudget/maxV*100);
+  document.getElementById("monthlyBars").innerHTML=months.map(m=>{
+    const v=sums[m], over=monthlyBudget>0 && v>monthlyBudget;
+    return `<div class="mbar-row">
+      <div class="mbar-lbl">${monthLabel(m)}</div>
+      <div class="mbar-track">
+        <div class="mbar-fill ${over?"over":""}" style="width:${(v/maxV*100).toFixed(1)}%"></div>
+        ${monthlyBudget>0?`<div class="mbar-marker" style="inset-inline-start:${markerPos.toFixed(1)}%"></div>`:""}
+      </div>
+      <div class="mbar-val">${ils(v)}</div>
+    </div>`;
+  }).join("");
 }
 
 /* ====== סיכום ספקים ====== */
 function renderSuppliers(){
+  const invs=state.transactions.filter(t=>(t.kind||"invoice")!=="reimburse");
   const m={};
-  for(const t of state.transactions){
-    if((t.kind||"invoice")==="reimburse") continue;
+  for(const t of invs){
     const k=t.supplier||"(ללא ספק)";
     if(!m[k]) m[k]={total:0,count:0};
     m[k].total+=Number(t.amount||0); m[k].count++;
   }
-  const rows=Object.entries(m).sort((a,b)=>b[1].total-a[1].total);
-  const tb=document.querySelector("#supTable tbody");
-  tb.innerHTML=rows.map(([name,v],i)=>`<tr><td class="num">${i+1}</td><td>${esc(name)}</td>
-    <td class="num">${ils(v.total)}</td><td class="num">${v.count}</td>
-    <td class="num">${ils(v.total/v.count)}</td></tr>`).join("")
-    || `<tr><td colspan="5" style="text-align:center;color:var(--muted)">אין עדיין תנועות</td></tr>`;
+  const names=Object.keys(m).sort();
+  const sel=document.getElementById("s_supplier"); const cur=sel.value;
+  sel.innerHTML='<option value="">— כל הספקים —</option>'+names.map(n=>`<option>${esc(n)}</option>`).join("");
+  sel.value=(cur && names.includes(cur))?cur:"";
+  const chosen=sel.value;
+  const sumT=document.getElementById("supTable"), detT=document.getElementById("supDetailTable"), stats=document.getElementById("supStats");
+  if(!chosen){
+    sumT.style.display=""; detT.style.display="none"; stats.style.display="none";
+    const rows=Object.entries(m).sort((a,b)=>b[1].total-a[1].total);
+    sumT.querySelector("tbody").innerHTML=rows.map(([name,v],i)=>`<tr><td class="num">${i+1}</td><td>${esc(name)}</td>
+      <td class="num">${ils(v.total)}</td><td class="num">${v.count}</td>
+      <td class="num">${ils(v.total/v.count)}</td></tr>`).join("")
+      || `<tr><td colspan="5" style="text-align:center;color:var(--muted)">אין עדיין תנועות</td></tr>`;
+  }else{
+    sumT.style.display="none"; detT.style.display=""; stats.style.display="";
+    const list=invs.filter(t=>(t.supplier||"(ללא ספק)")===chosen).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+    const total=list.reduce((s,t)=>s+Number(t.amount||0),0);
+    stats.innerHTML=`<div class="box"><div class="lbl">ספק</div><div class="val" style="font-size:18px">${esc(chosen)}</div></div>
+      <div class="box"><div class="lbl">סה"כ הוצאות</div><div class="val">${ils(total)}</div></div>
+      <div class="box"><div class="lbl">מספר עסקאות</div><div class="val">${list.length}</div></div>`;
+    detT.querySelector("tbody").innerHTML=list.map(t=>`<tr>
+      <td class="num">${esc(t.date)}</td><td>${esc(t.main)}</td><td>${esc(t.sub)}</td><td class="num">${esc(t.invoiceNo||"")}</td><td class="num">${ils(t.amount)}</td>
+      <td class="noprint"><button class="btn mini sec" onclick="makeDoc('${t.id}')" title="הזמנת רכש PDF">🧾</button>
+      <button class="btn mini sec" onclick="editTx('${t.id}')" title="עריכה">✎</button>
+      <button class="btn danger" onclick="delTx('${t.id}')">מחק</button></td></tr>`).join("")
+      || `<tr><td colspan="6" style="text-align:center;color:var(--muted)">אין תנועות לספק זה</td></tr>`;
+  }
 }
+document.getElementById("s_supplier").addEventListener("change",renderSuppliers);
 
 /* ====== סיכום עובדים ====== */
 function renderEmployees(){
+  const reimb=state.transactions.filter(t=>(t.kind||"invoice")==="reimburse");
   const m={};
-  for(const t of state.transactions){
-    if((t.kind||"invoice")!=="reimburse") continue;
+  for(const t of reimb){
     const k=t.employee||"(ללא שם)";
     if(!m[k]) m[k]={total:0,count:0,id:t.employeeId||""};
     m[k].total+=Number(t.amount||0); m[k].count++; if(t.employeeId) m[k].id=t.employeeId;
   }
-  const rows=Object.entries(m).sort((a,b)=>b[1].total-a[1].total);
-  document.querySelector("#empTable tbody").innerHTML=rows.map(([name,vv],i)=>`<tr>
-    <td class="num">${i+1}</td><td>${esc(name)}</td><td class="num">${esc(vv.id)}</td>
-    <td class="num">${ils(vv.total)}</td><td class="num">${vv.count}</td></tr>`).join("")
-    || `<tr><td colspan="5" style="text-align:center;color:var(--muted)">אין עדיין החזרי עובדים</td></tr>`;
+  const emps=Object.keys(m).sort();
+  const sel=document.getElementById("e_emp"); const cur=sel.value;
+  sel.innerHTML='<option value="">— כל העובדים —</option>'+emps.map(e=>`<option>${esc(e)}</option>`).join("");
+  sel.value=(cur && emps.includes(cur))?cur:"";
+  const chosen=sel.value;
+  const sumT=document.getElementById("empTable"), detT=document.getElementById("empDetailTable"), stats=document.getElementById("empStats");
+  if(!chosen){
+    sumT.style.display=""; detT.style.display="none"; stats.style.display="none";
+    const rows=Object.entries(m).sort((a,b)=>b[1].total-a[1].total);
+    sumT.querySelector("tbody").innerHTML=rows.map(([name,vv],i)=>`<tr>
+      <td class="num">${i+1}</td><td>${esc(name)}</td><td class="num">${esc(vv.id)}</td>
+      <td class="num">${ils(vv.total)}</td><td class="num">${vv.count}</td></tr>`).join("")
+      || `<tr><td colspan="5" style="text-align:center;color:var(--muted)">אין עדיין החזרי עובדים</td></tr>`;
+  }else{
+    sumT.style.display="none"; detT.style.display=""; stats.style.display="";
+    const list=reimb.filter(t=>(t.employee||"(ללא שם)")===chosen).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+    const total=list.reduce((s,t)=>s+Number(t.amount||0),0);
+    stats.innerHTML=`<div class="box"><div class="lbl">עובד</div><div class="val" style="font-size:18px">${esc(chosen)}</div></div>
+      <div class="box"><div class="lbl">סה"כ החזרים</div><div class="val">${ils(total)}</div></div>
+      <div class="box"><div class="lbl">מספר החזרים</div><div class="val">${list.length}</div></div>`;
+    detT.querySelector("tbody").innerHTML=list.map(t=>`<tr>
+      <td class="num">${esc(t.date)}</td><td>${esc(t.main)}</td><td>${esc(t.sub)}</td><td>${esc(t.purpose||"")}</td><td>${esc(t.method||"")}</td><td class="num">${ils(t.amount)}</td>
+      <td class="noprint"><button class="btn mini sec" onclick="makeDoc('${t.id}')" title="דף החזר לעובד PDF">👤</button>
+      <button class="btn mini sec" onclick="editTx('${t.id}')" title="עריכה">✎</button>
+      <button class="btn danger" onclick="delTx('${t.id}')">מחק</button></td></tr>`).join("")
+      || `<tr><td colspan="7" style="text-align:center;color:var(--muted)">אין החזרים לעובד זה</td></tr>`;
+  }
 }
+document.getElementById("e_emp").addEventListener("change",renderEmployees);
 
 /* ====== חשבוניות לפי קטגוריה ====== */
 function fillCatMain(){
@@ -929,12 +1255,6 @@ document.getElementById("restoreFile").onchange=function(){
 };
 const CSV_COLS=["תאריך","קטגוריה ראשית","תת-קטגוריה","ספק","סכום","סוג","מספר חשבונית"];
 function csvCell(v){ v=(v==null?"":String(v)); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
-document.getElementById("exportCsv").onclick=()=>{
-  const lines=[CSV_COLS.join(",")];
-  for(const t of state.transactions)
-    lines.push([t.date,t.main,t.sub,t.supplier,t.amount,t.type||"הוצאה",t.invoiceNo||""].map(csvCell).join(","));
-  download("תנועות-"+new Date().toISOString().slice(0,10)+".csv","﻿"+lines.join("\r\n"),"text/csv;charset=utf-8");
-};
 document.getElementById("importCsv").onclick=()=>document.getElementById("csvFile").click();
 document.getElementById("csvFile").onchange=function(){
   const f=this.files[0]; if(!f) return; const r=new FileReader();
@@ -986,6 +1306,12 @@ function odRefreshUI(){
     show("odCreate",0);show("odConnect",0);show("odReconnect",1);show("odPull",0);show("odDisconnect",1); }
   else{ el.innerHTML="⚪ לא מחובר — הנתונים נשמרים במחשב זה בלבד";
     show("odCreate",1);show("odConnect",1);show("odReconnect",0);show("odPull",0);show("odDisconnect",0); }
+  const es=document.getElementById("headerSync");
+  if(es){
+    if(fileHandle){ es.innerHTML='<span style="color:#bbf7d0;font-weight:600;font-size:13px">🟢 מחובר ל-OneDrive</span>'; }
+    else if(pendingHandle){ es.innerHTML='<button onclick="odDoReconnect()" style="background:#fff;color:#b45309;border:none;border-radius:6px;padding:9px 16px;font-weight:700;cursor:pointer;font-size:14px">🔁 חבר מחדש ל-OneDrive</button>'; }
+    else { es.innerHTML=''; }
+  }
 }
 function odStartPoll(){
   if(odPoll) clearInterval(odPoll);
@@ -1027,9 +1353,8 @@ function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;",
 function renderAll(){
   document.getElementById("fyLabel").textContent=state.fiscalYear.start+" — "+state.fiscalYear.end;
   fillMainSelect(); fillSubSelect(); fillSupplierList(); fillPoDatalists();
-  renderTxTable(); renderDashboard(); renderSuppliers(); renderEmployees(); renderPlanning();
+  renderTxTable(); renderDashboard(); renderSuppliers(); renderEmployees(); renderPlanning(); renderContacts(); renderSuppliersDir();
   fillCatMain(); fillCatSub(); renderCatInvoices();
-  drawPie(); drawBars();
 }
 resetForm();
 renderAll();

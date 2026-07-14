@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ניהול עבודה חקלאית — רגבים בנימין</title>
+  <link rel="stylesheet" href="styles.css?v=178" />
+</head>
+<body>
+  <script>try { if (localStorage.getItem('agri_dark') === '1') document.body.classList.add('dark'); } catch (e) {}</script>
+  <!-- מסך התחברות (ענן) -->
+  <div id="loginOverlay" class="login-overlay" style="display:none">
+    <div class="login-box">
+      <div class="logo" style="font-size:40px">🌱</div>
+      <h2>ניהול עבודה חקלאית</h2>
+      <div class="muted" style="margin-bottom:14px">רגבים בנימין · התחברות</div>
+      <input id="loginEmail" type="email" placeholder="אימייל" autocomplete="username" />
+      <div class="pass-wrap">
+        <input id="loginPass" type="password" placeholder="סיסמה" autocomplete="current-password" />
+        <button id="passEye" class="pass-eye" type="button" aria-label="הצגת סיסמה" title="הצגת סיסמה">👁️</button>
+      </div>
+      <div id="loginErr" class="login-err"></div>
+      <button id="loginBtn" class="btn" style="width:100%;justify-content:center;margin-top:8px">כניסה</button>
+      <button id="forgotBtn" class="login-forgot" type="button">שכחתי סיסמה</button>
+    </div>
+  </div>
+
+  <div class="layout">
+    <aside class="sidebar no-print" id="sidebar">
+      <div class="brand">
+        <span class="brand-logo">🌱</span>
+        <span class="brand-txt">ניהול חקלאות<small>רגבים בנימין</small></span>
+        <button id="sbClose" class="sb-close no-print" aria-label="סגירת סרגל הצד" title="סגירת סרגל הצד">«</button>
+      </div>
+      <nav class="tabs" id="tabs">
+        <div class="nav-sec">מבט-על</div>
+        <button data-tab="dashboard" class="active">📊 דשבורד</button>
+        <div class="nav-sec">תכנון</div>
+        <button data-tab="planning">📋 תכנון</button>
+        <div class="nav-sec">כספים</div>
+        <button data-tab="billing">🧾 דרישת תשלום</button>
+        <button data-tab="debts">💰 חובות חקלאים</button>
+        <div class="nav-sec">נתונים ודוחות</div>
+        <button data-tab="reports">📊 דוחות</button>
+        <button data-tab="base">🗂️ נתוני בסיס</button>
+        <div class="nav-sec">כללי</div>
+        <button data-tab="kitchen">🍳 תורני מטבח</button>
+        <button data-tab="field">🚜 מצב שטח</button>
+        <button data-tab="settings" class="tab-foot" aria-label="הגדרות וגיבוי" title="הגדרות וגיבוי">⚙️</button>
+      </nav>
+    </aside>
+    <div class="content">
+      <header class="topbar no-print">
+        <button id="sbToggle" class="sb-toggle" aria-label="תפריט">☰</button>
+        <span class="spacer"></span>
+        <div class="status"><span id="saveStatus">נשמר מקומית</span> <span id="headerSync"></span></div>
+      </header>
+      <main id="view">
+        <!-- שלד טעינה — מוחלף ברינדור הראשון -->
+        <div class="skeleton">
+          <div class="sk-line lg"></div>
+          <div class="sk-line" style="width:70%"></div>
+          <div class="sk-card"></div>
+          <div class="sk-card"></div>
+          <div class="sk-line" style="width:50%"></div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ספריות ומודולים (סקריפטים קלאסיים — עובד מ-file://) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="vendor/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+  <script src="js/seed-data.js?v=178"></script>
+  <script src="js/util.js?v=178"></script>
+  <script src="js/store.js?v=178"></script>
+  <script src="js/sync.js?v=178"></script>
+  <script src="js/importExcel.js?v=178"></script>
+  <script src="js/base.js?v=178"></script>
+  <script src="js/users.js?v=178"></script>
+  <script src="js/weekly.js?v=178"></script>
+  <script src="js/daily.js?v=178"></script>
+  <script src="js/planning.js?v=178"></script>
+  <script src="js/field.js?v=178"></script>
+  <script src="js/billing.js?v=178"></script>
+  <script src="js/debts.js?v=178"></script>
+  <script src="js/reports.js?v=178"></script>
+  <script src="js/dashboard.js?v=178"></script>
+  <script src="js/teams.js?v=178"></script>
+  <script src="js/settings.js?v=178"></script>
+  <script src="js/kitchen.js?v=178"></script>
+  <script src="js/app.js?v=178"></script>
+  <script>
+    (function () {
+      var sb = document.getElementById('sidebar'), tg = document.getElementById('sbToggle');
+      var sbClose = document.getElementById('sbClose'), layout = document.querySelector('.layout');
+      function mobile() { return window.innerWidth <= 860; }
+      function openSb() { if (mobile()) { if (sb) sb.classList.add('open'); } else if (layout) { layout.classList.remove('collapsed'); localStorage.setItem('agri_sidebar_collapsed', '0'); } }
+      function closeSb() { if (mobile()) { if (sb) sb.classList.remove('open'); } else if (layout) { layout.classList.add('collapsed'); localStorage.setItem('agri_sidebar_collapsed', '1'); } }
+      if (layout && localStorage.getItem('agri_sidebar_collapsed') === '1') layout.classList.add('collapsed');
+      if (tg) tg.addEventListener('click', openSb);
+      if (sbClose) sbClose.addEventListener('click', closeSb);
+      var tabs = document.getElementById('tabs');
+      if (tabs && sb) tabs.addEventListener('click', function (e) {
+        if (e.target.closest('button') && mobile()) sb.classList.remove('open');
+      });
+    })();
+  </script>
+</body>
+</html>

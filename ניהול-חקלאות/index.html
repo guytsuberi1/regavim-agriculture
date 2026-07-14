@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ניהול עבודה חקלאית — רגבים בנימין</title>
+  <link rel="stylesheet" href="styles.css?v=6" />
+</head>
+<body>
+  <header class="topbar no-print">
+    <div class="brand">
+      <span class="logo">🌱</span>
+      <h1>ניהול עבודה חקלאית · רגבים בנימין</h1>
+    </div>
+    <nav class="tabs" id="tabs">
+      <button data-tab="daily" class="active">סידור יומי</button>
+      <button data-tab="weekly">תכנון שבועי</button>
+      <button data-tab="billing">דרישת תשלום</button>
+      <button data-tab="reports">דוחות</button>
+      <button data-tab="teams">צוותים</button>
+      <button data-tab="base">נתוני בסיס</button>
+      <button data-tab="settings">הגדרות וגיבוי</button>
+    </nav>
+    <div class="status"><span id="saveStatus">נשמר מקומית</span></div>
+  </header>
+
+  <main id="view"></main>
+
+  <!-- ספריות ומודולים (סקריפטים קלאסיים — עובד מ-file://) -->
+  <script src="vendor/xlsx.full.min.js"></script>
+  <script src="js/seed-data.js?v=5"></script>
+  <script src="js/util.js?v=5"></script>
+  <script src="js/store.js?v=5"></script>
+  <script src="js/importExcel.js?v=5"></script>
+  <script src="js/base.js?v=5"></script>
+  <script src="js/weekly.js?v=5"></script>
+  <script src="js/daily.js?v=6"></script>
+  <script src="js/billing.js?v=5"></script>
+  <script src="js/reports.js?v=5"></script>
+  <script src="js/teams.js?v=5"></script>
+  <script src="js/settings.js?v=5"></script>
+  <script src="js/app.js?v=5"></script>
+</body>
+</html>
