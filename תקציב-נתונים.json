@@ -441,14 +441,60 @@
       "employeeId": "208204776",
       "purpose": "ציוד חקלאי",
       "method": "העברה בנקאית"
+    },
+    {
+      "id": "t178100523117960kg",
+      "kind": "invoice",
+      "type": "הוצאה",
+      "date": "2026-06-09",
+      "main": "כלכלה(אוכל)",
+      "sub": "ספקי אוכל",
+      "amount": 2500,
+      "supplier": "וגשל",
+      "invoiceNo": "34325",
+      "docType": "חשבונית מס",
+      "description": "",
+      "contact": "אליהו לבנה",
+      "contactPhone": "058-670-7228",
+      "supplyBy": "",
+      "issuer": "אביטל עמאר",
+      "orderer": "אליהו לבנה",
+      "manager": "גיא צוברי",
+      "poNumber": 1010
     }
   ],
-  "poNext": 1010,
+  "poNext": 1012,
   "poDefaults": {
-    "contact": "אליהו לבנה",
-    "contactPhone": "0505",
-    "issuer": "גיא צוברי",
-    "orderer": "אליהו לבנה",
+    "contact": "",
+    "contactPhone": "",
+    "issuer": "אביטל עמאר",
+    "orderer": "",
     "manager": "גיא צוברי"
-  }
+  },
+  "contacts": [
+    {
+      "name": "אליהו לבנה",
+      "phone": "058-670-7228"
+    },
+    {
+      "name": "גיא צוברי",
+      "phone": "054-628-6816"
+    },
+    {
+      "name": "אביטל עמאר",
+      "phone": "050-458-0255"
+    },
+    {
+      "name": "רז גרולמן",
+      "phone": "054-331-9612"
+    },
+    {
+      "name": "יצחק קליין",
+      "phone": "052-566-5835"
+    },
+    {
+      "name": "אבישי מעודה",
+      "phone": "054-669-8986"
+    }
+  ]
 }
