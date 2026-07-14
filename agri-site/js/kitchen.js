@@ -128,7 +128,7 @@
         return U.el('span', { class: 'chip', style: 'cursor:default;' }, [
           (s.grade || s.className) ? U.el('span', { class: 'grade-badge gb' + (gi < 0 ? 'x' : gi), text: s.className || s.grade }) : null,
           U.el('span', { text: s.name }),
-          kRating(s) ? U.el('span', { class: 'tag', title: 'דירוג מטבח', text: '⭐' + kRating(s) }) : null
+          kRating(s) ? U.el('span', { class: 'tag', title: 'דירוג מטבח (3 = גבוה)', text: '⭐'.repeat(kRating(s)) }) : null
         ]);
       }));
     } else {
@@ -140,7 +140,7 @@
       duty.length ? U.el('div', { style: 'font-weight:600;', text: 'תורנים (' + duty.length + '):' }) : null,
       chipsEl,
       U.el('button', { class: 'btn', onclick: edit }, '✏️ עריכת תורני מטבח'),
-      U.el('div', { class: 'muted', style: 'font-size:12px;margin-top:8px;', text: '🤖 השיבוץ האוטומטי בוחר לפי: 1) מי שטרם עשה תורנות · 2) אחד מכל שכבה (ט / י / יא-יב) · 3) אחד מכל דירוג מטבח (⭐1-3, נקבע בחלון העריכה)' })
+      U.el('div', { class: 'muted', style: 'font-size:12px;margin-top:8px;', text: '🤖 השיבוץ האוטומטי בוחר לפי: 1) מי שטרם עשה תורנות · 2) אחד מכל שכבה (ט / י / יא-יב) · 3) אחד מכל דירוג (⭐ נמוך עד ⭐⭐⭐ גבוה, נקבע בחלון העריכה)' })
     ]));
 
     // ---- היסטוריית תורנויות (#22) ----
@@ -191,9 +191,9 @@
         var cnt = counts[s.id] || 0;
         var cb = U.el('input', { type: 'checkbox', checked: !!selected[s.id] });
         cb.addEventListener('change', function () { selected[s.id] = cb.checked; updateCount(); });
-        // דירוג מטבח 1-3 — נערך כאן ומשמש את השיבוץ האוטומטי (אחד מכל דרגה)
-        var rSel = U.el('select', { title: 'דירוג מטבח (1-3) — לשיבוץ האוטומטי', style: 'width:56px;padding:3px 4px;font-size:12.5px;' },
-          [U.el('option', { value: '' }, '⭐—')].concat([1, 2, 3].map(function (n) { return U.el('option', { value: String(n) }, '⭐' + n); })));
+        // דירוג מטבח 1-3 (3 כוכבים = גבוה) — נערך כאן ומשמש את השיבוץ האוטומטי (אחד מכל דרגה)
+        var rSel = U.el('select', { title: 'דירוג מטבח — 3 כוכבים = גבוה, כוכב אחד = נמוך', style: 'width:78px;padding:3px 4px;font-size:12.5px;' },
+          [U.el('option', { value: '' }, '—')].concat([1, 2, 3].map(function (n) { return U.el('option', { value: String(n) }, '⭐'.repeat(n)); })));
         rSel.value = kRating(s) ? String(kRating(s)) : '';
         rSel.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); });
         rSel.addEventListener('change', function () {
