@@ -66,6 +66,7 @@
       okLabel: 'המשך'
     }, function () {
       var win = window.open('', '_blank'); // נפתח מיד (מחווה של המשתמש) כדי לעקוף חוסם חלונות קופצים
+      if (win) win.opener = null; // מניעת tab-nabbing — לחלון החדש אין גישה לעמוד המקור
       var wn = waNumber(staff.phone);
       var password = genPassword();
       Store.manageUsers({ action: hasAccount ? 'resetPassword' : 'create', email: email, password: password }).then(function () {

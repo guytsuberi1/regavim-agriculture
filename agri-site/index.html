@@ -3,11 +3,30 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- מדיניות אבטחת תוכן: מגבילה לאן הדף יכול לפנות/לטעון ממנו, ומצמצמת פני-שטח לזליגת מידע והזרקות -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' data: blob:;
+    font-src 'self' data:;
+    connect-src 'self' https://dcnndzrdimkogfjsvcku.supabase.co wss://dcnndzrdimkogfjsvcku.supabase.co https://api.open-meteo.com https://geocoding-api.open-meteo.com https://www.googleapis.com;
+    object-src 'none';
+    base-uri 'self';
+    form-action 'self';
+    frame-src 'none';
+    upgrade-insecure-requests;
+  " />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
   <title>ניהול עבודה חקלאית — רגבים בנימין</title>
-  <link rel="stylesheet" href="styles.css?v=178" />
+  <link rel="stylesheet" href="styles.css?v=179" />
 </head>
 <body>
-  <script>try { if (localStorage.getItem('agri_dark') === '1') document.body.classList.add('dark'); } catch (e) {}</script>
+  <script>
+    // הגנת clickjacking — אם הדף נטען בתוך iframe של אתר אחר, נשחרר אותו החוצה (frame-ancestors אינו נתמך ב-meta)
+    try { if (window.self !== window.top) window.top.location = window.self.location.href; } catch (e) { document.documentElement.style.display = 'none'; }
+    try { if (localStorage.getItem('agri_dark') === '1') document.body.classList.add('dark'); } catch (e) {}
+  </script>
   <!-- מסך התחברות (ענן) -->
   <div id="loginOverlay" class="login-overlay" style="display:none">
     <div class="login-box">
@@ -73,25 +92,25 @@
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="vendor/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
-  <script src="js/seed-data.js?v=178"></script>
-  <script src="js/util.js?v=178"></script>
-  <script src="js/store.js?v=178"></script>
-  <script src="js/sync.js?v=178"></script>
-  <script src="js/importExcel.js?v=178"></script>
-  <script src="js/base.js?v=178"></script>
-  <script src="js/users.js?v=178"></script>
-  <script src="js/weekly.js?v=178"></script>
-  <script src="js/daily.js?v=178"></script>
-  <script src="js/planning.js?v=178"></script>
-  <script src="js/field.js?v=178"></script>
-  <script src="js/billing.js?v=178"></script>
-  <script src="js/debts.js?v=178"></script>
-  <script src="js/reports.js?v=178"></script>
-  <script src="js/dashboard.js?v=178"></script>
-  <script src="js/teams.js?v=178"></script>
-  <script src="js/settings.js?v=178"></script>
-  <script src="js/kitchen.js?v=178"></script>
-  <script src="js/app.js?v=178"></script>
+  <script src="js/seed-data.js?v=179"></script>
+  <script src="js/util.js?v=179"></script>
+  <script src="js/store.js?v=179"></script>
+  <script src="js/sync.js?v=179"></script>
+  <script src="js/importExcel.js?v=179"></script>
+  <script src="js/base.js?v=179"></script>
+  <script src="js/users.js?v=179"></script>
+  <script src="js/weekly.js?v=179"></script>
+  <script src="js/daily.js?v=179"></script>
+  <script src="js/planning.js?v=179"></script>
+  <script src="js/field.js?v=179"></script>
+  <script src="js/billing.js?v=179"></script>
+  <script src="js/debts.js?v=179"></script>
+  <script src="js/reports.js?v=179"></script>
+  <script src="js/dashboard.js?v=179"></script>
+  <script src="js/teams.js?v=179"></script>
+  <script src="js/settings.js?v=179"></script>
+  <script src="js/kitchen.js?v=179"></script>
+  <script src="js/app.js?v=179"></script>
   <script>
     (function () {
       var sb = document.getElementById('sidebar'), tg = document.getElementById('sbToggle');

@@ -627,7 +627,7 @@
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
         U.toast('התמונה הורדה — צרפו אותה בשיחת הוואטסאפ שנפתחה', 'info');
-        window.open('https://wa.me/', '_blank');
+        window.open('https://wa.me/', '_blank', 'noopener');
       });
     }).catch(function (e) { U.toast('שגיאה בשיתוף: ' + e.message, 'error'); });
   }
