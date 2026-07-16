@@ -570,15 +570,70 @@
       var reader = new FileReader();
       reader.onload = function (e) {
         try {
-          var wb = XLSX.read(e.target.result, { type: 'array' });
+          var wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
           var ws = wb.Sheets[wb.SheetNames[0]];
-          importDebtRows(XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false }));
+          var rows = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false });
+          // זיהוי פורמט: פנקס Priority (שורה לכל חשבונית) מול תבנית פשוטה (שורה לחקלאי)
+          if (isLedgerFormat(rows)) importLedgerRows(rows);
+          else importDebtRows(rows);
         } catch (err) { U.toast('שגיאה בקריאת הקובץ: ' + (err.message || err), 'error'); }
       };
       reader.readAsArrayBuffer(f);
     };
     inp.click();
   }
+  // תאריך תא (Date או טקסט) → dd/mm/yyyy
+  function fmtCellDate(v) {
+    if (v instanceof Date && !isNaN(v)) return ('0' + v.getDate()).slice(-2) + '/' + ('0' + (v.getMonth() + 1)).slice(-2) + '/' + v.getFullYear();
+    return String(v == null ? '' : v).trim();
+  }
+
+  // האם זה פנקס Priority — שורה לכל חשבונית (עמודות "שם לקוח" / "חשבונית")
+  function isLedgerFormat(rows) {
+    if (!rows || !rows.length) return false;
+    var h = rows[0].map(function (x) { return String(x == null ? '' : x).trim(); }).join('|');
+    return h.indexOf('שם לקוח') !== -1 || h.indexOf('חשבונית') !== -1 || h.indexOf('לקוח') !== -1;
+  }
+
+  // אגרגציה של פנקס Priority לפי לקוח → שורה אחת לכל חקלאי (יתרה = סכום החשבוניות פחות התשלומים)
+  function importLedgerRows(rows) {
+    var header = rows[0].map(function (x) { return String(x == null ? '' : x).trim(); });
+    function colIdx(names) { for (var i = 0; i < header.length; i++) for (var j = 0; j < names.length; j++) if (header[i].indexOf(names[j]) !== -1) return i; return -1; }
+    var ci = {
+      cust: colIdx(['מס. לקוח', 'מס׳ לקוח', "מס' לקוח", 'מס לקוח', 'לקוח']),
+      name: colIdx(['שם לקוח', 'שם עסק', 'שם']),
+      inv: colIdx(['חשבונית']),
+      date: colIdx(['תאריך']),
+      amt: colIdx(['סכום', 'חוב', 'יתרה'])
+    };
+    if (ci.name < 0 || ci.amt < 0) { U.toast('לא נמצאו העמודות "שם לקוח" ו"סכום" בקובץ.', 'error'); return; }
+
+    var map = {}, order = [];
+    rows.slice(1).forEach(function (r) {
+      if (!r) return;
+      var name = String(r[ci.name] == null ? '' : r[ci.name]).trim();
+      if (!name) return;
+      var cust = ci.cust >= 0 ? String(r[ci.cust] == null ? '' : r[ci.cust]).trim() : '';
+      var amt = U.num(r[ci.amt]);
+      var key = cust || normName(name);
+      if (!map[key]) { map[key] = { name: name, customerNumber: cust, total: 0, invoiceCount: 0, date: '', _dt: null }; order.push(key); }
+      var g = map[key];
+      g.total += amt;
+      if (amt > 0) g.invoiceCount++; // שורה חיובית = חשבונית; שלילית = תשלום על חשבון
+      var dv = ci.date >= 0 ? r[ci.date] : null;
+      if (dv instanceof Date && !isNaN(dv) && (!g._dt || dv > g._dt)) { g._dt = dv; g.date = fmtCellDate(dv); }
+    });
+    var agg = order.map(function (k) { var g = map[k]; g.total = Math.round(g.total * 100) / 100; return g; });
+    if (!agg.length) { U.toast('לא נמצאו נתוני חובות בקובץ.', 'error'); return; }
+    openDebtImportPreview(agg, 'אקסל (פנקס Priority)');
+  }
+
+  // מחיקת כל רשומות החוב והתשלומים הקיימים (ל"החלפה מלאה")
+  function clearAllDebts() {
+    (Store.get().debtEntries || []).slice().forEach(function (e) { Store.remove('debtEntries', e.id); });
+    (Store.get().debtRecords || []).slice().forEach(function (r) { Store.remove('debtRecords', r.id); });
+  }
+
   function importDebtRows(rows) {
     if (!rows || rows.length < 2) { U.toast('הקובץ ריק או חסר שורות נתונים.', 'error'); return; }
     var header = rows[0].map(function (h) { return String(h == null ? '' : h).trim(); });
@@ -663,7 +718,7 @@
       overlay.close();
       var rows = (res && res.rows) || [];
       if (!rows.length) { U.toast('ה-AI לא מצא חובות בקובץ. נסו קובץ ברור יותר, או ייבוא מאקסל.', 'error'); return; }
-      openPdfPreview(rows);
+      openDebtImportPreview(rows, 'PDF (ניתוח AI)');
     }).catch(function (err) {
       overlay.close();
       U.toast('שגיאה בניתוח ה-PDF: ' + ((err && err.message) || err), 'error');
@@ -681,7 +736,7 @@
     return { close: function () { if (bg.parentNode) bg.parentNode.removeChild(bg); } };
   }
 
-  function openPdfPreview(rows) {
+  function openDebtImportPreview(rows, sourceLabel) {
     var existing = {};
     (Store.get().sites || []).forEach(function (s) { existing[normName(s.name)] = true; });
     var state = rows.map(function (r) {
@@ -730,24 +785,36 @@
         ['', 'שם עסק', 'יתרת חוב (₪)', 'תאריך', 'חשבוניות', 'אתר'].map(function (h) { return U.el('th', { text: h }); }))]),
       tbody
     ])]);
+    var src = sourceLabel || 'הקובץ';
     var info = U.el('div', { class: 'muted', style: 'margin-bottom:10px;', html:
-      'ה-AI חילץ <b>' + state.length + '</b> חובות מתוך ה-PDF. בדקו וערכו לפי הצורך, ובטלו סימון לשורות שלא לייבא. אתרים חדשים ייווצרו כלא-פעילים.' });
+      'חולצו <b>' + state.length + '</b> חובות מ' + src + '. בדקו וערכו לפי הצורך, ובטלו סימון לשורות שלא לייבא. אתרים חדשים ייווצרו כלא-פעילים.' });
 
-    Modal.open('🤖 תצוגה מקדימה — ייבוא חובות מ-PDF', U.el('div', null, [info, table]), [
+    // אפשרות החלפה מלאה — מחיקת כל החובות הקיימים לפני הייבוא
+    var replaceChk = U.el('input', { type: 'checkbox' });
+    var replaceRow = U.el('label', { style: 'display:flex;gap:8px;align-items:center;margin:4px 0 12px;padding:8px 10px;border:1px solid var(--danger);border-radius:8px;background:#fef2f2;color:var(--danger);font-weight:600;cursor:pointer;' },
+      [replaceChk, U.el('span', { text: '🗑️ החלפה מלאה — מחיקת כל החובות הקיימים לפני הייבוא (כל השאר יימחק)' })]);
+
+    Modal.open('📥 תצוגה מקדימה — ייבוא חובות', U.el('div', null, [info, replaceRow, table]), [
       { label: 'ביטול', class: 'secondary' },
       { label: 'ייבא נבחרים', onClick: function (close) {
         var chosen = state.filter(function (s) { return s.include && String(s.name).trim() && s.total; });
         if (!chosen.length) { U.toast('לא נבחרו שורות לייבוא (ודאו שם ויתרה).', 'error'); return; }
-        var objs = chosen.map(function (s) {
-          var note = [];
-          if (s.customerNumber) note.push('מס׳ לקוח ' + s.customerNumber);
-          if (s.invoiceCount) note.push(s.invoiceCount + ' חשבוניות');
-          note.push('יובא מ-PDF');
-          return { name: s.name, amount: s.total, year: s.date, status: 'פתוחה', note: note.join(' · ') };
-        });
-        var res = commitDebtObjs(objs);
-        close(); App.render();
-        U.toast('הייבוא הושלם: ' + res.added + ' חובות' + (res.created ? ' · ' + res.created + ' אתרים חדשים' : ''));
+        var doImport = function () {
+          if (replaceChk.checked) clearAllDebts();
+          var objs = chosen.map(function (s) {
+            var note = [];
+            if (s.customerNumber) note.push('מס׳ לקוח ' + s.customerNumber);
+            if (s.invoiceCount) note.push(s.invoiceCount + ' חשבוניות');
+            note.push('יובא מ' + src);
+            return { name: s.name, amount: s.total, year: s.date, status: 'פתוחה', note: note.join(' · ') };
+          });
+          var res = commitDebtObjs(objs);
+          close(); App.render();
+          U.toast('הייבוא הושלם: ' + res.added + ' חובות' + (res.created ? ' · ' + res.created + ' אתרים חדשים' : '') + (replaceChk.checked ? ' · החובות הקודמים נמחקו' : ''));
+        };
+        if (replaceChk.checked) {
+          Modal.confirm({ title: '⚠ החלפה מלאה', text: 'פעולה זו תמחק את כל ' + records().length + ' רשומות החוב הקיימות ותחליף אותן ב-' + chosen.length + ' מהקובץ.\nגיבוי אוטומטי נשמר בענן. להמשיך?', okLabel: 'מחק והחלף', danger: true }, doImport);
+        } else doImport();
       } }
     ]);
   }
