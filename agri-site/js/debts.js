@@ -282,8 +282,10 @@
       ]));
     })();
 
-    // כרטיסי חוב ידניים
-    agg.recs.forEach(function (rec) {
+    // חובות ידניים — כרטיס לכל אחד (עם תנועות תשלום/חיוב/זיכוי)
+    var manualRecs = agg.recs.filter(function (r) { return !r.imported; });
+    var importedRecs = agg.recs.filter(function (r) { return r.imported; });
+    manualRecs.forEach(function (rec) {
       var bal = recordBalance(rec);
       card.appendChild(U.el('div', { style: 'border:1px solid var(--border);border-radius:10px;padding:10px;margin-top:10px;' }, [
         U.el('div', { style: 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;' }, [
@@ -305,6 +307,9 @@
       ]));
     });
 
+    // חשבוניות מיובאות — טבלה קומפקטית עם שורת סיכום וסימון "שולם" בלחיצה
+    if (importedRecs.length) card.appendChild(buildInvoiceTable(siteId, importedRecs));
+
     // חיוב שוטף מהמערכת
     if (agg.billed) {
       card.appendChild(U.el('div', { style: 'border:1px solid var(--border);border-radius:10px;padding:10px;margin-top:10px;background:#f7fbfd;' }, [
@@ -325,6 +330,47 @@
     card.appendChild(U.el('h4', { style: 'color:var(--green-dark);margin:16px 0 6px;', text: 'פירוט חודשי' }));
     card.appendChild(buildMonthlyTable(agg));
     return card;
+  }
+
+  // טבלת חשבוניות לחקלאי + שורת סיכום; סימון "שולם" בלחיצה (גבייה חלקית)
+  function buildInvoiceTable(siteId, recs) {
+    function dkey(r) { var p = String(r.debtYear || '').split('/'); return p.length === 3 ? p[2] + p[1] + p[0] : String(r.debtYear || ''); }
+    var sorted = recs.slice().sort(function (a, b) { return dkey(a) < dkey(b) ? -1 : (dkey(a) > dkey(b) ? 1 : 0); });
+    var totDebt = 0, totOpen = 0, paidN = 0;
+    var tbody = U.el('tbody');
+    sorted.forEach(function (rec) {
+      var isPaid = rec.status === 'שולם';
+      totDebt += U.num(rec.openingDebt);
+      if (isPaid) paidN++; else totOpen += recordBalance(rec);
+      var invNo = String(rec.notes || '').split(' · ')[0];
+      var toggle = U.el('button', {
+        class: 'btn small' + (isPaid ? ' secondary' : ''), title: isPaid ? 'החזרה לסטטוס "פתוחה"' : 'סימון החשבונית כשולמה',
+        onclick: function () { rec.status = isPaid ? 'פתוחה' : 'שולם'; Store.save(); renderKeepScroll(); }
+      }, isPaid ? '↩ פתח' : '✓ שולם');
+      tbody.appendChild(U.el('tr', { class: isPaid ? 'inv-paid' : '' }, [
+        U.el('td', { text: rec.debtYear || '—' }),
+        U.el('td', { text: invNo }),
+        U.el('td', { class: 'center', text: money(rec.openingDebt) }),
+        U.el('td', { class: 'center' }, [statusChip(rec.status)]),
+        U.el('td', { class: 'center no-print', style: 'white-space:nowrap;' }, [
+          toggle,
+          U.el('button', { class: 'btn small secondary', title: 'עריכה', onclick: function () { openRecord(rec, siteId); } }, '✎'),
+          U.el('button', { class: 'btn small danger', title: 'מחיקה', onclick: function () { deleteRecord(rec); } }, '🗑')
+        ])
+      ]));
+    });
+    // שורת סיכום לחקלאי
+    tbody.appendChild(U.el('tr', { class: 'total-row' }, [
+      U.el('td', { html: '<b>סה"כ ' + recs.length + ' חשבוניות' + (paidN ? ' · ' + paidN + ' שולמו' : '') + '</b>' }),
+      U.el('td'),
+      U.el('td', { class: 'center', html: '<b>' + money(totDebt) + '</b>' }),
+      U.el('td', { class: 'center', html: 'יתרה: <b style="' + balStyle(totOpen) + '">' + money(totOpen) + '</b>' }),
+      U.el('td', { class: 'no-print' })
+    ]));
+    return U.el('div', { style: 'margin-top:10px;', class: 'tbl-scroll' }, [U.el('table', { class: 'grid' }, [
+      U.el('thead', null, [U.el('tr', null, ['תאריך', 'חשבונית', 'סכום', 'סטטוס', ''].map(function (h) { return U.el('th', { text: h }); }))]),
+      tbody
+    ])]);
   }
 
   function buildMonthlyTable(agg) {

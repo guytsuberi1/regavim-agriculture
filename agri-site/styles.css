@@ -821,3 +821,7 @@ body.dark tr.lead-row td { background: #33301d !important; }
 .chip-half.on { background: #d97706; color: #fff; border-color: #d97706; }
 .send-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .send-step { margin: 0 0 4px; color: var(--green-dark); font-size: 16px; }
+
+/* חובות: שורת חשבונית ששולמה — מעומעמת עם קו חוצה */
+tr.inv-paid td { opacity: .6; }
+tr.inv-paid td:nth-child(3) { text-decoration: line-through; }
