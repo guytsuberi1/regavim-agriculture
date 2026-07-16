@@ -616,12 +616,15 @@
       var cust = ci.cust >= 0 ? String(r[ci.cust] == null ? '' : r[ci.cust]).trim() : '';
       var amt = U.num(r[ci.amt]);
       var key = cust || normName(name);
-      if (!map[key]) { map[key] = { name: name, customerNumber: cust, total: 0, invoiceCount: 0, date: '', _dt: null }; order.push(key); }
+      if (!map[key]) { map[key] = { name: name, customerNumber: cust, total: 0, invoiceCount: 0, date: '', _dt: null, lines: [] }; order.push(key); }
       var g = map[key];
       g.total += amt;
       if (amt > 0) g.invoiceCount++; // שורה חיובית = חשבונית; שלילית = תשלום על חשבון
       var dv = ci.date >= 0 ? r[ci.date] : null;
-      if (dv instanceof Date && !isNaN(dv) && (!g._dt || dv > g._dt)) { g._dt = dv; g.date = fmtCellDate(dv); }
+      var lineDate = fmtCellDate(dv);
+      if (dv instanceof Date && !isNaN(dv) && (!g._dt || dv > g._dt)) { g._dt = dv; g.date = lineDate; }
+      // שמירת כל שורה בנפרד — חשבונית או תשלום — עם התאריך והמספר שלה
+      g.lines.push({ amount: Math.round(amt * 100) / 100, date: lineDate, invoice: ci.inv >= 0 ? String(r[ci.inv] == null ? '' : r[ci.inv]).trim() : '' });
     });
     var agg = order.map(function (k) { var g = map[k]; g.total = Math.round(g.total * 100) / 100; return g; });
     if (!agg.length) { U.toast('לא נמצאו נתוני חובות בקובץ.', 'error'); return; }
@@ -683,12 +686,27 @@
         site = Store.upsert('sites', { name: nm, contactName: o.contact || '', phone: o.phone || '', active: false, notes: 'נוצר מייבוא חובות' });
         sites = Store.get().sites; created++;
       }
-      Store.upsert('debtRecords', {
-        siteId: site.id, openingDebt: U.num(o.amount),
-        debtYear: String(o.year == null ? '' : o.year).trim(), status: o.status || 'פתוחה',
-        handledBy: o.handler || '', notes: o.note || '', imported: true
-      });
-      added++;
+      var custNote = o.customerNumber ? ('מס׳ לקוח ' + o.customerNumber) : '';
+      if (o.lines && o.lines.length) {
+        // רשומה נפרדת לכל חשבונית/תשלום — עם התאריך והמספר שלה (מאפשר גבייה חלקית)
+        o.lines.forEach(function (ln) {
+          var note = [ln.invoice ? 'חשבונית ' + ln.invoice : 'תשלום על חשבון'];
+          if (custNote) note.push(custNote);
+          Store.upsert('debtRecords', {
+            siteId: site.id, openingDebt: U.num(ln.amount),
+            debtYear: String(ln.date == null ? '' : ln.date).trim(), status: 'פתוחה',
+            handledBy: '', notes: note.join(' · '), imported: true
+          });
+          added++;
+        });
+      } else {
+        Store.upsert('debtRecords', {
+          siteId: site.id, openingDebt: U.num(o.amount),
+          debtYear: String(o.year == null ? '' : o.year).trim(), status: o.status || 'פתוחה',
+          handledBy: o.handler || '', notes: o.note || '', imported: true
+        });
+        added++;
+      }
     });
     return { created: created, added: added };
   }
@@ -746,7 +764,8 @@
         total: U.num(r.total),
         date: String(r.date || '').trim(),
         customerNumber: String(r.customerNumber || '').trim(),
-        invoiceCount: r.invoiceCount || 0
+        invoiceCount: r.invoiceCount || 0,
+        lines: r.lines || null // פירוט חשבוניות (אם קיים) — נשמר כרשומה נפרדת לכל חשבונית
       };
     });
 
@@ -765,29 +784,43 @@
         siteCell.innerHTML = '';
         siteCell.appendChild(has ? U.el('span', { class: 'muted', text: 'קיים' }) : U.el('span', { class: 'tag', style: 'background:#FEF3C7;color:#92400E;', text: 'אתר חדש' }));
       });
-      var totInp = U.el('input', { type: 'number', step: '0.01', value: st.total, style: 'width:110px;' });
-      totInp.addEventListener('input', function () { st.total = U.num(totInp.value); });
-      var dtInp = U.el('input', { type: 'text', value: st.date, placeholder: 'dd/mm/yyyy', style: 'width:100px;' });
-      dtInp.addEventListener('input', function () { st.date = dtInp.value; });
+      // כשיש פירוט חשבוניות — היתרה והתאריך מחושבים מהשורות (לתצוגה בלבד); אחרת ניתנים לעריכה
+      var hasLines = st.lines && st.lines.length;
+      var totCell, dtCell;
+      if (hasLines) {
+        totCell = U.el('td', { class: 'center', title: 'סכום החשבוניות פחות התשלומים', text: money(st.total) });
+        dtCell = U.el('td', { class: 'center muted', text: st.date || '—' });
+      } else {
+        var totInp = U.el('input', { type: 'number', step: '0.01', value: st.total, style: 'width:110px;' });
+        totInp.addEventListener('input', function () { st.total = U.num(totInp.value); });
+        totCell = U.el('td', { class: 'center' }, [totInp]);
+        var dtInp = U.el('input', { type: 'text', value: st.date, placeholder: 'dd/mm/yyyy', style: 'width:100px;' });
+        dtInp.addEventListener('input', function () { st.date = dtInp.value; });
+        dtCell = U.el('td', { class: 'center' }, [dtInp]);
+      }
 
       tbody.appendChild(U.el('tr', null, [
         U.el('td', { class: 'center' }, [chk]),
         U.el('td', null, [nameInp]),
-        U.el('td', { class: 'center' }, [totInp]),
-        U.el('td', { class: 'center' }, [dtInp]),
+        totCell,
+        dtCell,
         U.el('td', { class: 'center', text: st.invoiceCount ? String(st.invoiceCount) : '' }),
         siteCell
       ]));
     });
 
+    var anyLines = state.some(function (s) { return s.lines && s.lines.length; });
     var table = U.el('div', { class: 'tbl-scroll' }, [U.el('table', { class: 'grid' }, [
       U.el('thead', null, [U.el('tr', null,
-        ['', 'שם עסק', 'יתרת חוב (₪)', 'תאריך', 'חשבוניות', 'אתר'].map(function (h) { return U.el('th', { text: h }); }))]),
+        ['', 'שם עסק', 'יתרת חוב (₪)', 'תאריך אחרון', 'חשבוניות', 'אתר'].map(function (h) { return U.el('th', { text: h }); }))]),
       tbody
     ])]);
     var src = sourceLabel || 'הקובץ';
+    var totalInv = state.reduce(function (a, s) { return a + (s.lines ? s.lines.length : 0); }, 0);
     var info = U.el('div', { class: 'muted', style: 'margin-bottom:10px;', html:
-      'חולצו <b>' + state.length + '</b> חובות מ' + src + '. בדקו וערכו לפי הצורך, ובטלו סימון לשורות שלא לייבא. אתרים חדשים ייווצרו כלא-פעילים.' });
+      'חולצו <b>' + state.length + '</b> חקלאים מ' + src + '.' +
+      (anyLines ? ' כל חשבונית תישמר כשורה נפרדת עם התאריך שלה (' + totalInv + ' חשבוניות בסך הכל) — כך תוכלו לסמן גבייה חלקית.' : '') +
+      ' בדקו, ובטלו סימון לשורות שלא לייבא. אתרים חדשים ייווצרו כלא-פעילים.' });
 
     // אפשרות החלפה מלאה — מחיקת כל החובות הקיימים לפני הייבוא
     var replaceChk = U.el('input', { type: 'checkbox' });
@@ -797,11 +830,15 @@
     Modal.open('📥 תצוגה מקדימה — ייבוא חובות', U.el('div', null, [info, replaceRow, table]), [
       { label: 'ביטול', class: 'secondary' },
       { label: 'ייבא נבחרים', onClick: function (close) {
-        var chosen = state.filter(function (s) { return s.include && String(s.name).trim() && s.total; });
+        var chosen = state.filter(function (s) { return s.include && String(s.name).trim() && (s.total || (s.lines && s.lines.length)); });
         if (!chosen.length) { U.toast('לא נבחרו שורות לייבוא (ודאו שם ויתרה).', 'error'); return; }
         var doImport = function () {
           if (replaceChk.checked) clearAllDebts();
           var objs = chosen.map(function (s) {
+            if (s.lines && s.lines.length) {
+              // פירוט חשבוניות — רשומה לכל חשבונית (התאריך והמספר נשמרים בכל אחת)
+              return { name: s.name, customerNumber: s.customerNumber, lines: s.lines };
+            }
             var note = [];
             if (s.customerNumber) note.push('מס׳ לקוח ' + s.customerNumber);
             if (s.invoiceCount) note.push(s.invoiceCount + ' חשבוניות');
