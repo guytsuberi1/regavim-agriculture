@@ -110,12 +110,15 @@
       if (rec.handledBy) a.handlers[rec.handledBy] = true;
       if (rec.debtYear) a.years[rec.debtYear] = true;
     });
-    Object.keys(billed).forEach(function (siteId) {
-      if (U.num(billed[siteId].total) <= 0) return;
-      var a = ensure(siteId);
-      a.billed = billed[siteId];
-      a.balance += billingBalance(siteId, billed[siteId].total);
-    });
+    // חיוב שוטף מהמערכת — מוסתר כשמנהלים חובות מפנקס Priority (החיובים כבר בו, למניעת כפילות)
+    if (!(Store.get().settings || {}).debtHideBilling) {
+      Object.keys(billed).forEach(function (siteId) {
+        if (U.num(billed[siteId].total) <= 0) return;
+        var a = ensure(siteId);
+        a.billed = billed[siteId];
+        a.balance += billingBalance(siteId, billed[siteId].total);
+      });
+    }
     return map;
   }
 
@@ -150,8 +153,13 @@
       STATUSES.map(function (s) { return U.el('option', { value: s.value }, s.value); })));
     statusSel.value = filterStatus;
     statusSel.addEventListener('change', function () { filterStatus = statusSel.value; App.render(); });
-    root.appendChild(U.el('div', { class: 'no-print', style: 'display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;' }, [
-      U.el('span', { class: 'muted', text: 'סינון לפי סטטוס:' }), statusSel
+    var billChk = U.el('input', { type: 'checkbox', checked: !(Store.get().settings || {}).debtHideBilling });
+    billChk.addEventListener('change', function () {
+      var d = Store.get(); if (!d.settings) d.settings = {}; d.settings.debtHideBilling = !billChk.checked; Store.save(); App.render();
+    });
+    root.appendChild(U.el('div', { class: 'no-print', style: 'display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:12px;' }, [
+      U.el('span', { class: 'muted', text: 'סינון לפי סטטוס:' }), statusSel,
+      U.el('label', { style: 'display:inline-flex;gap:6px;align-items:center;cursor:pointer;', title: 'כשמנהלים חובות מפנקס Priority — כבו כדי לא לספור פעמיים' }, [billChk, U.el('span', { class: 'muted', text: 'הצג חיוב שוטף מהמערכת' })])
     ]));
 
     // ----- טבלה מסכמת (חלק עליון) -----
@@ -166,11 +174,11 @@
       tbody.appendChild(U.el('tr', null, [
         U.el('td', { html: '<b>סה"כ מוצג</b>' }), U.el('td'), U.el('td'),
         U.el('td', { class: 'center', html: '<b>' + money(shownTotal) + '</b>' }),
-        U.el('td'), U.el('td'), U.el('td'), U.el('td')
+        U.el('td'), U.el('td'), U.el('td')
       ]));
       root.appendChild(U.el('table', { class: 'grid' }, [
         U.el('thead', null, [U.el('tr', null,
-          ['שם עסק', 'איש קשר', 'טלפון', 'יתרת חוב', 'סטטוס', 'מטופל ע"י', 'תאריך חוב', 'הערות']
+          ['שם עסק', 'איש קשר', 'טלפון', 'יתרת חוב', 'סטטוס', 'מטופל ע"י', 'הערות']
             .map(function (h) { return U.el('th', { text: h }); }))]),
         tbody
       ]));
@@ -217,9 +225,21 @@
       U.el('td', { class: 'center', html: '<b style="' + balStyle(a.balance) + '">' + money(a.balance) + '</b>' }),
       U.el('td', null, [statusCell]),
       U.el('td', { text: Object.keys(a.handlers).join(', ') }),
-      U.el('td', { text: Object.keys(a.years).join(', ') }),
-      U.el('td', { text: a.recs.map(function (r) { return r.notes; }).filter(Boolean).join(' · ') })
+      U.el('td', null, [noteInput(a.siteId)])
     ]);
+  }
+
+  // הערה חופשית לחקלאי (נשמרת פר-אתר, נערכת מהטבלה המסכמת)
+  function farmerNote(siteId) { var m = Store.get().debtNotes || {}; return m[siteId] || ''; }
+  function noteInput(siteId) {
+    var inp = U.el('input', { type: 'text', value: farmerNote(siteId), placeholder: 'הערה…', style: 'width:100%;min-width:120px;' });
+    inp.addEventListener('change', function () {
+      var d = Store.get(); if (!d.debtNotes) d.debtNotes = {};
+      var v = inp.value.trim();
+      if (v) d.debtNotes[siteId] = v; else delete d.debtNotes[siteId];
+      Store.save();
+    });
+    return inp;
   }
 
   function selectFarmer(siteId) {
@@ -871,7 +891,7 @@
     // אפשרות החלפה מלאה — מחיקת כל החובות הקיימים לפני הייבוא
     var replaceChk = U.el('input', { type: 'checkbox' });
     var replaceRow = U.el('label', { style: 'display:flex;gap:8px;align-items:center;margin:4px 0 12px;padding:8px 10px;border:1px solid var(--danger);border-radius:8px;background:#fef2f2;color:var(--danger);font-weight:600;cursor:pointer;' },
-      [replaceChk, U.el('span', { text: '🗑️ החלפה מלאה — מחיקת כל החובות הקיימים לפני הייבוא (כל השאר יימחק)' })]);
+      [replaceChk, U.el('span', { text: '🗑️ החלפה מלאה — מחיקת כל החובות הקיימים והסתרת החיוב השוטף מהמערכת (החשבוניות כבר בקובץ)' })]);
 
     Modal.open('📥 תצוגה מקדימה — ייבוא חובות', U.el('div', null, [info, replaceRow, table]), [
       { label: 'ביטול', class: 'secondary' },
@@ -879,7 +899,10 @@
         var chosen = state.filter(function (s) { return s.include && String(s.name).trim() && (s.total || (s.lines && s.lines.length)); });
         if (!chosen.length) { U.toast('לא נבחרו שורות לייבוא (ודאו שם ויתרה).', 'error'); return; }
         var doImport = function () {
-          if (replaceChk.checked) clearAllDebts();
+          if (replaceChk.checked) {
+            clearAllDebts();
+            var d = Store.get(); if (!d.settings) d.settings = {}; d.settings.debtHideBilling = true; // החיובים כבר בקובץ
+          }
           var objs = chosen.map(function (s) {
             if (s.lines && s.lines.length) {
               // פירוט חשבוניות — רשומה לכל חשבונית (התאריך והמספר נשמרים בכל אחת)
