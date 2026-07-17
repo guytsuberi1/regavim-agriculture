@@ -7,6 +7,14 @@
   var period = 'month';      // week | month | year (לשונית "מבט על")
   var dashDate = U.todayISO(); // תאריך לסיכום היומי
   var trendMetric = 'income'; // המדד המוצג בגרף המגמה (נבחר בלחיצה על כרטיס)
+
+  // רינדור מחדש בלי לקפוץ בעמוד (לחיצה על כרטיס KPI / עדכון משימה)
+  function renderKeepScroll() {
+    var y = window.scrollY;
+    App.render();
+    window.scrollTo(0, y);
+    requestAnimationFrame(function () { window.scrollTo(0, y); });
+  }
   // משימות מהשטח — סינון ומיון של הטבלה
   var taskFilter = { status: '', site: '', q: '' }; // status '' = הכל חוץ מטופל; 'done' = ארכיון
   var taskSort = { key: 'smart', dir: 1 };          // 'smart' = תקוע→פתוח→בטיפול, חדש למעלה
@@ -162,6 +170,32 @@
     Store.save();
   }
   function staffName(id) { var s = id ? Store.getById('staff', id) : null; return s ? s.name : ''; }
+
+  // כפתור וואטסאפ לאחראי משימה — שולח לו את כל המשימות הפתוחות שלו
+  function assigneeWaBtn(t) {
+    if (!t.assigneeId) return null;
+    var s = Store.getById('staff', t.assigneeId);
+    if (!s) return null;
+    var wn = waN(s.phone);
+    var mine = allTasks().filter(function (x) { return x.assigneeId === t.assigneeId && x.status !== 'done'; });
+    var multi = mine.length > 1;
+    var lines = ['שלום ' + s.name + ',', multi ? 'המשימות שלך מרגבים בנימין:' : 'משימה עבורך מרגבים בנימין:'];
+    mine.forEach(function (x, i) {
+      var site = (x.siteName && x.siteName !== '—') ? '[' + x.siteName + '] ' : '';
+      var meta = [];
+      if (x.due) meta.push('יעד ' + U.gregLabel(x.due));
+      if (x.status === 'stuck') meta.push('תקוע');
+      lines.push((multi ? (i + 1) + '. ' : '') + site + x.text + (meta.length ? ' (' + meta.join(' · ') + ')' : ''));
+    });
+    lines.push('תודה 🌱 רגבים בנימין');
+    return U.el('a', {
+      class: 'btn small ico no-print', target: '_blank', rel: 'noopener',
+      href: (wn ? 'https://wa.me/' + wn : 'https://wa.me/') + '?text=' + encodeURIComponent(lines.join('\n')),
+      style: 'background:#25D366;color:#fff;border:0;',
+      title: wn ? 'שליחת ' + (multi ? mine.length + ' המשימות של ' : 'המשימה ל') + s.name + ' בוואטסאפ' : 'אין מספר טלפון ל' + s.name,
+      html: U.WA_SVG
+    });
+  }
   function ageDays(iso) { try { return Math.round((U.fromISO(U.todayISO()) - U.fromISO(iso)) / 86400000); } catch (e) { return 0; } }
   function ageLabel(n) { return n <= 0 ? 'היום' : (n === 1 ? 'אתמול' : 'לפני ' + n + ' ימים'); }
 
@@ -245,7 +279,7 @@
       card.classList.add('kpi-click');
       if (trendMetric === key) card.classList.add('sel');
       card.title = 'לחצו להצגת המגמה של: ' + label;
-      card.addEventListener('click', function () { trendMetric = key; App.render(); });
+      card.addEventListener('click', function () { trendMetric = key; renderKeepScroll(); });
     }
     return card;
   }
@@ -657,18 +691,19 @@
         var asg = U.el('select', { class: 't-asg' }, [U.el('option', { value: '' }, '—')].concat(
           staff.map(function (s) { return U.el('option', { value: s.id }, s.name); })));
         asg.value = t.assigneeId && Store.getById('staff', t.assigneeId) ? t.assigneeId : '';
-        asg.addEventListener('change', function () { setTaskField(t, 'assigneeId', asg.value); });
+        asg.addEventListener('change', function () { setTaskField(t, 'assigneeId', asg.value); renderKeepScroll(); });
+        var asgWa = assigneeWaBtn(t);
         // תאריך יעד — אדום כשעבר והמשימה לא טופלה
         var overdue = t.due && t.due < today && t.status !== 'done';
         var due = U.el('input', { type: 'date', class: 't-due' + (overdue ? ' overdue' : ''), value: t.due, title: overdue ? 'תאריך היעד עבר!' : 'תאריך יעד' });
-        due.addEventListener('change', function () { setTaskField(t, 'due', due.value); App.render(); });
+        due.addEventListener('change', function () { setTaskField(t, 'due', due.value); renderKeepScroll(); });
         // סטטוס צבוע
         var ssel = U.el('select', { class: 'fn-status', style: 'color:' + def.color + ';border-color:' + def.color + ';' },
           NOTE_STATUSES.map(function (st) { return U.el('option', { value: st.v }, st.label); }));
         ssel.value = t.status;
         ssel.addEventListener('change', function () {
           setTaskField(t, 'status', ssel.value);
-          App.render();
+          renderKeepScroll();
           if (ssel.value === 'done') U.toast('המשימה הועברה לארכיון (סינון "טופל")');
         });
         // הערת רכז
@@ -692,7 +727,7 @@
             U.el('div', { text: t.text }),
             t.by ? U.el('div', { class: 'task-text-by', text: 'דיווח: ' + t.by }) : null
           ]),
-          U.el('td', null, [asg]),
+          U.el('td', null, [U.el('div', { style: 'display:flex;gap:5px;align-items:center;' }, [asg, asgWa])]),
           U.el('td', null, [due]),
           U.el('td', null, [ssel]),
           U.el('td', null, [reply]),
