@@ -8,12 +8,20 @@
   var dashDate = U.todayISO(); // תאריך לסיכום היומי
   var trendMetric = 'income'; // המדד המוצג בגרף המגמה (נבחר בלחיצה על כרטיס)
 
-  // רינדור מחדש בלי לקפוץ בעמוד (לחיצה על כרטיס KPI / עדכון משימה)
+  // רינדור מחדש בלי לקפוץ בעמוד (עדכון משימה בטבלה)
   function renderKeepScroll() {
     var y = window.scrollY;
     App.render();
     window.scrollTo(0, y);
     requestAnimationFrame(function () { window.scrollTo(0, y); });
+  }
+  // רינדור מחדש + גלילה חלקה אל גרף המגמה (לחיצה על כרטיס KPI ב"מבט על")
+  function renderToTrend() {
+    App.render();
+    requestAnimationFrame(function () {
+      var g = document.getElementById('dashTrendPanel');
+      if (g) g.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
   }
   // משימות מהשטח — סינון ומיון של הטבלה
   var taskFilter = { status: '', site: '', q: '' }; // status '' = הכל חוץ מטופל; 'done' = ארכיון
@@ -279,7 +287,7 @@
       card.classList.add('kpi-click');
       if (trendMetric === key) card.classList.add('sel');
       card.title = 'לחצו להצגת המגמה של: ' + label;
-      card.addEventListener('click', function () { trendMetric = key; renderKeepScroll(); });
+      card.addEventListener('click', function () { trendMetric = key; renderToTrend(); });
     }
     return card;
   }
@@ -404,8 +412,10 @@
     var offs = [-5, -4, -3, -2, -1, 0];
     var series = offs.map(function (o) { return { label: periodShortLabel(period, o), r: rangeOf(period, o) }; });
     series.forEach(function (s) { s.m = computeRange(s.r); });
-    root.appendChild(panel('📈 מגמה: ' + mm.label,
-      trendChart(series.map(function (s) { return { label: s.label, val: mm.get(s.m) || 0 }; }), mm.fmt)));
+    var trendPanel = panel('📈 מגמה: ' + mm.label,
+      trendChart(series.map(function (s) { return { label: s.label, val: mm.get(s.m) || 0 }; }), mm.fmt));
+    trendPanel.id = 'dashTrendPanel';
+    root.appendChild(trendPanel);
     root.appendChild(U.el('p', { class: 'muted', style: 'font-size:12px;margin-top:4px;', text: 'לחצו על כל כרטיס נתון כדי להציג את המגמה שלו בגרף.' }));
 
     root.appendChild(U.el('p', { class: 'muted', style: 'font-size:12px;', text: 'הכנסות מחושבות לפי שעות×תעריף + נסיעות לכל יום (אומדן ניהולי; הנתון המדויק לחיוב נמצא ב"דרישת תשלום").' }));
