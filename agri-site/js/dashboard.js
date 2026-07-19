@@ -383,29 +383,12 @@
   function render(root) {
     if (!Store.canManage()) { root.appendChild(U.el('div', { class: 'card empty' }, 'אין הרשאה.')); return; }
 
-    // אזור פתיחה אישי — ברכה לפי שעה, תאריך עברי, ומבט מהיר על נתוני החודש
+    // אזור פתיחה אישי — ברכה לפי שעה + תאריך עברי
     var first = (Store.myFirstName && Store.myFirstName()) || '';
-    var hm = computeRange(rangeOf('month', 0));
-    var hMoney = function (v) { return v >= 9500 ? Math.round(v / 1000) + 'k ₪' : Math.round(v) + ' ₪'; };
-    var heroStat = function (ic, val, lbl) {
-      return U.el('div', { class: 'hero-stat' }, [
-        U.el('span', { class: 'hs-ic', text: ic }),
-        U.el('div', { style: 'min-width:0;' }, [
-          U.el('div', { class: 'hs-val', text: val }),
-          U.el('div', { class: 'hs-lbl', text: lbl })
-        ])
-      ]);
-    };
     root.appendChild(U.el('div', { class: 'dash-hero' }, [
       U.el('div', { class: 'dash-hero-l' }, [
         U.el('div', { class: 'dash-hero-hi', text: greeting() + (first ? ', ' + first : '') + ' 👋' }),
         U.el('div', { class: 'dash-hero-sub', text: '📊 דשבורד מנהלים · ' + U.weekdayName(U.todayISO()) + ' · ' + U.gregLabel(U.todayISO()) })
-      ]),
-      U.el('div', { class: 'dash-hero-stats no-print' }, [
-        heroStat('🧑‍🌾', String(hm.activeStudents), 'תלמידים פעילים החודש'),
-        heroStat('🗓️', String(hm.workDays), 'ימי עבודה החודש'),
-        heroStat('⏱️', Math.round(hm.hours).toLocaleString('he-IL'), 'שעות החודש'),
-        heroStat('💵', hMoney(hm.income), 'הכנסות החודש')
       ])
     ]));
 
