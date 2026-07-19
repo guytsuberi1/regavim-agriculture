@@ -666,6 +666,8 @@
     roleOf: roleOf,
     setUserRole: setUserRole,
     currentEmail: function () { return sessionUser && sessionUser.email ? String(sessionUser.email).toLowerCase() : null; },
+    myName: function () { return sessionUser ? userDisplayName(sessionUser) : ''; },
+    myFirstName: function () { return sessionUser ? (userDisplayName(sessionUser).split(/\s+/)[0] || '') : ''; },
     flushPendingRemote: flushPendingRemote
   };
 })(window);

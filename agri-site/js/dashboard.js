@@ -7,6 +7,20 @@
   var period = 'month';      // week | month | year (לשונית "מבט על")
   var dashDate = U.todayISO(); // תאריך לסיכום היומי
   var trendMetric = 'income'; // המדד המוצג בגרף המגמה (נבחר בלחיצה על כרטיס)
+  var sparkData = {};        // key -> מערך ערכי 6 התקופות האחרונות (לספארקליין בכרטיס)
+
+  // ברכה לפי שעת היום
+  function greeting() {
+    var h = new Date().getHours();
+    if (h < 5) return 'לילה טוב';
+    if (h < 12) return 'בוקר טוב';
+    if (h < 18) return 'צהריים טובים';
+    if (h < 22) return 'ערב טוב';
+    return 'לילה טוב';
+  }
+  function escXml(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
 
   // רינדור מחדש בלי לקפוץ בעמוד (עדכון משימה בטבלה)
   function renderKeepScroll() {
@@ -262,8 +276,8 @@
     if (Math.abs(pct) < 0.5) return { txt: '≈', cls: 'flat' };
     return { txt: (pct > 0 ? '+' : '') + Math.round(pct) + '%', cls: pct > 0 ? 'up' : 'down' };
   }
-  function kpi(icon, value, label, tone, sub, badge) {
-    return U.el('div', { class: 'kpi kpi-' + (tone || 'neutral') }, [
+  function kpi(icon, value, label, tone, sub, badge, spark) {
+    var main = U.el('div', { class: 'kpi-main' }, [
       U.el('div', { class: 'kpi-ic', text: icon }),
       U.el('div', { class: 'kpi-body' }, [
         U.el('div', { class: 'kpi-row' }, [
@@ -274,6 +288,7 @@
         sub ? U.el('div', { class: 'kpi-sub', text: sub }) : null
       ])
     ]);
+    return U.el('div', { class: 'kpi kpi-' + (tone || 'neutral') }, [main, spark || null]);
   }
   function metricKpi(icon, label, cur, prev, fmt, tone, invert, key) {
     var badge = deltaBadge(cur, prev);
@@ -281,7 +296,8 @@
     if (invert && badge && (badge.cls === 'up' || badge.cls === 'down')) badge.cls = (badge.cls === 'up' ? 'down' : 'up');
     // אין תקופה קודמת (null או 0 נתונים) — בלי כיתוב "היה..." ובלי באדג'
     var sub = (prev == null || prev === 0) ? null : ('היה ' + fmt(prev) + ' ' + prevWord());
-    var card = kpi(icon, cur == null ? '—' : fmt(cur), label, tone, sub, badge);
+    var spark = (key && sparkData[key]) ? miniSpark(sparkData[key]) : null;
+    var card = kpi(icon, cur == null ? '—' : fmt(cur), label, tone, sub, badge, spark);
     // לחיצה על כרטיס מציגה את מגמת הנתון בגרף
     if (key) {
       card.classList.add('kpi-click');
@@ -306,27 +322,90 @@
       }))
     ]);
   }
-  function trendChart(values, fmt) {
-    var max = Math.max(1, Math.max.apply(null, values.map(function (v) { return v.val || 0; })));
-    return U.el('div', { class: 'trend' }, values.map(function (v, i) {
-      var h = Math.max(2, (v.val || 0) / max * 100);
-      var isCur = i === values.length - 1;
-      return U.el('div', { class: 'trend-col', title: v.label + ': ' + fmt(v.val || 0) }, [
-        U.el('div', { class: 'trend-val' + (isCur ? ' cur' : ''), text: fmt(v.val || 0) }),
-        U.el('div', { class: 'trend-bar' + (isCur ? ' cur' : ''), style: 'height:' + h.toFixed(0) + '%;' }),
-        U.el('div', { class: 'trend-lbl' + (isCur ? ' cur' : ''), text: v.label })
-      ]);
-    }));
+  // ספארקליין זעיר בתוך כרטיס KPI (6 תקופות; החדש ביותר בצד שמאל, לפי RTL)
+  function miniSpark(values) {
+    var vals = (values || []).map(function (v) { return +v || 0; });
+    if (vals.length < 2) return null;
+    var rev = vals.slice().reverse();          // [חדש..ישן] → החדש בשמאל
+    var n = rev.length, W = 68, H = 30, pad = 3;
+    var max = Math.max.apply(null, rev), min = Math.min.apply(null, rev);
+    var rng = (max - min) || 1;
+    var X = function (i) { return pad + i * (W - 2 * pad) / (n - 1); };
+    var Y = function (v) { return H - pad - (v - min) / rng * (H - 2 * pad); };
+    var line = 'M' + X(0).toFixed(1) + ',' + Y(rev[0]).toFixed(1);
+    for (var i = 1; i < n; i++) {
+      var cx = (X(i - 1) + X(i)) / 2;
+      line += ' C' + cx.toFixed(1) + ',' + Y(rev[i - 1]).toFixed(1) + ' ' + cx.toFixed(1) + ',' + Y(rev[i]).toFixed(1) + ' ' + X(i).toFixed(1) + ',' + Y(rev[i]).toFixed(1);
+    }
+    var area = line + ' L' + X(n - 1).toFixed(1) + ',' + (H - pad) + ' L' + X(0).toFixed(1) + ',' + (H - pad) + ' Z';
+    var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" aria-hidden="true">'
+      + '<path d="' + area + '" fill="currentColor" fill-opacity="0.13" stroke="none"/>'
+      + '<path d="' + line + '" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>'
+      + '<circle cx="' + X(0).toFixed(1) + '" cy="' + Y(rev[0]).toFixed(1) + '" r="2.3" fill="currentColor"/></svg>';
+    return U.el('div', { class: 'kpi-spark', html: svg });
+  }
+  // גרף מגמה כ-Area עם גרדיאנט וקו חלק (מחליף את גרף הפסים)
+  function areaChart(values, fmt) {
+    var data = values.slice().reverse();       // [חדש..ישן] → החדש בשמאל, בהתאמה ל-RTL
+    var n = data.length;
+    if (!n) return U.el('div', { class: 'dash-empty', text: 'אין נתונים.' });
+    var vals = data.map(function (d) { return d.val || 0; });
+    var max = Math.max.apply(null, vals), min = Math.min.apply(null, vals);
+    var rng = (max - min) || 1;
+    var W = 640, H = 190, padX = 42, padT = 30, padB = 34;
+    var innerW = W - 2 * padX, innerH = H - padT - padB;
+    var X = function (i) { return padX + (n === 1 ? innerW / 2 : i * innerW / (n - 1)); };
+    var Y = function (v) { return padT + (1 - (v - min) / rng) * innerH; };
+    var pts = vals.map(function (v, i) { return { x: X(i), y: Y(v) }; });
+    var line = 'M' + pts[0].x.toFixed(1) + ',' + pts[0].y.toFixed(1);
+    for (var i = 1; i < n; i++) {
+      var cx = (pts[i - 1].x + pts[i].x) / 2;
+      line += ' C' + cx.toFixed(1) + ',' + pts[i - 1].y.toFixed(1) + ' ' + cx.toFixed(1) + ',' + pts[i].y.toFixed(1) + ' ' + pts[i].x.toFixed(1) + ',' + pts[i].y.toFixed(1);
+    }
+    var base = (padT + innerH).toFixed(1);
+    var area = line + ' L' + pts[n - 1].x.toFixed(1) + ',' + base + ' L' + pts[0].x.toFixed(1) + ',' + base + ' Z';
+    var s = '<defs><linearGradient id="acGrad" x1="0" y1="0" x2="0" y2="1">'
+      + '<stop offset="0" stop-color="currentColor" stop-opacity="0.30"/>'
+      + '<stop offset="1" stop-color="currentColor" stop-opacity="0.02"/></linearGradient></defs>';
+    s += '<line x1="' + padX + '" y1="' + base + '" x2="' + (W - padX) + '" y2="' + base + '" stroke="var(--border)" stroke-width="1"/>';
+    s += '<path d="' + area + '" fill="url(#acGrad)"/>';
+    s += '<path d="' + line + '" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>';
+    pts.forEach(function (p, idx) {
+      var cur = idx === 0;
+      s += '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + (cur ? 4.4 : 3) + '" fill="var(--card)" stroke="currentColor" stroke-width="' + (cur ? 3 : 2) + '"/>';
+      s += '<text x="' + p.x.toFixed(1) + '" y="' + (p.y - 10).toFixed(1) + '" text-anchor="middle" class="ac-val' + (cur ? ' cur' : '') + '">' + escXml(fmt(vals[idx])) + '</text>';
+      s += '<text x="' + p.x.toFixed(1) + '" y="' + (padT + innerH + 20).toFixed(1) + '" text-anchor="middle" class="ac-lbl' + (cur ? ' cur' : '') + '">' + escXml(data[idx].label) + '</text>';
+    });
+    return U.el('div', { class: 'trend-area', html: '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet" role="img">' + s + '</svg>' });
   }
 
   // ---------- רינדור ראשי ----------
   function render(root) {
     if (!Store.canManage()) { root.appendChild(U.el('div', { class: 'card empty' }, 'אין הרשאה.')); return; }
 
-    root.appendChild(U.el('div', { class: 'page-head dash-head' }, [
-      U.el('div', null, [
-        U.el('h2', { text: '📊 דשבורד מנהלים' }),
-        U.el('div', { class: 'muted', style: 'font-size:13px;', text: U.weekdayName(U.todayISO()) + ' · ' + U.gregLabel(U.todayISO()) })
+    // אזור פתיחה אישי — ברכה לפי שעה, תאריך עברי, ומבט מהיר על נתוני החודש
+    var first = (Store.myFirstName && Store.myFirstName()) || '';
+    var hm = computeRange(rangeOf('month', 0));
+    var hMoney = function (v) { return v >= 9500 ? Math.round(v / 1000) + 'k ₪' : Math.round(v) + ' ₪'; };
+    var heroStat = function (ic, val, lbl) {
+      return U.el('div', { class: 'hero-stat' }, [
+        U.el('span', { class: 'hs-ic', text: ic }),
+        U.el('div', { style: 'min-width:0;' }, [
+          U.el('div', { class: 'hs-val', text: val }),
+          U.el('div', { class: 'hs-lbl', text: lbl })
+        ])
+      ]);
+    };
+    root.appendChild(U.el('div', { class: 'dash-hero' }, [
+      U.el('div', { class: 'dash-hero-l' }, [
+        U.el('div', { class: 'dash-hero-hi', text: greeting() + (first ? ', ' + first : '') + ' 👋' }),
+        U.el('div', { class: 'dash-hero-sub', text: '📊 דשבורד מנהלים · ' + U.weekdayName(U.todayISO()) + ' · ' + U.gregLabel(U.todayISO()) })
+      ]),
+      U.el('div', { class: 'dash-hero-stats no-print' }, [
+        heroStat('🧑‍🌾', String(hm.activeStudents), 'תלמידים פעילים החודש'),
+        heroStat('🗓️', String(hm.workDays), 'ימי עבודה החודש'),
+        heroStat('⏱️', Math.round(hm.hours).toLocaleString('he-IL'), 'שעות החודש'),
+        heroStat('💵', hMoney(hm.income), 'הכנסות החודש')
       ])
     ]));
 
@@ -369,6 +448,28 @@
     var num = function (v) { return Math.round(v).toLocaleString('he-IL'); };
     var one = function (v) { return v.toFixed(1); };
 
+    // מדדים + סדרת 6 התקופות האחרונות — מחושבים לפני הכרטיסים כדי להזין ספארקליין בכל כרטיס
+    var moneyShort = function (v) { return v >= 9500 ? Math.round(v / 1000) + 'k ₪' : Math.round(v) + ' ₪'; };
+    var METRICS = {
+      attPct:         { label: 'אחוז יציאה לעבודה', get: function (m) { return m.attPct || 0; }, fmt: function (v) { return Math.round(v) + '%'; } },
+      absUnap:        { label: 'היעדרויות ללא אישור', get: function (m) { return m.absUnap; }, fmt: function (v) { return String(Math.round(v)); } },
+      workDays:       { label: 'ימי עבודה', get: function (m) { return m.workDays; }, fmt: function (v) { return String(Math.round(v)); } },
+      activeStudents: { label: 'תלמידים פעילים', get: function (m) { return m.activeStudents; }, fmt: function (v) { return String(Math.round(v)); } },
+      avgStudents:    { label: 'ממוצע תלמידים ליום עבודה', get: function (m) { return m.workDays ? m.manDays / m.workDays : 0; }, fmt: function (v) { return v.toFixed(1); } },
+      hours:          { label: 'שעות עבודה', get: function (m) { return m.hours; }, fmt: function (v) { return String(Math.round(v)); } },
+      hoursAvg:       { label: 'ממוצע שעות ליום עבודה', get: function (m) { return m.workDays ? m.hours / m.workDays : 0; }, fmt: function (v) { return v.toFixed(1); } },
+      ratingAvg:      { label: 'ציון ממוצע', get: function (m) { return m.ratingAvg || 0; }, fmt: function (v) { return v.toFixed(1); } },
+      income:         { label: 'הכנסות', get: function (m) { return m.income; }, fmt: moneyShort },
+      incomeAvg:      { label: 'הכנסה ממוצעת ליום עבודה', get: function (m) { return m.workDays ? m.income / m.workDays : 0; }, fmt: moneyShort }
+    };
+    var offs = [-5, -4, -3, -2, -1, 0];
+    var series = offs.map(function (o) { return { label: periodShortLabel(period, o), r: rangeOf(period, o) }; });
+    series.forEach(function (s) { s.m = computeRange(s.r); });
+    sparkData = {};
+    Object.keys(METRICS).forEach(function (k) {
+      sparkData[k] = series.map(function (s) { return METRICS[k].get(s.m) || 0; });
+    });
+
     // מקובצים לנושאים, וצבע הפס בכל כרטיס = צבע הקטגוריה (כדי שהצבע יהיה בעל משמעות)
     function section(title, cards) {
       root.appendChild(U.el('div', { class: 'dash-sec', text: title }));
@@ -395,25 +496,9 @@
     ]);
 
     // גרף מגמה אחד — הנתון הנבחר (לחיצה על כרטיס מחליפה מדד), 6 התקופות האחרונות
-    var moneyShort = function (v) { return v >= 9500 ? Math.round(v / 1000) + 'k ₪' : Math.round(v) + ' ₪'; };
-    var METRICS = {
-      attPct:         { label: 'אחוז יציאה לעבודה', get: function (m) { return m.attPct || 0; }, fmt: function (v) { return Math.round(v) + '%'; } },
-      absUnap:        { label: 'היעדרויות ללא אישור', get: function (m) { return m.absUnap; }, fmt: function (v) { return String(Math.round(v)); } },
-      workDays:       { label: 'ימי עבודה', get: function (m) { return m.workDays; }, fmt: function (v) { return String(Math.round(v)); } },
-      activeStudents: { label: 'תלמידים פעילים', get: function (m) { return m.activeStudents; }, fmt: function (v) { return String(Math.round(v)); } },
-      avgStudents:    { label: 'ממוצע תלמידים ליום עבודה', get: function (m) { return m.workDays ? m.manDays / m.workDays : 0; }, fmt: function (v) { return v.toFixed(1); } },
-      hours:          { label: 'שעות עבודה', get: function (m) { return m.hours; }, fmt: function (v) { return String(Math.round(v)); } },
-      hoursAvg:       { label: 'ממוצע שעות ליום עבודה', get: function (m) { return m.workDays ? m.hours / m.workDays : 0; }, fmt: function (v) { return v.toFixed(1); } },
-      ratingAvg:      { label: 'ציון ממוצע', get: function (m) { return m.ratingAvg || 0; }, fmt: function (v) { return v.toFixed(1); } },
-      income:         { label: 'הכנסות', get: function (m) { return m.income; }, fmt: moneyShort },
-      incomeAvg:      { label: 'הכנסה ממוצעת ליום עבודה', get: function (m) { return m.workDays ? m.income / m.workDays : 0; }, fmt: moneyShort }
-    };
     var mm = METRICS[trendMetric] || METRICS.income;
-    var offs = [-5, -4, -3, -2, -1, 0];
-    var series = offs.map(function (o) { return { label: periodShortLabel(period, o), r: rangeOf(period, o) }; });
-    series.forEach(function (s) { s.m = computeRange(s.r); });
     var trendPanel = panel('📈 מגמה: ' + mm.label,
-      trendChart(series.map(function (s) { return { label: s.label, val: mm.get(s.m) || 0 }; }), mm.fmt));
+      areaChart(series.map(function (s) { return { label: s.label, val: mm.get(s.m) || 0 }; }), mm.fmt));
     trendPanel.id = 'dashTrendPanel';
     root.appendChild(trendPanel);
     root.appendChild(U.el('p', { class: 'muted', style: 'font-size:12px;margin-top:4px;', text: 'לחצו על כל כרטיס נתון כדי להציג את המגמה שלו בגרף.' }));
