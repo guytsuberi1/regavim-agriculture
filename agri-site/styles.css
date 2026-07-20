@@ -449,12 +449,23 @@ body.dark .day-total.under { background: #232e3a; }
 .trend-area .ac-lbl.cur { fill: var(--green-dark); font-weight: 700; }
 /* אזור פתיחה אישי (Hero) */
 .dash-hero {
-  display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap;
+  display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
   background: var(--card); border: 1px solid var(--border); border-radius: 18px;
-  box-shadow: var(--shadow); padding: 16px 20px; margin: 2px 0 16px;
+  box-shadow: var(--shadow); padding: 14px 18px; margin: 2px 0 16px;
 }
-.dash-hero-hi { font-size: 22px; font-weight: 800; color: var(--green-dark); letter-spacing: -.4px; line-height: 1.15; }
-.dash-hero-sub { font-size: 13px; color: var(--muted); margin-top: 3px; }
+.dash-hero-l { display: flex; align-items: center; gap: 13px; min-width: 0; }
+.dash-hero-logo {
+  width: 46px; height: 46px; flex: 0 0 auto; border-radius: 50%; font-size: 24px;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(180deg, var(--green-light), var(--card)); border: 1px solid var(--border);
+}
+.dash-hero-hi { font-size: 21px; font-weight: 800; color: var(--green-dark); letter-spacing: -.4px; line-height: 1.15; }
+.dash-hero-sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.dash-hero-date {
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  background: var(--green-light); color: var(--green-dark); border: 1px solid var(--border);
+  border-radius: 999px; padding: 6px 14px; font-size: 13px; font-weight: 600;
+}
 .dash-hero-stats { display: flex; gap: 10px; flex-wrap: wrap; }
 .hero-stat {
   display: flex; align-items: center; gap: 9px; background: var(--green-light);

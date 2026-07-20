@@ -383,12 +383,19 @@
   function render(root) {
     if (!Store.canManage()) { root.appendChild(U.el('div', { class: 'card empty' }, 'אין הרשאה.')); return; }
 
-    // אזור פתיחה אישי — ברכה לפי שעה + תאריך עברי
+    // אזור פתיחה אישי — לוגו + ברכה לפי שעה, ותאריך עברי בצ'יפ בצד
     var first = (Store.myFirstName && Store.myFirstName()) || '';
     root.appendChild(U.el('div', { class: 'dash-hero' }, [
       U.el('div', { class: 'dash-hero-l' }, [
-        U.el('div', { class: 'dash-hero-hi', text: greeting() + (first ? ', ' + first : '') + ' 👋' }),
-        U.el('div', { class: 'dash-hero-sub', text: '📊 דשבורד מנהלים · ' + U.weekdayName(U.todayISO()) + ' · ' + U.gregLabel(U.todayISO()) })
+        U.el('div', { class: 'dash-hero-logo', text: '🌱' }),
+        U.el('div', { style: 'min-width:0;' }, [
+          U.el('div', { class: 'dash-hero-hi', text: greeting() + (first ? ', ' + first : '') }),
+          U.el('div', { class: 'dash-hero-sub', text: '📊 דשבורד מנהלים' })
+        ])
+      ]),
+      U.el('div', { class: 'dash-hero-date' }, [
+        U.el('span', { class: 'rc-ic', text: '📅' }),
+        U.el('span', { text: U.weekdayName(U.todayISO()) + ' · ' + U.gregLabel(U.todayISO()) })
       ])
     ]));
 
