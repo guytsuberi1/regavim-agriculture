@@ -493,6 +493,7 @@
         + '<div class="usermenu-pop" id="userPop">'
           + '<div class="um-name">' + escHtml(name) + '</div>'
           + '<div class="um-email">' + escHtml(email) + '</div>'
+          + '<button class="um-item" id="umEditName">✏️ שם לתצוגה</button>'
           + '<button class="um-item um-logout" id="umLogout">↩️ התנתקות</button>'
         + '</div></div>';
       var ab = document.getElementById('avatarBtn'), pop = document.getElementById('userPop');
@@ -500,6 +501,8 @@
         ab.onclick = function (e) { e.stopPropagation(); pop.classList.toggle('open'); };
         document.addEventListener('click', function () { pop.classList.remove('open'); });
       }
+      var en = document.getElementById('umEditName');
+      if (en) en.onclick = function (e) { e.stopPropagation(); if (pop) pop.classList.remove('open'); editDisplayName(u); };
       var lo = document.getElementById('umLogout'); if (lo) lo.onclick = doLogout;
       var dt = document.getElementById('darkToggle');
       if (dt) dt.onclick = function () {
@@ -510,6 +513,34 @@
         dt.title = on ? 'מעבר למצב יום' : 'מעבר למצב לילה';
       };
     }).catch(function () {});
+  }
+  // עריכת שם התצוגה של המשתמש (נשמר בפרופיל שלו ב-Supabase; לא דורש הרשאת מנהל)
+  function editDisplayName(u) {
+    if (!U || !Modal || !sb) return;
+    var cur = (u.user_metadata && (u.user_metadata.full_name || u.user_metadata.name)) || '';
+    var inp = U.el('input', { type: 'text', value: cur, placeholder: 'לדוגמה: גיא', style: 'width:100%;' });
+    var err = U.el('div', { class: 'login-err', style: 'min-height:18px;' });
+    Modal.open('✏️ שם לתצוגה', U.el('div', null, [
+      U.el('p', { class: 'muted', style: 'margin-top:0;', text: 'השם שיוצג בברכה ובאווטאר. אפשר בעברית.' }),
+      U.el('div', { class: 'field' }, [inp]),
+      err
+    ]), [
+      { label: 'ביטול', class: 'secondary' },
+      { label: 'שמירה', onClick: function (close) {
+        var v = (inp.value || '').trim();
+        if (!v) { err.textContent = 'נא להזין שם'; inp.focus(); return; }
+        err.textContent = '';
+        sb.auth.updateUser({ data: { full_name: v } }).then(function (res) {
+          if (res.error) { err.textContent = 'השמירה נכשלה — נסו שוב'; return; }
+          if (sessionUser) { sessionUser.user_metadata = sessionUser.user_metadata || {}; sessionUser.user_metadata.full_name = v; }
+          close();
+          updateUserBar();
+          if (global.App && App.render) App.render();
+          global.U.toast('שם התצוגה עודכן');
+        }).catch(function () { err.textContent = 'השמירה נכשלה — נסו שוב'; });
+      } }
+    ]);
+    setTimeout(function () { inp.focus(); inp.select(); }, 30);
   }
   function doLogout() { if (sb) sb.auth.signOut().then(function () { location.reload(); }); }
 
