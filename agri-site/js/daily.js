@@ -377,13 +377,13 @@
     notesInp.addEventListener('change', function () { card.notes = notesInp.value; Store.save(); });
     body.appendChild(notesInp);
 
-    // הערה שהשאיר איש הצוות בשטח (לקריאת הרכז)
-    if (card.fieldNote) {
+    // הערות שהשאירו אנשי הצוות בשטח (לקריאת הרכז) — הערה נפרדת לכל איש צוות
+    U.cardFieldNotes(card).forEach(function (n) {
       body.appendChild(U.el('div', { class: 'card-fieldnote', style: 'margin-top:6px;background:#fff7e6;border:1px solid #f0d090;border-radius:6px;padding:6px 8px;font-size:13px;' }, [
-        U.el('span', { style: 'font-weight:600;', text: '📝 מהשטח' + (card.fieldNoteBy ? ' (' + card.fieldNoteBy + ')' : '') + ': ' }),
-        U.el('span', { text: card.fieldNote })
+        U.el('span', { style: 'font-weight:600;', text: '📝 מהשטח' + (n.by ? ' (' + n.by + ')' : '') + ': ' }),
+        U.el('span', { text: n.text })
       ]));
-    }
+    });
 
     node.appendChild(head);
     node.appendChild(body);

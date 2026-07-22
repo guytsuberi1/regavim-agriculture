@@ -204,6 +204,22 @@
     return wrap;
   }
 
+  // איסוף כל ההערות לרכז מכרטיס אתר: הערה ישנה יחידה (תאימות לאחור) + הערות אישיות לכל איש צוות
+  function cardFieldNotes(c) {
+    var out = [];
+    if (c.fieldNote && String(c.fieldNote).trim()) {
+      out.push({ key: '_legacy', text: c.fieldNote, by: c.fieldNoteBy || '', reply: c.fieldNoteReply || '',
+        status: c.fieldNoteStatus || (c.fieldNoteHandled ? 'done' : 'open'), assignee: c.fieldNoteAssignee || '', due: c.fieldNoteDue || '' });
+    }
+    var fn = c.fieldNotes || {};
+    Object.keys(fn).forEach(function (k) {
+      var e = fn[k];
+      if (!e || !String(e.text || '').trim()) return;
+      out.push({ key: k, text: e.text, by: e.by || '', reply: e.reply || '', status: e.status || 'open', assignee: e.assignee || '', due: e.due || '' });
+    });
+    return out;
+  }
+
   global.U = {
     el: el, clear: clear, $: $, $all: $all,
     todayISO: todayISO, toISO: toISO, fromISO: fromISO, addDays: addDays,
@@ -211,6 +227,7 @@
     hebrewDate: hebrewDate, gregLabel: gregLabel,
     monthKey: monthKey, monthLabel: monthLabel,
     GRADES: GRADES, WEEKDAYS: WEEKDAYS, num: num, escapeCsv: escapeCsv,
-    WA_SVG: WA_SVG, XLS_SVG: XLS_SVG, toast: toast, dateChip: dateChip, actionMenu: actionMenu
+    WA_SVG: WA_SVG, XLS_SVG: XLS_SVG, toast: toast, dateChip: dateChip, actionMenu: actionMenu,
+    cardFieldNotes: cardFieldNotes
   };
 })(window);

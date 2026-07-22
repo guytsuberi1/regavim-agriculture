@@ -205,11 +205,12 @@
     var out = [];
     Object.keys(d.days || {}).forEach(function (iso) {
       (d.days[iso].cards || []).forEach(function (c) {
-        if (c.fieldNote && String(c.fieldNote).trim()) {
-          var site = c.siteId ? ((Store.getById('sites', c.siteId) || {}).name || '(אתר)') : '(אתר)';
-          out.push({ kind: 'card', ref: c, date: iso, siteName: site, text: c.fieldNote, by: c.fieldNoteBy || '',
-            status: noteStatus(c), reply: c.fieldNoteReply || '', assigneeId: c.fieldNoteAssignee || '', due: c.fieldNoteDue || '' });
-        }
+        var site = c.siteId ? ((Store.getById('sites', c.siteId) || {}).name || '(אתר)') : '(אתר)';
+        // הערה אישית מכל איש צוות → שורת משימה נפרדת (עם שם הכותב)
+        U.cardFieldNotes(c).forEach(function (n) {
+          out.push({ kind: 'card', ref: c, noteKey: n.key, date: iso, siteName: site, text: n.text, by: n.by,
+            status: n.status, reply: n.reply, assigneeId: n.assignee, due: n.due });
+        });
       });
     });
     (d.tasks || []).forEach(function (t) {
@@ -222,9 +223,21 @@
   // כתיבת שדה למשימה — לפי המקור (הערת שטח על כרטיס / משימה ידנית)
   function setTaskField(t, field, value) {
     if (t.kind === 'card') {
-      var map = { status: 'fieldNoteStatus', reply: 'fieldNoteReply', assigneeId: 'fieldNoteAssignee', due: 'fieldNoteDue' };
-      t.ref[map[field]] = value;
-      if (field === 'status') delete t.ref.fieldNoteHandled;
+      var card = t.ref;
+      if (!card.fieldNotes) card.fieldNotes = {};
+      var key = t.noteKey || '_legacy';
+      // הגירה חד-פעמית של ההערה הישנה היחידה למפה, ברגע שהרכז מעדכן אותה
+      if (key === '_legacy') {
+        if (!card.fieldNotes._legacy) {
+          card.fieldNotes._legacy = { text: card.fieldNote || '', by: card.fieldNoteBy || '', reply: card.fieldNoteReply || '',
+            status: card.fieldNoteStatus || (card.fieldNoteHandled ? 'done' : 'open'), assignee: card.fieldNoteAssignee || '', due: card.fieldNoteDue || '' };
+        }
+        delete card.fieldNote; delete card.fieldNoteBy; delete card.fieldNoteReply;
+        delete card.fieldNoteStatus; delete card.fieldNoteAssignee; delete card.fieldNoteDue; delete card.fieldNoteHandled;
+      }
+      var e = card.fieldNotes[key] || (card.fieldNotes[key] = { text: t.text || '', by: t.by || '', reply: '', status: 'open', assignee: '', due: '' });
+      var emap = { status: 'status', reply: 'reply', assigneeId: 'assignee', due: 'due' };
+      e[emap[field] || field] = value;
     } else {
       t.ref[field] = value;
     }

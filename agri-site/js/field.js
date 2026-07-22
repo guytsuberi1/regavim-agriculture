@@ -230,20 +230,39 @@
 
     root.appendChild(U.el('button', { class: 'btn fadd-btn', onclick: function () { openAddWorked(card, list); } }, '➕ הוסף תלמיד שעבד באתר'));
 
-    // הערה כללית לרכז החקלאות (לכל האתר/היום)
-    var noteBox = U.el('textarea', { class: 'ffield-note', rows: '2', placeholder: '📝 הערה כללית לרכז החקלאות (לא חובה)…' });
-    noteBox.value = card.fieldNote || '';
+    // הערה אישית לרכז החקלאות — לכל איש צוות ההערה שלו (כשמשובצים כמה לאתר, כל אחד שולח בנפרד)
+    var myKey = myNoteKey();
+    if (!card.fieldNotes) card.fieldNotes = {};
+    var mineNote = card.fieldNotes[myKey];
+    var noteBox = U.el('textarea', { class: 'ffield-note', rows: '2', placeholder: '📝 הערה שלך לרכז החקלאות (לא חובה)…' });
+    noteBox.value = mineNote ? (mineNote.text || '') : '';
     noteBox.addEventListener('change', function () {
-      card.fieldNote = noteBox.value;
-      var meId = myStaffId();
-      var meName = meId ? ((Store.getById('staff', meId) || {}).name || '') : (Store.isAdmin && Store.isAdmin() ? 'רכז' : (Store.currentEmail ? (Store.currentEmail() || '') : ''));
-      card.fieldNoteBy = noteBox.value.trim() ? meName : '';
+      if (!card.fieldNotes) card.fieldNotes = {};
+      var v = noteBox.value;
+      if (!v.trim()) { delete card.fieldNotes[myKey]; Store.save(); return; }
+      var e = card.fieldNotes[myKey] || (card.fieldNotes[myKey] = { text: '', by: '', reply: '', status: 'open', assignee: '', due: '' });
+      e.text = v; e.by = myNoteName();
       Store.save();
     });
+    // אם משובצים כמה אנשי צוות — חיווי שההערות שנשלחות נפרדות
+    var multiStaff = staffIds.length > 1;
     root.appendChild(U.el('div', { class: 'ffield-note-wrap' }, [
-      U.el('label', { class: 'muted', text: 'הערה לרכז החקלאות' }),
+      U.el('label', { class: 'muted', text: 'הערה לרכז החקלאות' + (multiStaff ? ' (אישית — רק שלך)' : '') }),
       noteBox
     ]));
+  }
+
+  // מפתח וכינוי ההערה של המשתמש הנוכחי (איש צוות מקושר / מנהל לפי אימייל)
+  function myNoteKey() {
+    var id = myStaffId();
+    if (id) return id;
+    var em = (Store.currentEmail && Store.currentEmail()) || '';
+    return em ? ('u:' + em) : 'mgr';
+  }
+  function myNoteName() {
+    var id = myStaffId();
+    if (id) return (Store.getById('staff', id) || {}).name || '';
+    return (Store.isAdmin && Store.isAdmin()) ? 'רכז' : ((Store.currentEmail && Store.currentEmail()) || '');
   }
 
   // הוספת תלמיד שעבד באתר אך לא תוכנן ע"י רכז החקלאות
