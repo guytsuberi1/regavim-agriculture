@@ -93,6 +93,45 @@
     });
     Modal.open('תזכורת דיווח שטח — ' + U.weekdayName(dashDate) + ' ' + U.gregLabel(dashDate), body, [{ label: 'סגור', class: 'secondary' }]);
   }
+  // תזכורת SMS לאנשי צוות שלא השלימו דיווח שטח (בנוסף לוואטסאפ) — הודעה אחת לכל איש צוות
+  function staffSmsReminder() {
+    var day = (Store.get().days || {})[dashDate], cards = (day && day.cards) || [];
+    var byStaff = {};
+    cards.forEach(function (c) {
+      var students = c.students || [];
+      if (!students.length || cardReported(c)) return;
+      var siteName = c.siteId ? ((Store.getById('sites', c.siteId) || {}).name || '(אתר)') : '(אתר)';
+      var left = students.filter(function (s) { return !(s.wentToWork || s.absent); }).length;
+      var ids = (c.staffIds && c.staffIds.length) ? c.staffIds : (c.staffId ? [c.staffId] : []);
+      ids.forEach(function (id) {
+        var p = Store.getById('staff', id);
+        if (!p) return;
+        if (!byStaff[id]) byStaff[id] = { name: p.name, phone: p.phone, sites: [] };
+        byStaff[id].sites.push(siteName + ' (' + left + ')');
+      });
+    });
+    var ids = Object.keys(byStaff);
+    if (!ids.length) { U.toast('כל האתרים דווחו במלואם ✓'); return; }
+    var msgs = [], noPhone = [];
+    ids.forEach(function (id) {
+      var p = byStaff[id], ph = smsPhone(p.phone);
+      var text = 'שלום ' + p.name + ',\nתזכורת: נא להשלים את דיווח מצב השטח של היום — ' + p.sites.join(', ') + '.\nhttps://chaklaut.rgvb.org.il\nתודה 🌱 רגבים בנימין';
+      if (ph) msgs.push({ phone: ph, text: text }); else noPhone.push(p.name);
+    });
+    if (!msgs.length) { U.toast('אין לאנשי הצוות מספרי טלפון תקינים.', 'error'); return; }
+    Modal.confirm({
+      title: 'תזכורת SMS לצוות',
+      text: 'לשלוח תזכורת SMS ל-' + msgs.length + ' אנשי צוות שהדיווח שלהם לא הושלם?' +
+        (noPhone.length ? '\n(' + noPhone.length + ' ללא טלפון יידלגו)' : '') +
+        '\n⚠️ שליחת SMS עולה כסף בחשבון 019.',
+      okLabel: 'שלח'
+    }, function () {
+      Store.sendSms(msgs).then(function (res) {
+        if (res.failed) U.toast('נשלחו ' + (res.sent || 0) + ' · נכשלו ' + res.failed + ((res.errors && res.errors.length) ? ' — ' + res.errors[0] : ''), 'error');
+        else U.toast('נשלחו ' + (res.sent || 0) + ' תזכורות SMS לצוות');
+      }).catch(function (e) { U.toast('שגיאה בשליחה: ' + ((e && e.message) ? e.message : e), 'error'); });
+    });
+  }
 
   // ---------- טווחי תקופה ----------
   function rangeOf(p, offset) {
@@ -515,8 +554,9 @@
       pickBtn,
       U.el('div', { class: 'spacer' }),
       U.actionMenu([
-        { icon: '📩', label: 'תזכורת SMS למחנכים', title: 'מילוי נעדרים יומיים', onClick: sendHomeroomReminder },
-        { html: U.WA_SVG, label: 'תזכורת וואטסאפ לצוות', title: 'לאנשי צוות שלא השלימו דיווח שטח', onClick: staffWaReminder }
+        { html: U.WA_SVG, label: 'תזכורת וואטסאפ לצוות', title: 'לאנשי צוות שלא השלימו דיווח שטח', onClick: staffWaReminder },
+        { icon: '📩', label: 'תזכורת SMS לצוות', title: 'SMS לאנשי צוות שלא השלימו דיווח שטח (עולה כסף)', onClick: staffSmsReminder },
+        { icon: '🧑‍🏫', label: 'תזכורת SMS למחנכים', title: 'מילוי נעדרים יומיים (עולה כסף)', onClick: sendHomeroomReminder }
       ])
     ]));
     root.appendChild(U.el('div', { class: 'muted', style: 'font-size:12.5px;margin-bottom:10px;', text: 'מוצגים רק תלמידים הטעונים תשומת לב: לא יצאו · לא סומנו · ציון 1 או 5.' }));
@@ -700,19 +740,6 @@
     ]);
     setTimeout(function () { txt.focus(); }, 50);
   }
-  function tasksWaLink() {
-    var open = allTasks().filter(function (t) { return t.status !== 'done'; });
-    var lines = ['📝 משימות פתוחות מהשטח (' + open.length + '):'];
-    var rank = { stuck: 0, open: 1, progress: 2 };
-    open.sort(function (a, b) { return (rank[a.status] || 0) - (rank[b.status] || 0); });
-    open.forEach(function (t, i) {
-      var bits = [noteStatusDef(t.status).label];
-      if (t.assigneeId) bits.push('אחראי: ' + staffName(t.assigneeId));
-      if (t.due) bits.push('יעד: ' + U.gregLabel(t.due));
-      lines.push((i + 1) + '. [' + t.siteName + '] ' + t.text + ' (' + bits.join(' · ') + ')');
-    });
-    return 'https://wa.me/?text=' + encodeURIComponent(lines.join('\n'));
-  }
   function renderNotes(root) {
     var all = allTasks();
     var counts = { open: 0, progress: 0, stuck: 0, done: 0 };
@@ -746,8 +773,6 @@
     box.appendChild(U.el('div', { class: 'task-ctrl' }, [
       search, siteSel,
       U.el('div', { class: 'spacer' }),
-      U.el('a', { class: 'btn small ico', target: '_blank', rel: 'noopener', href: tasksWaLink(),
-        style: 'background:#25D366;color:#fff;border:0;', title: 'שליחת המשימות הפתוחות בוואטסאפ', html: U.WA_SVG }),
       U.el('button', { class: 'btn small', onclick: openAddTask }, '+ משימה')
     ]));
 
@@ -755,7 +780,7 @@
     if (!shown.length) {
       box.appendChild(U.el('div', { class: 'dash-empty', text: (taskFilter.q || taskFilter.site || taskFilter.status) ? 'אין משימות מתאימות לסינון.' : 'אין משימות פתוחות 🎉' }));
     } else {
-      var COLS = [['date', 'תאריך'], ['site', 'אתר'], ['text', 'משימה'], ['assignee', 'אחראי'], ['due', 'יעד'], ['status', 'סטטוס'], ['reply', 'הערת רכז'], ['', '']];
+      var COLS = [['date', 'תאריך'], ['site', 'אתר'], ['text', 'משימה'], ['by', 'דווח ע״י'], ['assignee', 'אחראי'], ['due', 'יעד'], ['status', 'סטטוס'], ['reply', 'הערת רכז'], ['', '']];
       var thead = U.el('tr', null, COLS.map(function (c) {
         if (!c[0]) return U.el('th', { text: '' });
         var arrow = taskSort.key === c[0] ? (taskSort.dir === 1 ? ' ▲' : ' ▼') : '';
@@ -792,7 +817,7 @@
           if (ssel.value === 'done') U.toast('המשימה הועברה לארכיון (סינון "טופל")');
         });
         // הערת רכז
-        var reply = U.el('input', { type: 'text', class: 'fn-reply', style: 'width:100%;min-width:140px;', value: t.reply, placeholder: 'מה נעשה / למי הועבר…' });
+        var reply = U.el('input', { type: 'text', class: 'fn-reply', style: 'width:100%;min-width:140px;', value: t.reply });
         reply.addEventListener('change', function () { setTaskField(t, 'reply', reply.value); });
         // מחיקה — רק למשימות ידניות (דיווחי שטח נשארים כתיעוד; "טופל" מעביר לארכיון)
         var del = t.kind === 'task' ? U.el('button', { class: 'btn small secondary', title: 'מחיקת המשימה', onclick: function () {
@@ -805,13 +830,11 @@
         return U.el('tr', { style: 'border-inline-start:4px solid ' + def.color + ';' }, [
           U.el('td', { class: (old ? 't-old' : '') }, [
             U.el('div', { text: U.gregLabel(t.date) }),
-            U.el('div', { class: 't-age', text: ageLabel(age) })
+            U.el('div', { class: 't-age', text: '(' + ageLabel(age) + ')' })
           ]),
           U.el('td', { text: t.siteName }),
-          U.el('td', null, [
-            U.el('div', { text: t.text }),
-            t.by ? U.el('div', { class: 'task-text-by', text: 'דיווח: ' + t.by }) : null
-          ]),
+          U.el('td', { text: t.text }),
+          U.el('td', { class: 'task-by', text: t.by || '—' }),
           U.el('td', null, [U.el('div', { style: 'display:flex;gap:5px;align-items:center;' }, [asg, asgWa])]),
           U.el('td', null, [due]),
           U.el('td', null, [ssel]),
