@@ -126,25 +126,20 @@
   }
 
   function addTeam() {
-    // ראשי צוות אפשריים: תלמידי י"ב וי"א שעדיין לא ראשי צוות ולא חברים בצוות אחר
+    // ראשי צוות אפשריים: תלמידים שסומנו "יכול להיות ראש צוות" ושאינם כבר בצוות
     var candidates = (Store.get().students || []).filter(function (s) {
-      return s.active !== false && (s.grade === 'יב' || s.grade === 'יא') && !isInAnyTeam(s.id);
+      return s.active !== false && s.canLeadTeam && !isInAnyTeam(s.id);
     });
-    // י"ב קודם, אחר כך י"א, ובתוך כל כיתה לפי א"ב
-    candidates.sort(function (a, b) {
-      if (a.grade !== b.grade) return a.grade === 'יב' ? -1 : 1;
-      return a.name.localeCompare(b.name, 'he');
-    });
+    candidates.sort(function (a, b) { return gradeCmp(a.id, b.id); });
     if (!candidates.length) {
-      // אם אין י"ב/י"א פנויים, נאפשר כל תלמיד פנוי
-      candidates = (Store.get().students || []).filter(function (s) { return s.active !== false && !isInAnyTeam(s.id); });
+      U.toast('לא סומנו תלמידים כ"יכול להיות ראש צוות". סמנו ⭐ במאגר התלמידים.', 'info');
+      return;
     }
-    if (!candidates.length) { U.toast('אין תלמידים פנויים לשמש כראש צוות.', 'info'); return; }
 
     var sel = U.el('select', { style: 'width:100%;' }, candidates.map(function (s) {
       return U.el('option', { value: s.id }, s.name + (s.grade ? ' · ' + s.grade : ''));
     }));
-    var body = U.el('div', null, [U.el('div', { class: 'field' }, [U.el('label', { text: 'בחר ראש צוות (תלמיד י"ב או י"א)' }), sel])]);
+    var body = U.el('div', null, [U.el('div', { class: 'field' }, [U.el('label', { text: 'בחרו ראש צוות (מתוך התלמידים שסומנו ⭐)' }), sel])]);
 
     Modal.open('צוות חדש', body, [
       { label: 'ביטול', class: 'secondary' },
@@ -241,19 +236,29 @@
       countEl.textContent = 'נבחרו: ' + Object.keys(selected).filter(function (k) { return selected[k]; }).length;
     }
 
+    function studentRow(s) {
+      var cb = U.el('input', { type: 'checkbox', checked: !!selected[s.id] });
+      cb.addEventListener('change', function () { selected[s.id] = cb.checked; updateCount(); build(search.value.trim()); });
+      return U.el('label', { style: 'display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text);padding:2px 0;' },
+        [cb, U.el('span', { text: s.name + (s.grade ? ' · ' + s.grade : '') })]);
+    }
     function build(filter) {
       U.clear(listBox);
       var shown = 0;
+      var match = function (s) { return !filter || s.name.indexOf(filter) !== -1; };
+      // הנבחרים תמיד למעלה, בקבוצה משלהם
+      var chosen = students.filter(function (s) { return selected[s.id] && match(s); }).sort(function (a, b) { return gradeCmp(a.id, b.id); });
+      if (chosen.length) {
+        listBox.appendChild(U.el('div', { style: 'margin:2px 0 2px;font-weight:700;color:var(--green-dark);', text: '✓ נבחרו (' + chosen.length + ')' }));
+        chosen.forEach(function (s) { shown++; listBox.appendChild(studentRow(s)); });
+        listBox.appendChild(U.el('div', { style: 'border-top:1px solid var(--border);margin:8px 0 2px;' }));
+      }
+      // השאר, מקובצים לפי כיתה
       U.GRADES.concat(['']).forEach(function (g) {
-        var grp = students.filter(function (s) { return (s.grade || '') === g && (!filter || s.name.indexOf(filter) !== -1); });
+        var grp = students.filter(function (s) { return !selected[s.id] && (s.grade || '') === g && match(s); });
         if (!grp.length) return;
         listBox.appendChild(U.el('div', { class: 'muted', style: 'margin:6px 0 2px;font-weight:600;', text: g ? 'כיתה ' + g : 'ללא כיתה' }));
-        grp.forEach(function (s) {
-          shown++;
-          var cb = U.el('input', { type: 'checkbox', checked: !!selected[s.id] });
-          cb.addEventListener('change', function () { selected[s.id] = cb.checked; updateCount(); });
-          listBox.appendChild(U.el('label', { style: 'display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text);padding:2px 0;' }, [cb, s.name]));
-        });
+        grp.forEach(function (s) { shown++; listBox.appendChild(studentRow(s)); });
       });
       if (!shown) listBox.appendChild(U.el('div', { class: 'muted', text: 'אין תלמידים פנויים להוספה.' }));
     }

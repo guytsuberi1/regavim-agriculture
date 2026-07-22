@@ -35,18 +35,18 @@
       { key: 'name', label: 'שם התלמיד', type: 'text', required: true, col: true },
       { key: 'className', label: 'כיתה', type: 'text', col: true, hint: 'לדוגמה: ט1 (השכבה נגזרת אוטומטית)' },
       { key: 'phone', label: 'טלפון', type: 'text', required: true, col: true },
+      { key: 'canLeadTeam', label: '⭐ יכול להיות ראש צוות', type: 'bool', def: false, hint: 'סמנו אם התלמיד יכול לשמש ראש צוות (זמין ב"צוות חדש")' },
       { key: 'notes', label: 'הערות', type: 'text' }
     ];
     if (coll === 'sites') return [
       { key: 'name', label: 'שם העסק/אתר', type: 'text', required: true, col: true },
       { key: 'location', label: 'מיקום', type: 'text', col: true },
       { key: 'contactName', label: 'איש קשר', type: 'text', col: true },
-      { key: 'phone', label: 'טלפון', type: 'text', col: true },
-      { key: 'email', label: 'אימייל', type: 'text' },
+      { key: 'phone', label: 'טלפון', type: 'text', required: true, col: true },
+      { key: 'email', label: 'אימייל', type: 'text', required: true },
       { key: 'hourlyRate', label: 'תשלום שעתי (₪)', type: 'number', col: true },
       { key: 'travelPay', label: 'תשלום נסיעות (₪)', type: 'number', col: true },
       { key: 'defaultHours', label: 'שעות ברירת מחדל', type: 'number', def: 8 },
-      { key: 'access', label: 'דרך הגעה', type: 'text' },
       { key: 'notes', label: 'הערות', type: 'text' }
     ];
     if (coll === 'staff') return [
@@ -55,7 +55,8 @@
         values: ['staff', 'leader'], col: true, def: 'staff' },
       { key: 'phone', label: 'טלפון', type: 'text', required: true, col: true },
       { key: 'email', label: 'אימייל להתחברות', type: 'text', required: true, col: true },
-      { key: 'homeroomClass', label: 'כיתת מחנך', type: 'text', col: true, hint: 'מלאו כיתה (ט1) רק אם הוא מחנך; ריק = אינו מחנך' }
+      { key: 'isHomeroom', label: 'מחנך?', type: 'bool', def: false, virtual: true },
+      { key: 'homeroomClass', label: 'כיתת מחנך', type: 'select', dynOptions: 'classes', showIf: 'isHomeroom', col: true }
     ];
     if (coll === 'transports') return [
       { key: 'name', label: 'שם הסעה', type: 'text', required: true, col: true },
@@ -169,12 +170,17 @@
     var tbody = rows.map(function (item) {
       var tds = defs.map(function (d) {
         if (d.key === 'grade' && item.grade) return U.el('td', null, [gradeBadge(item.grade)]);
-        if (sub === 'students' && d.key === 'name') {
-          return U.el('td', null, [U.el('button', { class: 'btn small secondary', style: 'font-weight:600;', title: 'כרטיס תלמיד', onclick: function () { openStudentCard(item); } }, item.name)]);
-        }
         return U.el('td', { text: displayVal(d, item) });
       });
+      // סימון "יכול להיות ראש צוות" — טוגל מהיר ברשימת התלמידים
+      var leaderToggle = sub === 'students' ? U.el('button', {
+        class: 'btn small ' + (item.canLeadTeam ? '' : 'secondary'),
+        style: item.canLeadTeam ? 'background:#f9a825;border-color:#f9a825;color:#fff;' : '',
+        title: item.canLeadTeam ? 'יכול להיות ראש צוות — לחצו לביטול' : 'סמנו: יכול להיות ראש צוות',
+        onclick: function () { item.canLeadTeam = !item.canLeadTeam; Store.save(); App.render(); }
+      }, item.canLeadTeam ? '⭐' : '☆') : null;
       tds.push(U.el('td', { class: 'actions' }, [
+        leaderToggle,
         U.el('button', { class: 'btn small secondary', title: 'עריכה', onclick: function () { openForm(item); } }, '✏️'),
         showArchive
           ? U.el('button', { class: 'btn small', title: 'שחזור מהארכיון', onclick: function () { restore(item); } }, '♻')
@@ -210,39 +216,12 @@
   }
 
   // ---------- כרטיס תלמיד מהיר (#19) ----------
-  function studentStats(id) {
-    var days = Store.get().days || {}, work = 0, rSum = 0, rCnt = 0, lastSite = null, lastDate = null;
-    Object.keys(days).sort().forEach(function (iso) {
-      (days[iso].cards || []).forEach(function (c) {
-        (c.students || []).forEach(function (s) {
-          if (s.studentId === id && s.wentToWork) {
-            work++; if (s.rating) { rSum += s.rating; rCnt++; }
-            lastDate = iso; lastSite = c.siteId ? ((Store.getById('sites', c.siteId) || {}).name || '') : '';
-          }
-        });
-      });
-    });
-    return { work: work, ratingAvg: rCnt ? (rSum / rCnt) : null, lastDate: lastDate, lastSite: lastSite };
-  }
-  function openStudentCard(stu) {
-    var st = studentStats(stu.id);
-    var team = global.TeamUtil ? global.TeamUtil.teamOfStudent(stu.id) : null;
-    function row(label, val) {
-      return U.el('div', { style: 'display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--border);' },
-        [U.el('span', { class: 'muted', text: label }), U.el('span', { style: 'font-weight:600;', text: val })]);
-    }
-    var body = U.el('div', null, [
-      row('כיתה', stu.className || stu.grade || '—'),
-      row('צוות', team ? global.TeamUtil.teamLabel(team) : 'ללא צוות'),
-      row('טלפון', stu.phone || '—'),
-      row('ימי עבודה (סה"כ)', String(st.work)),
-      row('ציון ממוצע', st.ratingAvg == null ? '—' : st.ratingAvg.toFixed(1)),
-      row('עבד לאחרונה', st.lastDate ? (U.gregLabel(st.lastDate) + (st.lastSite ? ' · ' + st.lastSite : '')) : '—')
-    ]);
-    Modal.open('כרטיס תלמיד — ' + stu.name, body, [
-      { label: 'עריכה', class: 'secondary', onClick: function (close) { close(); openForm(stu); } },
-      { label: 'סגור' }
-    ]);
+
+  // רשימת הכיתות הקיימות בפועל אצל התלמידים (לבורר "כיתת מחנך")
+  function existingClasses() {
+    var set = {};
+    (Store.get().students || []).forEach(function (s) { var c = String(s.className || '').trim(); if (c) set[c] = true; });
+    return Object.keys(set).sort(function (a, b) { return a.localeCompare(b, 'he'); });
   }
 
   function openForm(item) {
@@ -250,22 +229,33 @@
     var editing = !!item;
     var model = {};
     defs.forEach(function (d) {
-      model[d.key] = item ? item[d.key] : (d.def !== undefined ? d.def : (d.type === 'bool' ? true : ''));
+      if (d.type === 'bool') model[d.key] = item ? (item[d.key] === true) : (d.def === true);
+      else model[d.key] = item ? item[d.key] : (d.def !== undefined ? d.def : '');
     });
+    // "מחנך?" נגזר מקיום כיתת מחנך (שדה עזר וירטואלי)
+    if (sub === 'staff') model.isHomeroom = !!(model.homeroomClass && String(model.homeroomClass).trim());
     if (editing) model.id = item.id;
 
-    var inputs = {}, errEls = {};
+    var inputs = {}, errEls = {}, wraps = {};
     var body = U.el('div', null, defs.map(function (d) {
       var input;
       if (d.type === 'select') {
-        var opts = d.options.map(function (o, i) {
-          var val = d.values ? d.values[i] : o;
-          return U.el('option', { value: val }, o);
-        });
-        input = U.el('select', null, opts);
-        input.value = model[d.key] || (d.values ? d.values[0] : d.options[0]);
+        if (d.dynOptions === 'classes') {
+          var cls = existingClasses();
+          if (model[d.key] && cls.indexOf(model[d.key]) === -1) cls.unshift(model[d.key]);
+          input = U.el('select', null, [U.el('option', { value: '' }, '— בחרו כיתה —')].concat(
+            cls.map(function (c) { return U.el('option', { value: c }, c); })));
+          input.value = model[d.key] || '';
+        } else {
+          var opts = d.options.map(function (o, i) {
+            var val = d.values ? d.values[i] : o;
+            return U.el('option', { value: val }, o);
+          });
+          input = U.el('select', null, opts);
+          input.value = model[d.key] || (d.values ? d.values[0] : d.options[0]);
+        }
       } else if (d.type === 'bool') {
-        input = U.el('input', { type: 'checkbox', checked: model[d.key] !== false });
+        input = U.el('input', { type: 'checkbox', checked: model[d.key] === true });
       } else {
         input = U.el('input', { type: d.type === 'number' ? 'number' : 'text', value: model[d.key] == null ? '' : model[d.key] });
       }
@@ -279,12 +269,21 @@
           if (String(input.value || '').trim() !== '') { input.classList.remove('invalid'); err.textContent = ''; }
         });
       }
-      return U.el('div', { class: 'field' }, [
-        U.el('label', { text: d.label + (d.required ? ' *' : '') }), input,
-        d.hint ? U.el('div', { class: 'muted', style: 'font-size:12px;margin-top:2px;', text: d.hint }) : null,
-        err
-      ]);
+      var hintEl = d.hint ? U.el('div', { class: 'muted', style: 'font-size:12px;margin-top:2px;', text: d.hint }) : null;
+      var wrap = (d.type === 'bool')
+        ? U.el('div', { class: 'field' }, [U.el('label', { style: 'display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;' }, [input, U.el('span', { text: d.label })]), hintEl])
+        : U.el('div', { class: 'field' }, [U.el('label', { text: d.label + (d.required ? ' *' : '') }), input, hintEl, err]);
+      wraps[d.key] = wrap;
+      return wrap;
     }));
+    // שדות מותנים (showIf): הצגה/הסתרה לפי צ'קבוקס מפעיל
+    defs.forEach(function (d) {
+      if (d.showIf && inputs[d.showIf] && wraps[d.key]) {
+        var ctrl = inputs[d.showIf];
+        var upd = function () { wraps[d.key].style.display = ctrl.checked ? '' : 'none'; };
+        ctrl.addEventListener('change', upd); upd();
+      }
+    });
 
     function doSave(close, skipContact) {
       // בעריכה — שומרים על שדות קיימים שאינם בטופס (כמו defaultTransportId) כדי לא לאבד אותם
@@ -292,6 +291,7 @@
       if (editing) { for (var key in item) { if (Object.prototype.hasOwnProperty.call(item, key)) out[key] = item[key]; } out.id = model.id; }
       var firstBad = null;
       defs.forEach(function (d) {
+        if (d.virtual) return; // שדה עזר (למשל "מחנך?") — לא נשמר
         var inp = inputs[d.key];
         var v = d.type === 'bool' ? inp.checked : inp.value;
         if (d.type === 'number') v = v === '' ? '' : U.num(v);
@@ -305,6 +305,9 @@
         if (bad && !firstBad) firstBad = inp;
         out[d.key] = v;
       });
+      // אנשי צוות: אם לא סומן "מחנך" — לאפס כיתת מחנך
+      delete out.isHomeroom;
+      if (sub === 'staff' && inputs.isHomeroom && !inputs.isHomeroom.checked) out.homeroomClass = '';
       if (firstBad) { firstBad.focus(); return; }
       // גזירת שכבה מהכיתה (רק אם הוזנה כיתה) — כדי לתחזק שדה אחד בלבד
       if (sub === 'students') {
