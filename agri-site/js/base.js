@@ -93,6 +93,7 @@
         if (sub === 'students') {
           menuItems.push({ icon: '🧹', label: 'איחוד כפילויות', onClick: mergeDuplicateStudents });
           menuItems.push({ icon: '🏷️', label: 'מילוי כיתה לפי שכבה (ט→ט1)', onClick: fillClassFromGrade });
+          menuItems.push({ icon: '⭐', label: 'סמן יא/יב כראשי צוות אפשריים', onClick: markSeniorLeaders });
           menuItems.push(null);
         }
         menuItems.push({ html: U.XLS_SVG, label: 'ייבוא מאקסל', onClick: openImport });
@@ -200,6 +201,19 @@
     });
   }
   function restore(item) { item.active = true; Store.save(); App.render(); U.toast('"' + item.name + '" שוחזר מהארכיון'); }
+
+  // סימון חד-פעמי: כל תלמידי יא/יב הפעילים כ"יכול להיות ראש צוות"
+  function markSeniorLeaders() {
+    var seniors = (Store.get().students || []).filter(function (s) { return s.active !== false && (s.grade === 'יא' || s.grade === 'יב'); });
+    if (!seniors.length) { U.toast('לא נמצאו תלמידי יא/יב.', 'info'); return; }
+    var toMark = seniors.filter(function (s) { return !s.canLeadTeam; });
+    if (!toMark.length) { U.toast('כל תלמידי יא/יב כבר מסומנים ⭐.', 'info'); return; }
+    Modal.confirm({ title: 'סימון ראשי צוות אפשריים', text: 'לסמן ⭐ "יכול להיות ראש צוות" ל-' + toMark.length + ' תלמידי יא/יב?', okLabel: 'סמן' }, function () {
+      toMark.forEach(function (s) { s.canLeadTeam = true; });
+      Store.save(); App.render();
+      U.toast(toMark.length + ' תלמידי יא/יב סומנו כראשי צוות אפשריים ⭐');
+    });
+  }
 
   // מילוי חד-פעמי של "כיתה" לתלמידים קיימים לפי השכבה שלהם (ט→ט1). ממלא רק כיתות ריקות.
   function fillClassFromGrade() {
