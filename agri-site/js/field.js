@@ -244,10 +244,8 @@
       e.text = v; e.by = myNoteName();
       Store.save();
     });
-    // אם משובצים כמה אנשי צוות — חיווי שההערות שנשלחות נפרדות
-    var multiStaff = staffIds.length > 1;
     root.appendChild(U.el('div', { class: 'ffield-note-wrap' }, [
-      U.el('label', { class: 'muted', text: 'הערה לרכז החקלאות' + (multiStaff ? ' (אישית — רק שלך)' : '') }),
+      U.el('label', { class: 'muted', text: 'הערה לרכז החקלאות' }),
       noteBox
     ]));
   }
