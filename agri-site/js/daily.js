@@ -7,9 +7,11 @@
 
   // מי שובץ הרגע (להבהוב אישור ירוק אחרי הרינדור) — studentId -> cardId
   var justAssigned = {}, justAssignedAt = 0;
+  var justFromAuto = false; // שיבוץ אוטומטי — משאיר את הצוותים מצומצמים (לא נפתחים)
   var expandedTeams = {}; // 'cardId|teamId' -> true (צוותים פתוחים בכרטיסי אתרים; ברירת מחדל מצומצם)
   function markAssigned(ids, cardId) {
     justAssigned = {};
+    justFromAuto = false;
     ids.forEach(function (id) { justAssigned[id] = cardId; });
     justAssignedAt = Date.now();
   }
@@ -188,9 +190,10 @@
 
     var meta = U.el('div', { class: 'sc-meta' });
     if (site) {
-      // שורת מיקום תמיד מוצגת — גם כשאין מיקום — כדי שכל הכרטיסים יהיו באותו גובה
+      // שורות מיקום ואיש-קשר מוצגות תמיד — גם כשריקות — כדי שכל הכרטיסים יהיו באותו גובה
       meta.appendChild(U.el('div', { class: site.location ? '' : 'muted', text: '📍 ' + (site.location || 'ללא מיקום') }));
-      if (site.contactName || site.phone) meta.appendChild(U.el('div', { text: '☎ ' + [site.contactName, site.phone].filter(Boolean).join(' · ') }));
+      var hasContact = site.contactName || site.phone;
+      meta.appendChild(U.el('div', { class: hasContact ? '' : 'muted', text: '☎ ' + (hasContact ? [site.contactName, site.phone].filter(Boolean).join(' · ') : 'ללא איש קשר') }));
       // שעות העבודה לא מוצגות כאן — נלקחות אוטומטית מנתוני הבסיס של האתר,
       // וחריגים מעדכנים בגיליון דרישת התשלום
     }
@@ -247,6 +250,12 @@
     body.appendChild(labeledSelect('הסעה', 'transports', card, 'transportId'));
     body.appendChild(staffMultiControl(day, card));
 
+    // כפתורי תלמידים — מפרידים בין רשימת אנשי הצוות לרשימת התלמידים
+    body.appendChild(U.el('div', { class: 'no-print sc-stud-actions', style: 'display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 4px;padding-top:8px;border-top:1px dashed var(--border);' }, [
+      U.el('button', { class: 'btn small secondary', onclick: function () { openAddStudents(day, card); } }, '+ הוסף תלמידים'),
+      (card.students || []).length ? U.el('button', { class: 'btn small danger', title: 'החזרת כל התלמידים המשובצים באתר זה למאגר', onclick: function () { clearCardStudents(day, card); } }, '↩ בטל שיבוץ') : null
+    ]));
+
     // בניית שורת תלמיד בודד
     function buildStudentLi(st) {
       var stu = Store.getById('students', st.studentId);
@@ -254,7 +263,7 @@
       var nameCell = U.el('div', { style: 'flex:1;display:flex;align-items:center;gap:7px;' }, [
         (stu && stu.grade) ? gradeBadge(stu.grade) : null,
         U.el('div', null, [
-          U.el('div', { text: (st.teamLeader ? '⭐ ' : '') + name }),
+          U.el('div', { text: name + (st.teamLeader ? ' ⭐' : '') }),
           st.note ? U.el('div', { class: 'muted', style: 'font-size:11px;', text: '📝 ' + st.note }) : null
         ])
       ]);
@@ -327,7 +336,7 @@
         var tkey = card.id + '|' + tid;
         // פתיחה אוטומטית לצוות ששובץ הרגע (הבהוב ירוק) — אחרת לפי המצב השמור (ברירת מחדל: מצומצם)
         var freshMember = g.items.some(function (st) { return justAssigned[st.studentId] === card.id && Date.now() - justAssignedAt < 1800; });
-        if (freshMember) expandedTeams[tkey] = true;
+        if (freshMember && !justFromAuto) expandedTeams[tkey] = true;
         var isOpen = !!expandedTeams[tkey];
         var grip = U.el('span', { class: 'grip no-print', draggable: 'true', title: 'גררו את הצוות לאתר אחר, או הקישו להעברה', text: '⠿' });
         grip.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text/plain', 'team:' + g.team.id); e.dataTransfer.effectAllowed = 'move'; });
@@ -366,23 +375,10 @@
       }
     }
 
-    body.appendChild(U.el('div', { class: 'no-print', style: 'display:flex;gap:6px;flex-wrap:wrap;' }, [
-      U.el('button', { class: 'btn small secondary', onclick: function () { openAddStudents(day, card); } }, '+ הוסף תלמידים'),
-      (card.students || []).length ? U.el('button', { class: 'btn small danger', title: 'החזרת כל התלמידים המשובצים באתר זה למאגר', onclick: function () { clearCardStudents(day, card); } }, '↩ בטל שיבוץ') : null
-    ]));
-
     // הערות
     var notesInp = U.el('input', { type: 'text', value: card.notes || '', placeholder: 'הערות…', style: 'width:100%;margin-top:6px;' });
     notesInp.addEventListener('change', function () { card.notes = notesInp.value; Store.save(); });
     body.appendChild(notesInp);
-
-    // הערות שהשאירו אנשי הצוות בשטח (לקריאת הרכז) — הערה נפרדת לכל איש צוות
-    U.cardFieldNotes(card).forEach(function (n) {
-      body.appendChild(U.el('div', { class: 'card-fieldnote', style: 'margin-top:6px;background:#fff7e6;border:1px solid #f0d090;border-radius:6px;padding:6px 8px;font-size:13px;' }, [
-        U.el('span', { style: 'font-weight:600;', text: '📝 מהשטח' + (n.by ? ' (' + n.by + ')' : '') + ': ' }),
-        U.el('span', { text: n.text })
-      ]));
-    });
 
     node.appendChild(head);
     node.appendChild(body);
@@ -480,18 +476,31 @@
     var countEl = U.el('span', { class: 'tag' });
     var listBox = U.el('div', { style: 'max-height:340px;overflow:auto;' });
     function updateCount() { countEl.textContent = 'נבחרו: ' + Object.keys(selectedMap).filter(function (k) { return selectedMap[k]; }).length; }
+    // מסונן לפי ימי העבודה של איש הצוות; ללא הגדרה = עובד תמיד
+    var todayWd = U.fromISO(curDate).getDay();
+    function worksToday(s) { var wd = s.workDays; return (!Array.isArray(wd) || !wd.length) ? true : wd.indexOf(todayWd) !== -1; }
+    function staffRow(s) {
+      var elsewhere = takenElsewhere[s.id] && !selectedMap[s.id];
+      var cb = U.el('input', { type: 'checkbox', checked: !!selectedMap[s.id] });
+      cb.disabled = !!elsewhere;
+      cb.addEventListener('change', function () { selectedMap[s.id] = cb.checked; updateCount(); });
+      return U.el('label', { style: 'display:flex;gap:7px;align-items:center;font-weight:400;color:var(--text);padding:3px 0;' + (elsewhere ? 'opacity:.5;' : '') },
+        [cb, s.name + (s.role === 'leader' ? ' · ראש צוות' : '') + (elsewhere ? ' · (משובץ באתר אחר)' : '')]);
+    }
     function build(filter) {
       U.clear(listBox);
       var shown = staff.filter(function (s) { return !filter || (s.name || '').indexOf(filter) !== -1; });
       if (!shown.length) { listBox.appendChild(U.el('div', { class: 'muted', style: 'padding:8px;', text: 'לא נמצאו' })); return; }
-      shown.forEach(function (s) {
-        var elsewhere = takenElsewhere[s.id] && !selectedMap[s.id];
-        var cb = U.el('input', { type: 'checkbox', checked: !!selectedMap[s.id] });
-        cb.disabled = !!elsewhere;
-        cb.addEventListener('change', function () { selectedMap[s.id] = cb.checked; updateCount(); });
-        listBox.appendChild(U.el('label', { style: 'display:flex;gap:7px;align-items:center;font-weight:400;color:var(--text);padding:3px 0;' + (elsewhere ? 'opacity:.5;' : '') },
-          [cb, s.name + (s.role === 'leader' ? ' · ראש צוות' : '') + (elsewhere ? ' · (משובץ באתר אחר)' : '')]));
-      });
+      var today = shown.filter(worksToday), others = shown.filter(function (s) { return !worksToday(s); });
+      if (today.length) {
+        listBox.appendChild(U.el('div', { style: 'font-weight:700;color:var(--green-dark);margin:2px 0;', text: 'עובדים ביום ' + U.weekdayName(curDate) }));
+        today.forEach(function (s) { listBox.appendChild(staffRow(s)); });
+      }
+      if (others.length) {
+        listBox.appendChild(U.el('div', { style: 'border-top:1px solid var(--border);margin:8px 0 2px;' }));
+        listBox.appendChild(U.el('div', { class: 'muted', style: 'margin:2px 0;font-weight:600;', text: 'לא עובדים היום (הוספה חריגה)' }));
+        others.forEach(function (s) { listBox.appendChild(staffRow(s)); });
+      }
     }
     search.addEventListener('input', function () { build(search.value.trim()); });
     build(''); updateCount();
@@ -1409,7 +1418,7 @@
     if (!proposals.length) { if (!silent) U.toast('לא נמצאו שיבוצים מתאימים.', 'info'); return { teams: 0 }; }
 
     // שיבוץ ישיר (ללא תצוגה מקדימה) + סימון להבהוב אישור (רק כשמדובר ביום המוצג)
-    if (iso === curDate) justAssigned = {};
+    if (iso === curDate) { justAssigned = {}; justFromAuto = true; expandedTeams = {}; }
     proposals.forEach(function (p) {
       p.members.forEach(function (id) {
         placeStudent(day, p.card, id, id === p.team.leaderStudentId);

@@ -166,7 +166,7 @@ table.grid td.actions { white-space: nowrap; text-align: left; }
 .subtabs button.active { background: var(--green); color: #fff; border-color: var(--green); }
 
 /* ---------- מסך סידור יומי ---------- */
-.day-board { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 10px; align-items: flex-start; }
+.day-board { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 10px; align-items: stretch; }
 .site-card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); width: 270px; min-width: 270px; display: flex; flex-direction: column; border-top: 4px solid var(--green); }
 .site-card .sc-head { padding: 10px; border-bottom: 1px solid var(--border); }
 .site-card .sc-head h3 { margin: 0 0 6px; font-size: 16px; color: var(--green-dark); }

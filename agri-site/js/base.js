@@ -55,6 +55,7 @@
         values: ['staff', 'leader'], col: true, def: 'staff' },
       { key: 'phone', label: 'טלפון', type: 'text', required: true, col: true },
       { key: 'email', label: 'אימייל להתחברות', type: 'text', required: true, col: true },
+      { key: 'workDays', label: 'ימי עבודה', type: 'weekdays', def: [0, 1, 2, 3, 4], col: true },
       { key: 'isHomeroom', label: 'מחנך?', type: 'bool', def: false, virtual: true },
       { key: 'homeroomClass', label: 'כיתת מחנך', type: 'select', dynOptions: 'classes', showIf: 'isHomeroom', col: true }
     ];
@@ -71,6 +72,14 @@
 
   function displayVal(def, item) {
     var v = item[def.key];
+    if (def.type === 'weekdays') {
+      var L = ['א', 'ב', 'ג', 'ד', 'ה'];
+      var arr = Array.isArray(v) ? v.slice().sort(function (a, b) { return a - b; }) : null;
+      if (arr == null) return 'א׳–ה׳';        // ללא הגדרה = כל השבוע (תאימות לאחור)
+      if (!arr.length) return '—';
+      if (arr.length === 5) return 'א׳–ה׳';
+      return arr.map(function (i) { return L[i]; }).join(' ');
+    }
     if (def.type === 'bool') return v === false ? 'לא' : 'כן';
     if (def.key === 'role') {
       return v === 'leader' ? 'ראש צוות' : 'איש צוות';
@@ -230,6 +239,7 @@
     var model = {};
     defs.forEach(function (d) {
       if (d.type === 'bool') model[d.key] = item ? (item[d.key] === true) : (d.def === true);
+      else if (d.type === 'weekdays') model[d.key] = (item && Array.isArray(item[d.key])) ? item[d.key].slice() : (Array.isArray(d.def) ? d.def.slice() : []);
       else model[d.key] = item ? item[d.key] : (d.def !== undefined ? d.def : '');
     });
     // "מחנך?" נגזר מקיום כיתת מחנך (שדה עזר וירטואלי)
@@ -256,6 +266,15 @@
         }
       } else if (d.type === 'bool') {
         input = U.el('input', { type: 'checkbox', checked: model[d.key] === true });
+      } else if (d.type === 'weekdays') {
+        var DAYL = ['א', 'ב', 'ג', 'ד', 'ה'];
+        var cbs = [];
+        input = U.el('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;' }, DAYL.map(function (ltr, i) {
+          var cb = U.el('input', { type: 'checkbox', checked: (model[d.key] || []).indexOf(i) !== -1 });
+          cbs[i] = cb;
+          return U.el('label', { style: 'display:flex;align-items:center;gap:4px;font-weight:600;cursor:pointer;border:1px solid var(--border);border-radius:8px;padding:5px 9px;' }, [cb, U.el('span', { text: ltr })]);
+        }));
+        input._cbs = cbs;
       } else {
         input = U.el('input', { type: d.type === 'number' ? 'number' : 'text', value: model[d.key] == null ? '' : model[d.key] });
       }
@@ -293,7 +312,10 @@
       defs.forEach(function (d) {
         if (d.virtual) return; // שדה עזר (למשל "מחנך?") — לא נשמר
         var inp = inputs[d.key];
-        var v = d.type === 'bool' ? inp.checked : inp.value;
+        var v;
+        if (d.type === 'bool') v = inp.checked;
+        else if (d.type === 'weekdays') v = [0, 1, 2, 3, 4].filter(function (i) { return inp._cbs[i] && inp._cbs[i].checked; });
+        else v = inp.value;
         if (d.type === 'number') v = v === '' ? '' : U.num(v);
         // "שמירה ללא טלפון/מייל" — מדלגת על חובת שדות הקשר בלבד (שם נשאר חובה)
         var req = d.required && !(skipContact && (d.key === 'phone' || d.key === 'email'));
