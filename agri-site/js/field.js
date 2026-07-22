@@ -166,6 +166,23 @@
     updateProgress();
     root.appendChild(progWrap);
 
+    // סימון מהיר: מסמנים רק את מי שלא הגיע, ואז כפתור אחד מסמן את כל השאר כ"יצא"
+    if ((card.students || []).length) {
+      root.appendChild(U.el('button', { class: 'btn accent no-print', style: 'width:100%;margin:2px 0 12px;', onclick: function () {
+        var unmarked = (card.students || []).filter(function (s) { return !s.wentToWork && !s.absent; });
+        if (!unmarked.length) { U.toast('כל התלמידים כבר סומנו ✓'); return; }
+        Modal.confirm({
+          title: 'סימון נוכחות מהיר',
+          text: 'לסמן ' + unmarked.length + ' תלמידים שנותרו כ"יצא לעבודה"?\n(מי שסימנת "לא יצא" יישאר ללא שינוי)',
+          okLabel: 'כן, כולם הגיעו'
+        }, function () {
+          unmarked.forEach(function (s) { s.wentToWork = true; s.absent = false; });
+          Store.save(); App.render();
+          U.toast(unmarked.length + ' תלמידים סומנו כיצאו לעבודה');
+        });
+      } }, '✓ סמן שכל השאר הגיעו'));
+    }
+
     // סידור התלמידים לפי צוותים (ראש צוות תחילה, ואז לפי כיתה); מי שאינו בצוות — בסוף
     var TU = global.TeamUtil;
     var teams = TU ? TU.allTeams() : [];
@@ -190,7 +207,12 @@
     });
     var anyTeam = ordered.some(function (st) { return teamRankOf(st.studentId).id !== '__none'; });
 
-    root.appendChild(U.el('div', { class: 'frate-legend muted', text: 'ציון לכל תלמיד: 5 = גבוה · 1 = נמוך' }));
+    root.appendChild(U.el('div', { class: 'frate-legend' }, [
+      U.el('span', { text: 'דירוג לכל תלמיד:  ' }),
+      U.el('b', { style: 'color:#dc2626;', text: '1 = נמוך' }),
+      U.el('span', { text: '   ←→   ' }),
+      U.el('b', { style: 'color:#16a34a;', text: '5 = גבוה' })
+    ]));
 
     var list = U.el('div', { class: 'field-students' });
     var curTeam = null;
@@ -310,13 +332,23 @@
     });
     var wentGrp = U.el('div', { class: 'fwent-grp' }, [wentBtn, absentBtn]);
 
-    // ציון 1-5 — עדכון במקום
-    var rbtns = [1, 2, 3, 4, 5].map(function (n) {
-      var b = U.el('button', { class: 'frbtn' }, String(n));
+    // ציון 1-5 — עדכון במקום; צבע מדורג נמוך(אדום)→גבוה(ירוק) כדי שיהיה ברור למי שמדרג
+    var RCOL = ['#dc2626', '#f59e0b', '#eab308', '#84cc16', '#16a34a'];
+    var rbtns;
+    function applyRate() {
+      rbtns.forEach(function (x, i) {
+        var on = st.rating === i + 1;
+        x.classList.toggle('on', on);
+        x.style.background = on ? RCOL[i] : '';
+        x.style.borderColor = on ? RCOL[i] : '';
+        x.style.color = on ? '#fff' : '';
+      });
+    }
+    rbtns = [1, 2, 3, 4, 5].map(function (n) {
+      var b = U.el('button', { class: 'frbtn', title: n === 1 ? '1 — נמוך' : (n === 5 ? '5 — גבוה' : String(n)) }, String(n));
       b.addEventListener('click', function () {
         st.rating = (st.rating === n ? null : n);
-        rbtns.forEach(function (x, i) { x.classList.toggle('on', st.rating === i + 1); });
-        buzz(); Store.save();
+        applyRate(); buzz(); Store.save();
       });
       return b;
     });
@@ -332,7 +364,7 @@
       U.el('div', { class: 'fstu-controls' }, [wentGrp, U.el('div', { class: 'frate-wrap' }, [rateWrap])])
     ]));
     row.appendChild(noteInp);
-    rbtns.forEach(function (x, i) { x.classList.toggle('on', st.rating === i + 1); });
+    applyRate();
     syncWent();
     return row;
   }
