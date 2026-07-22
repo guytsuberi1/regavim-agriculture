@@ -129,16 +129,16 @@
 
   function staffReport() {
     var stats = {};
-    function ensure(id, role) { if (!stats[id]) stats[id] = { days: {}, hours: 0, role: role }; return stats[id]; }
+    function ensure(id, role) { if (!stats[id]) stats[id] = { days: {}, hours: 0, sites: {}, role: role }; return stats[id]; }
     eachCard(function (iso, c) {
       var sids = (c.staffIds && c.staffIds.length) ? c.staffIds : (c.staffId ? [c.staffId] : []);
       var h = U.num(c.hours);
-      sids.forEach(function (sid) { if (!sid) return; var s = ensure(sid, 'איש צוות'); s.days[iso] = true; s.hours += h; });
-      if (c.leaderId && sids.indexOf(c.leaderId) === -1) { var l = ensure(c.leaderId, 'ראש צוות'); l.days[iso] = true; l.hours += h; }
+      sids.forEach(function (sid) { if (!sid) return; var s = ensure(sid, 'איש צוות'); s.days[iso] = true; s.hours += h; if (c.siteId) s.sites[c.siteId] = true; });
+      if (c.leaderId && sids.indexOf(c.leaderId) === -1) { var l = ensure(c.leaderId, 'ראש צוות'); l.days[iso] = true; l.hours += h; if (c.siteId) l.sites[c.siteId] = true; }
     });
     return Object.keys(stats).map(function (id) {
       var p = Store.getById('staff', id) || { name: '(נמחק)' };
-      return { id: id, name: p.name, days: Object.keys(stats[id].days).length, hours: stats[id].hours };
+      return { id: id, name: p.name, days: Object.keys(stats[id].days).length, hours: stats[id].hours, sites: Object.keys(stats[id].sites).length };
     }).sort(function (a, b) { return b.days - a.days; });
   }
 
@@ -159,15 +159,58 @@
 
   // ---------- רכיבי UI ----------
   // כרטיס KPI — אותו עיצוב בדיוק כמו בדשבורד (אייקון בעיגול צבעוני, ערך גדול, פס צבע צדי)
-  function repKpi(icon, value, label, tone, sub) {
+  function repKpi(icon, value, label, tone, sub, badge) {
     return U.el('div', { class: 'kpi kpi-' + (tone || 'neutral') }, [
-      U.el('div', { class: 'kpi-ic', text: icon }),
-      U.el('div', { class: 'kpi-body' }, [
-        U.el('div', { class: 'kpi-row' }, [U.el('div', { class: 'kpi-val', text: String(value) })]),
-        U.el('div', { class: 'kpi-lbl', text: label }),
-        sub ? U.el('div', { class: 'kpi-sub', text: sub }) : null
+      U.el('div', { class: 'kpi-main' }, [
+        U.el('div', { class: 'kpi-ic', text: icon }),
+        U.el('div', { class: 'kpi-body' }, [
+          U.el('div', { class: 'kpi-row' }, [
+            U.el('div', { class: 'kpi-val', text: String(value) }),
+            badge ? U.el('span', { class: 'kpi-badge ' + badge.cls, text: badge.txt }) : null
+          ]),
+          U.el('div', { class: 'kpi-lbl', text: label }),
+          sub ? U.el('div', { class: 'kpi-sub', text: sub }) : null
+        ])
       ])
     ]);
+  }
+  // חץ מגמה מול התקופה הקודמת (▲ ירוק = משתפר, ▼ אדום = יורד). למדדים ש"גבוה=טוב".
+  function deltaBadge(cur, prev) {
+    if (cur == null || prev == null || prev === 0) return null;
+    var pct = (cur - prev) / Math.abs(prev) * 100;
+    if (Math.abs(pct) < 0.5) return { txt: '≈', cls: 'flat' };
+    var up = pct > 0;
+    return { txt: (up ? '▲' : '▼') + ' ' + Math.abs(Math.round(pct)) + '%', cls: up ? 'up' : 'down' };
+  }
+  // סטטיסטיקת תלמיד לטווח נתון (לשימוש בכרטיס + חישוב מגמה מול תקופה קודמת)
+  function computeStudentStats(id, from, to) {
+    var days = Store.get().days;
+    var rows = [], work = 0, absApproved = 0, absUnapproved = 0, rSum = 0, rCnt = 0, hoursSum = 0, bySite = {};
+    var inR = function (iso) { return iso >= from && iso <= to; };
+    Object.keys(days).filter(inR).sort().forEach(function (iso) {
+      var entry = null, siteName = '', siteId = null, cardHours = 0;
+      (days[iso].cards || []).forEach(function (c) {
+        (c.students || []).forEach(function (s) { if (s.studentId === id) { entry = s; cardHours = c.hours; siteId = c.siteId || null; siteName = c.siteId ? ((Store.getById('sites', c.siteId) || {}).name || '(אתר)') : '(אתר)'; } });
+      });
+      var inAbsent = ((Store.get().dailyAbsent || {})[iso] || []).indexOf(id) !== -1;
+      if (!entry && !inAbsent) return;
+      var didGo = !!(entry && entry.wentToWork);
+      var info = getAbs(iso, id);
+      if (didGo) { work++; hoursSum += U.num(cardHours); if (siteId) bySite[siteId] = (bySite[siteId] || 0) + 1; }
+      else { if (info.approved) absApproved++; else absUnapproved++; }
+      if (entry && entry.rating) { rSum += U.num(entry.rating); rCnt++; }
+      rows.push([
+        U.gregLabel(iso),
+        didGo ? siteName : (inAbsent ? 'נעדר היום' : (siteName || '')),
+        didGo ? '✓ יצא' : 'לא יצא',
+        (entry && entry.rating) || '',
+        didGo ? '' : (info.approved ? 'באישור' : 'לא באישור'),
+        (info.reason || '') || (entry && entry.note) || ''
+      ]);
+    });
+    var total = work + absUnapproved;
+    return { rows: rows, work: work, absApproved: absApproved, absUnapproved: absUnapproved, hoursSum: hoursSum, bySite: bySite,
+      pct: total ? Math.round(work / total * 100) : null, ratingAvg: rCnt ? (rSum / rCnt) : null, rCnt: rCnt };
   }
   function kpiGrid(cards) { return U.el('div', { class: 'kpi-grid rep-kpis' }, cards); }
   // טון לפי אחוז יציאה: גבוה=ירוק, בינוני=כתום, נמוך=אדום
@@ -314,35 +357,52 @@
 
   function classSummary(grade, rows) {
     var work = 0, absU = 0, rSum = 0, rCnt = 0;
-    var bestAtt = null, bestAttP = -1, worstAbs = null, topAvg = null, lowAvg = null;
-    rows.forEach(function (r) {
-      work += r.work; absU += r.absUnapproved; rSum += r.ratingSum; rCnt += r.ratingCount;
-      var t = r.work + r.absUnapproved;
-      if (t) { var p = r.work / t; if (p > bestAttP) { bestAttP = p; bestAtt = r; } }
-      if (r.absUnapproved > 0 && (!worstAbs || r.absUnapproved > worstAbs.absUnapproved)) worstAbs = r;
-      if (r.ratingCount) { var a = r.ratingSum / r.ratingCount; if (!topAvg || a > topAvg.a) topAvg = { r: r, a: a }; if (!lowAvg || a < lowAvg.a) lowAvg = { r: r, a: a }; }
-    });
+    rows.forEach(function (r) { work += r.work; absU += r.absUnapproved; rSum += r.ratingSum; rCnt += r.ratingCount; });
     var total = work + absU;
     var pct = total ? Math.round(work / total * 100) : null;
+    function stuPct(r) { var t = r.work + r.absUnapproved; return t ? Math.round(r.work / t * 100) : null; }
 
-    var spots = U.el('div', { class: 'spot-row' }, [
-      spot('🏆', 'אחוז היציאה הגבוה ביותר', bestAtt ? bestAtt.name : null, bestAtt ? Math.round(bestAttP * 100) + '%' : null, 'good'),
-      spot('⚠️', 'הכי הרבה היעדרויות (בלי אישור)', worstAbs ? worstAbs.name : null, worstAbs ? worstAbs.absUnapproved : null, 'bad'),
-      spot('⭐', 'הציון הממוצע הגבוה ביותר', topAvg ? topAvg.r.name : null, topAvg ? topAvg.a.toFixed(1) : null, 'purple'),
-      spot('📉', 'הציון הממוצע הנמוך ביותר', lowAvg ? lowAvg.r.name : null, lowAvg ? lowAvg.a.toFixed(1) : null, 'warn')
-    ]);
+    // צריכים תשומת לב — יציאה נמוכה (<70%) או היעדרויות בלי אישור, הגרוע קודם
+    var attn = rows.filter(function (r) { var p = stuPct(r); return (p != null && p < 70) || r.absUnapproved > 0; })
+      .sort(function (a, b) { if (b.absUnapproved !== a.absUnapproved) return b.absUnapproved - a.absUnapproved; return (stuPct(a) == null ? 999 : stuPct(a)) - (stuPct(b) == null ? 999 : stuPct(b)); });
+    var attnBox;
+    if (!attn.length) {
+      attnBox = U.el('div', { class: 'attn-box ok', text: '👍 כל הכיתה במצב טוב — אין תלמידים שדורשים תשומת לב.' });
+    } else {
+      attnBox = U.el('div', { class: 'attn-box' }, [
+        U.el('div', { class: 'attn-title', text: '⚠️ צריכים תשומת לב (' + attn.length + ')' }),
+        U.el('div', { class: 'attn-list' }, attn.slice(0, 6).map(function (r) {
+          var p = stuPct(r), bits = [];
+          if (p != null) bits.push('יציאה ' + p + '%');
+          if (r.absUnapproved > 0) bits.push(r.absUnapproved + ' היעדרויות בלי אישור');
+          return U.el('div', { class: 'attn-item' }, [
+            U.el('span', { class: 'attn-name', text: r.name }),
+            U.el('span', { class: 'attn-meta', text: bits.join(' · ') })
+          ]);
+        }).concat(attn.length > 6 ? [U.el('div', { class: 'muted', style: 'font-size:12px;margin-top:4px;', text: '+' + (attn.length - 6) + ' נוספים' })] : []))
+      ]);
+    }
 
-    return U.el('div', { style: 'margin-bottom:16px;' }, [
+    // אחוז יציאה לפי תלמיד — מהגבוה לנמוך, צבע לפי רמה
+    var barItems = rows.map(function (r) { return { name: r.name, p: stuPct(r) }; }).filter(function (x) { return x.p != null; })
+      .sort(function (a, b) { return b.p - a.p; })
+      .map(function (x) { return { label: x.name, value: x.p, prefix: '', unit: '%', color: x.p >= 75 ? '#16a34a' : (x.p >= 50 ? '#d97706' : '#dc2626') }; });
+
+    var children = [
       U.el('h3', { style: 'color:var(--green-dark);margin:0 0 8px;', text: 'סיכום כיתה ' + grade }),
       kpiGrid([
         repKpi('🚀', pct == null ? '—' : pct + '%', 'אחוז יציאה כיתתי', pctTone(pct)),
         repKpi('⭐', rCnt ? (rSum / rCnt).toFixed(1) : '—', 'ציון ממוצע כיתתי', 'purple'),
         repKpi('👥', rows.length, 'תלמידים', 'info'),
-        repKpi('💪', work, 'סה"כ ימי עבודה', 'good'),
-        repKpi('🚫', absU, 'היעדרויות בלי אישור', absU > 0 ? 'bad' : 'neutral')
+        repKpi('💪', work, 'סה"כ ימי עבודה', 'good')
       ]),
-      spots
-    ]);
+      attnBox
+    ];
+    if (barItems.length > 1) {
+      children.push(U.el('h4', { style: 'color:var(--green-dark);margin:14px 0 6px;font-size:14px;', text: 'אחוז יציאה לפי תלמיד' }));
+      children.push(U.el('div', { style: 'margin-bottom:8px;' }, [hbar(barItems)]));
+    }
+    return U.el('div', { style: 'margin-bottom:16px;' }, children);
   }
 
   function renderStudents() {
@@ -457,13 +517,26 @@
     ]));
     if (sf.length > 1) {
       wrap.appendChild(U.el('h3', { style: 'color:var(--green-dark);margin:0 0 8px;', text: 'ימי עבודה לפי איש צוות' }));
-      wrap.appendChild(U.el('div', { style: 'margin-bottom:16px;' }, [hbar(sf.slice(0, 6).map(function (r, i) {
-        return { label: r.name, value: r.days, prefix: i === 0 ? '🏆 ' : '', unit: 'ימים' };
+      wrap.appendChild(U.el('div', { style: 'margin-bottom:16px;' }, [hbar(sf.slice(0, 6).map(function (r) {
+        return { label: r.name, value: r.days, prefix: '', unit: 'ימים' };
       }))]));
     }
-    wrap.appendChild(sortableTable(['שם', 'ימי עבודה', 'סה"כ שעות'],
-      sf.map(function (r) { return [r.name, r.days, Math.round(r.hours)]; })));
+    // אמינות = ימים שעבד מתוך ימי העבודה שהוגדרו לו בתקופה
+    wrap.appendChild(sortableTable(['שם', 'ימי עבודה', 'אתרים שונים', 'אמינות', 'סה"כ שעות'],
+      sf.map(function (r) {
+        var st = Store.getById('staff', r.id) || {};
+        var wd = (Array.isArray(st.workDays) && st.workDays.length) ? st.workDays : [0, 1, 2, 3, 4];
+        var expected = workdayCountInRange(wd);
+        var rel = expected > 0 ? Math.min(100, Math.round(r.days / expected * 100)) : null;
+        return [r.name, r.days, r.sites, rel == null ? '—' : rel + '%', Math.round(r.hours)];
+      })));
     return wrap;
+  }
+  // מספר ימי-העבודה (לפי סט ימי השבוע) בתוך טווח הדוח — לחישוב אמינות
+  function workdayCountInRange(wdSet) {
+    var n = 0, iso = fromDate, guard = 0;
+    while (iso <= toDate && guard < 800) { if (wdSet.indexOf(U.fromISO(iso).getDay()) !== -1) n++; iso = U.addDays(iso, 1); guard++; }
+    return n;
   }
 
   // ---------- דוח הסעות ----------
@@ -541,68 +614,56 @@
     wrap.appendChild(U.el('div', { class: 'field' }, [U.el('label', { text: 'תלמיד' }), sel]));
     if (!cardStudentId) { wrap.appendChild(U.el('div', { class: 'card empty' }, 'בחרו תלמיד לצפייה בכרטיס.')); return wrap; }
 
-    var days = Store.get().days, rows = [], work = 0, absApproved = 0, absUnapproved = 0, rSum = 0, rCnt = 0, hoursSum = 0;
-    var bySite = {};
-    Object.keys(days).filter(inRange).sort().forEach(function (iso) {
-      var entry = null, siteName = '', siteId = null, cardHours = 0;
-      (days[iso].cards || []).forEach(function (c) {
-        (c.students || []).forEach(function (s) { if (s.studentId === cardStudentId) { entry = s; cardHours = c.hours; siteId = c.siteId || null; siteName = c.siteId ? ((Store.getById('sites', c.siteId) || {}).name || '(אתר)') : '(אתר)'; } });
-      });
-      var inAbsent = ((Store.get().dailyAbsent || {})[iso] || []).indexOf(cardStudentId) !== -1;
-      if (!entry && !inAbsent) return;
-      var didGo = !!(entry && entry.wentToWork);
-      var info = getAbs(iso, cardStudentId);
-      if (didGo) { work++; hoursSum += U.num(cardHours); if (siteId) bySite[siteId] = (bySite[siteId] || 0) + 1; }
-      else { if (info.approved) absApproved++; else absUnapproved++; }
-      if (entry && entry.rating) { rSum += U.num(entry.rating); rCnt++; }
-      rows.push([
-        U.gregLabel(iso),
-        didGo ? siteName : (inAbsent ? 'נעדר היום' : (siteName || '')),
-        didGo ? '✓ יצא' : 'לא יצא',
-        (entry && entry.rating) || '',
-        didGo ? '' : (info.approved ? 'באישור' : 'לא באישור'),
-        (info.reason || '') || (entry && entry.note) || ''
-      ]);
-    });
-    var total = work + absUnapproved;
-    var pct = total ? Math.round(work / total * 100) : null;
+    var cur = computeStudentStats(cardStudentId, fromDate, toDate);
+    // תקופה קודמת באותו אורך — למגמה (▲/▼)
+    var lenDays = Math.round((U.fromISO(toDate) - U.fromISO(fromDate)) / 86400000) + 1;
+    var prevTo = U.addDays(fromDate, -1), prevFrom = U.addDays(prevTo, -(lenDays - 1));
+    var prev = computeStudentStats(cardStudentId, prevFrom, prevTo);
+    var attBadge = deltaBadge(cur.pct, prev.pct);
+    var ratingBadge = deltaBadge(cur.ratingAvg, prev.ratingAvg);
 
-    // חקלאי שעבד אצלו הכי הרבה
+    // חקלאי שעבד אצלו הכי הרבה + הצוות
     var topSiteId = null, topSiteN = 0;
-    Object.keys(bySite).forEach(function (id) { if (bySite[id] > topSiteN) { topSiteN = bySite[id]; topSiteId = id; } });
+    Object.keys(cur.bySite).forEach(function (id) { if (cur.bySite[id] > topSiteN) { topSiteN = cur.bySite[id]; topSiteId = id; } });
     var topSiteName = topSiteId ? ((Store.getById('sites', topSiteId) || {}).name || '(אתר)') : '—';
-    // הצוות שלו
     var team = global.TeamUtil ? global.TeamUtil.teamOfStudent(cardStudentId) : null;
     var teamName = team ? global.TeamUtil.teamLabel(team) : '—';
 
     var stu = Store.getById('students', cardStudentId) || { name: '', grade: '', className: '' };
+    var initials = (stu.name || '').trim().split(/\s+/).slice(0, 2).map(function (w) { return w.charAt(0); }).join('');
+    var chip = function (txt) { return U.el('span', { class: 'sch-chip', text: txt }); };
+
+    var actions = U.el('div', { class: 'sch-actions no-print' }, [
+      U.el('button', { class: 'btn ico', style: 'background:#25D366;color:#fff;border:0;', title: 'שליחת כרטיס התלמיד כתמונה בוואטסאפ', html: U.WA_SVG, onclick: function () { shareStudentCard(report, stu); } }),
+      U.el('button', { class: 'btn secondary ico', title: 'הורדת הכרטיס כתמונה', onclick: function () { exportStudentCard(report, stu); } }, '📷')
+    ]);
+
     var report = U.el('div', { class: 'stu-report' }, [
-      U.el('div', { class: 'stu-report-title' }, [
-        U.el('div', { style: 'font-weight:800;font-size:18px;color:var(--green-dark);', text: '🌱 דוח תלמיד — ' + stu.name + ((stu.className || stu.grade) ? ' · ' + (stu.className || stu.grade) : '') }),
-        U.el('div', { class: 'muted', style: 'font-size:13px;', text: 'רגבים בנימין · ' + U.gregLabel(fromDate) + ' – ' + U.gregLabel(toDate) })
+      U.el('div', { class: 'stu-card-head' }, [
+        U.el('div', { class: 'sch-avatar', text: initials || '🌱' }),
+        U.el('div', { class: 'sch-main' }, [
+          U.el('div', { class: 'sch-name', text: stu.name }),
+          U.el('div', { class: 'sch-chips' }, [
+            (stu.className || stu.grade) ? chip('כיתה ' + (stu.className || stu.grade)) : null,
+            chip('👥 ' + teamName)
+          ]),
+          U.el('div', { class: 'sch-range', text: 'רגבים בנימין · ' + U.gregLabel(fromDate) + ' – ' + U.gregLabel(toDate) })
+        ]),
+        actions
       ]),
       kpiGrid([
-        repKpi('🚀', pct == null ? '—' : pct + '%', 'אחוז יציאה', pctTone(pct)),
-        repKpi('💪', work, 'ימים שיצא', 'good'),
-        repKpi('🕐', hoursSum, 'סה"כ שעות', 'info'),
-        repKpi('⭐', rCnt ? (rSum / rCnt).toFixed(1) : '—', 'ציון ממוצע', 'purple'),
-        repKpi('📝', absApproved, 'לא יצא — באישור', 'neutral'),
-        repKpi('🚫', absUnapproved, 'לא יצא — בלי אישור', absUnapproved > 0 ? 'bad' : 'neutral')
+        repKpi('🚀', cur.pct == null ? '—' : cur.pct + '%', 'אחוז יציאה', pctTone(cur.pct), attBadge ? 'היה ' + prev.pct + '%' : null, attBadge),
+        repKpi('⭐', cur.rCnt ? cur.ratingAvg.toFixed(1) : '—', 'ציון ממוצע', 'purple', (ratingBadge && prev.ratingAvg != null) ? 'היה ' + prev.ratingAvg.toFixed(1) : null, ratingBadge),
+        repKpi('💪', cur.work, 'ימים שיצא', 'good'),
+        repKpi('🕐', cur.hoursSum, 'סה"כ שעות', 'info'),
+        repKpi('🚫', cur.absUnapproved, 'היעדרויות בלי אישור', cur.absUnapproved > 0 ? 'bad' : 'neutral')
       ]),
       U.el('div', { class: 'spot-row', style: 'margin-bottom:14px;' }, [
-        spot('🏆', 'חקלאי שעבד אצלו הכי הרבה', topSiteName, topSiteN ? topSiteN + ' ימים' : null, 'good'),
+        spot('🚜', 'חקלאי שעבד אצלו הכי הרבה', topSiteName, topSiteN ? topSiteN + ' ימים' : null, 'good'),
         spot('👥', 'צוות', teamName, null, 'info')
       ]),
-      renderTable(['תאריך', 'אתר', 'יצא?', 'ציון', 'אישור', 'סיבה/הערה'], rows, 'אין פעילות לתלמיד בטווח שנבחר.')
+      renderTable(['תאריך', 'אתר', 'יצא?', 'ציון', 'אישור', 'סיבה/הערה'], cur.rows, 'אין פעילות לתלמיד בטווח שנבחר.')
     ]);
-    wrap.appendChild(U.el('div', { class: 'no-print', style: 'margin-bottom:8px;display:flex;gap:8px;' }, [
-      U.el('button', {
-        class: 'btn ico', style: 'background:#25D366;color:#fff;border:0;',
-        title: 'שליחת כרטיס התלמיד כתמונה בוואטסאפ', html: U.WA_SVG,
-        onclick: function () { shareStudentCard(report, stu); }
-      }),
-      U.el('button', { class: 'btn secondary ico', title: 'הורדת הכרטיס כתמונה', onclick: function () { exportStudentCard(report, stu); } }, '📷')
-    ]));
     wrap.appendChild(report);
     return wrap;
   }
@@ -611,7 +672,7 @@
   // בנייד — חלון השיתוף של המכשיר (בוחרים וואטסאפ ונמען); בדסקטופ — הורדה + פתיחת וואטסאפ לצירוף
   function shareStudentCard(node, stu) {
     if (typeof global.html2canvas === 'undefined') { U.toast('רכיב הייצוא עדיין נטען — נסו שוב בעוד רגע.', 'info'); return; }
-    global.html2canvas(node, { scale: 2, backgroundColor: '#ffffff' }).then(function (canvas) {
+    global.html2canvas(node, { scale: 2, backgroundColor: '#ffffff', ignoreElements: function (el) { return el.classList && el.classList.contains('no-print'); } }).then(function (canvas) {
       canvas.toBlob(function (blob) {
         var fname = 'דוח-תלמיד-' + (stu.name || '') + '.png';
         try {
@@ -633,7 +694,7 @@
 
   function exportStudentCard(node, stu) {
     if (typeof global.html2canvas === 'undefined') { U.toast('רכיב הייצוא עדיין נטען — נסו שוב בעוד רגע.', 'info'); return; }
-    global.html2canvas(node, { scale: 2, backgroundColor: '#ffffff' }).then(function (canvas) {
+    global.html2canvas(node, { scale: 2, backgroundColor: '#ffffff', ignoreElements: function (el) { return el.classList && el.classList.contains('no-print'); } }).then(function (canvas) {
       canvas.toBlob(function (blob) {
         var url = URL.createObjectURL(blob), a = document.createElement('a');
         a.href = url; a.download = 'דוח-תלמיד-' + (stu.name || '') + '.png';

@@ -589,6 +589,24 @@ input.invalid, select.invalid, textarea.invalid { border-color: var(--danger, #d
 /* דוח תלמיד לייצוא/הדפסה */
 .stu-report { background: #fff; padding: 16px; border-radius: 12px; }
 .stu-report-title { text-align: center; margin-bottom: 12px; }
+/* כותרת כרטיס תלמיד — מודרנית: אווטאר + שם + צ'יפים, כפתורים בצד */
+.stu-card-head { display: flex; align-items: center; gap: 14px; padding: 4px 4px 14px; margin-bottom: 14px; border-bottom: 2px solid var(--green-light); }
+.sch-avatar { flex: 0 0 auto; width: 54px; height: 54px; border-radius: 50%; background: linear-gradient(160deg, var(--green), var(--green-dark)); color: #fff; font-weight: 800; font-size: 21px; display: flex; align-items: center; justify-content: center; letter-spacing: 1px; }
+.sch-main { flex: 1 1 auto; min-width: 0; }
+.sch-name { font-size: 21px; font-weight: 800; color: var(--green-dark); letter-spacing: -.3px; line-height: 1.15; }
+.sch-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 5px; }
+.sch-chip { font-size: 12px; font-weight: 600; color: var(--green-dark); background: var(--green-light); border: 1px solid var(--border); border-radius: 999px; padding: 2px 10px; }
+.sch-range { font-size: 12.5px; color: var(--muted); margin-top: 5px; }
+.sch-actions { flex: 0 0 auto; display: flex; gap: 8px; align-self: flex-start; }
+/* "צריכים תשומת לב" — כיתות */
+.attn-box { border: 1px solid var(--border); border-inline-start: 4px solid #dc2626; border-radius: 10px; padding: 11px 14px; margin: 4px 0 6px; background: var(--card); }
+.attn-box.ok { border-inline-start-color: #16a34a; color: var(--muted); font-size: 13.5px; }
+.attn-title { font-weight: 800; color: #b91c1c; font-size: 14px; margin-bottom: 8px; }
+.attn-list { display: flex; flex-direction: column; gap: 5px; }
+.attn-item { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 13.5px; }
+.attn-name { font-weight: 700; color: var(--text); }
+.attn-meta { color: var(--muted); font-size: 12.5px; }
+body.dark .attn-title { color: #f08079; }
 
 /* דרישת תשלום: שורת סה"כ דביקה, סימון דריסה ידנית, כרטיסים מתקפלים */
 tr.total-row td { position: sticky; bottom: 0; background: #EFE6DB; z-index: 2; box-shadow: 0 -2px 5px rgba(0,0,0,.10); }
