@@ -49,7 +49,7 @@
     return U.el('a', {
       class: 'btn small ico no-print', target: '_blank', rel: 'noopener',
       href: (wn ? 'https://wa.me/' + wn : 'https://wa.me/') + '?text=' + encodeURIComponent(msg),
-      style: 'background:#25D366;color:#fff;border:0;margin-inline-start:6px;',
+      style: 'background:#25D366;color:#fff;border:0;',
       title: 'תזכורת תשלום בוואטסאפ' + (wn ? '' : ' (אין מספר — בחרו ידנית)'),
       html: U.WA_SVG
     });
@@ -221,7 +221,10 @@
     return U.el('tr', { style: (selectedSiteId === a.siteId ? 'background:var(--green-light);' : '') }, [
       U.el('td', null, [nameBtn]),
       U.el('td', { text: s.contactName || '' }),
-      U.el('td', null, [U.el('span', { text: s.phone || '' }), (a.balance > 0.005 ? waDebtBtn(s, a.balance) : null)]),
+      U.el('td', null, [U.el('div', { style: 'display:flex;align-items:center;gap:6px;white-space:nowrap;' }, [
+        U.el('span', { text: s.phone || '' }),
+        (a.balance > 0.005 ? waDebtBtn(s, a.balance) : null)
+      ])]),
       U.el('td', { class: 'center', html: '<b style="' + balStyle(a.balance) + '">' + money(a.balance) + '</b>' }),
       U.el('td', null, [statusCell]),
       U.el('td', { text: Object.keys(a.handlers).join(', ') }),
