@@ -417,8 +417,8 @@
     var lines = ['שלום ' + (s.contactName || s.name) + ',',
       'דרישת תשלום לחודש ' + U.monthLabel(curMonth) + ':',
       'סה"כ שעות עבודה: ' + t.totHours,
-      'תשלום עבודה: ' + Math.round(t.workPay) + ' ₪',
-      'תשלום נסיעות: ' + Math.round(t.travelTot) + ' ₪'];
+      'תשלום עבודה: ' + Math.round(t.workPay) + ' ₪'];
+    if (Math.round(t.travelTot) > 0) lines.push('תשלום נסיעות: ' + Math.round(t.travelTot) + ' ₪');
     if (t.discount) lines.push('הנחה: ' + Math.round(t.discount) + ' ₪');
     lines.push('*סה"כ לתשלום: ' + Math.round(t.total) + ' ₪*');
     lines.push('תודה, רגבים בנימין');
