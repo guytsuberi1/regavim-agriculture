@@ -253,7 +253,8 @@
     var head = U.el('div', { class: 'page-head' }, [
       U.el('h2', { text: '📊 דוחות' }),
       U.el('div', { class: 'spacer' }),
-      U.actionMenu([
+      // ייצוא כלל-הדוחות (כיתות/אתרים/צוות/הסעות) — לא רלוונטי בכרטיס תלמיד (שם יש ייצוא תמונה משלו)
+      sub === 'card' ? null : U.actionMenu([
         { icon: '⬇', label: 'ייצוא כל הדוחות (אקסל)', title: 'כיתות, אתרים, צוות והסעות — קובץ אחד', onClick: exportExcel }
       ])
     ]);
@@ -428,16 +429,14 @@
     var top = si[0]; // ממוין לפי שעות — הראשון הוא המוביל
     // טופ 5 חקלאים לפי שעות — רואים במבט מי מוביל
     if (si.length > 1) {
-      wrap.appendChild(U.el('h3', { style: 'color:var(--green-dark);margin:0 0 8px;', text: '🏆 טופ 5 חקלאים לפי שעות' }));
-      wrap.appendChild(U.el('div', { style: 'margin-bottom:16px;' }, [hbar(si.slice(0, 5).map(function (r, i) {
-        return { label: r.name, value: Math.round(r.hours), prefix: i === 0 ? '🏆 ' : '', unit: 'שעות' };
+      wrap.appendChild(U.el('h3', { style: 'color:var(--green-dark);margin:0 0 8px;', text: '📊 טופ 5 חקלאים לפי שעות' }));
+      wrap.appendChild(U.el('div', { style: 'margin-bottom:16px;' }, [hbar(si.slice(0, 5).map(function (r) {
+        return { label: r.name, value: Math.round(r.hours), prefix: '', unit: 'שעות' };
       }))]));
     }
-    if (si.length) wrap.appendChild(U.el('div', { class: 'muted', style: 'font-size:12.5px;margin-bottom:8px;', text: 'החקלאי המוביל מודגש בטבלה · לחיצה על כותרת עמודה ממיינת' }));
     wrap.appendChild(sortableTable(['אתר', 'מיקום', 'ימי פעילות', 'סה"כ עובדים', 'סה"כ שעות'],
-      si.map(function (r) { return [(top && r.id === top.id ? '🏆 ' : '') + r.name, r.location || '—', r.days, r.workers, Math.round(r.hours)]; }),
+      si.map(function (r) { return [r.name, r.location || '—', r.days, r.workers, Math.round(r.hours)]; }),
       null, {
-        rowClass: function (r) { return String(r[0]).indexOf('🏆') === 0 ? 'lead-row' : ''; },
         totals: ['סה"כ (' + si.length + ' אתרים)', '', totDays, totWorkers, Math.round(totHours).toLocaleString('he-IL')]
       }));
     return wrap;
