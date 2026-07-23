@@ -493,6 +493,7 @@
         + '<div class="usermenu-pop" id="userPop">'
           + '<div class="um-name">' + escHtml(name) + '</div>'
           + '<div class="um-email">' + escHtml(email) + '</div>'
+          + ((window.PwaInstall && !window.PwaInstall.installed()) ? '<button class="um-item" id="umInstall">📲 התקנת אפליקציה</button>' : '')
           + '<button class="um-item" id="umEditName">✏️ שם לתצוגה</button>'
           + '<button class="um-item um-logout" id="umLogout">↩️ התנתקות</button>'
         + '</div></div>';
@@ -501,6 +502,8 @@
         ab.onclick = function (e) { e.stopPropagation(); pop.classList.toggle('open'); };
         document.addEventListener('click', function () { pop.classList.remove('open'); });
       }
+      var ib = document.getElementById('umInstall');
+      if (ib) ib.onclick = function (e) { e.stopPropagation(); if (pop) pop.classList.remove('open'); if (window.PwaInstall) window.PwaInstall.trigger(); };
       var en = document.getElementById('umEditName');
       if (en) en.onclick = function (e) { e.stopPropagation(); if (pop) pop.classList.remove('open'); editDisplayName(u); };
       var lo = document.getElementById('umLogout'); if (lo) lo.onclick = doLogout;
