@@ -19,13 +19,25 @@
   " />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <title>ניהול עבודה חקלאית — רגבים בנימין</title>
-  <link rel="stylesheet" href="styles.css?v=200" />
+  <!-- PWA — התקנה כאפליקציה למסך הבית -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#2e7d32" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="חקלאות רגבים" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <link rel="stylesheet" href="styles.css?v=201" />
 </head>
 <body>
   <script>
     // הגנת clickjacking — אם הדף נטען בתוך iframe של אתר אחר, נשחרר אותו החוצה (frame-ancestors אינו נתמך ב-meta)
     try { if (window.self !== window.top) window.top.location = window.self.location.href; } catch (e) { document.documentElement.style.display = 'none'; }
     try { if (localStorage.getItem('agri_dark') === '1') document.body.classList.add('dark'); } catch (e) {}
+    // רישום Service Worker — מאפשר התקנה כאפליקציה (PWA)
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+    }
   </script>
   <!-- מסך התחברות (ענן) -->
   <div id="loginOverlay" class="login-overlay" style="display:none">
@@ -92,25 +104,25 @@
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="vendor/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
-  <script src="js/seed-data.js?v=200"></script>
-  <script src="js/util.js?v=200"></script>
-  <script src="js/store.js?v=200"></script>
-  <script src="js/sync.js?v=200"></script>
-  <script src="js/importExcel.js?v=200"></script>
-  <script src="js/base.js?v=200"></script>
-  <script src="js/users.js?v=200"></script>
-  <script src="js/weekly.js?v=200"></script>
-  <script src="js/daily.js?v=200"></script>
-  <script src="js/planning.js?v=200"></script>
-  <script src="js/field.js?v=200"></script>
-  <script src="js/billing.js?v=200"></script>
-  <script src="js/debts.js?v=200"></script>
-  <script src="js/reports.js?v=200"></script>
-  <script src="js/dashboard.js?v=200"></script>
-  <script src="js/teams.js?v=200"></script>
-  <script src="js/settings.js?v=200"></script>
-  <script src="js/kitchen.js?v=200"></script>
-  <script src="js/app.js?v=200"></script>
+  <script src="js/seed-data.js?v=201"></script>
+  <script src="js/util.js?v=201"></script>
+  <script src="js/store.js?v=201"></script>
+  <script src="js/sync.js?v=201"></script>
+  <script src="js/importExcel.js?v=201"></script>
+  <script src="js/base.js?v=201"></script>
+  <script src="js/users.js?v=201"></script>
+  <script src="js/weekly.js?v=201"></script>
+  <script src="js/daily.js?v=201"></script>
+  <script src="js/planning.js?v=201"></script>
+  <script src="js/field.js?v=201"></script>
+  <script src="js/billing.js?v=201"></script>
+  <script src="js/debts.js?v=201"></script>
+  <script src="js/reports.js?v=201"></script>
+  <script src="js/dashboard.js?v=201"></script>
+  <script src="js/teams.js?v=201"></script>
+  <script src="js/settings.js?v=201"></script>
+  <script src="js/kitchen.js?v=201"></script>
+  <script src="js/app.js?v=201"></script>
   <script>
     (function () {
       var sb = document.getElementById('sidebar'), tg = document.getElementById('sbToggle');
