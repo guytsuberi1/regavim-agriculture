@@ -612,6 +612,10 @@ input.invalid, select.invalid, textarea.invalid { border-color: var(--danger, #d
 .pwa-install .btn.small { background: #fff; color: #1b5e20; border: 0; font-weight: 800; flex: 0 0 auto; }
 .pwa-install .pwa-x { background: rgba(255,255,255,.22); color: #fff; border: 0; border-radius: 50%; width: 26px; height: 26px; cursor: pointer; flex: 0 0 auto; font-size: 12px; line-height: 1; }
 .pwa-install .pwa-x:hover { background: rgba(255,255,255,.35); }
+/* כפתור קבוע בסרגל העליון */
+.pwa-topbtn { display: inline-flex; align-items: center; gap: 5px; background: var(--green); color: #fff; border: 0; border-radius: 999px; padding: 5px 12px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; margin-inline-end: 8px; white-space: nowrap; }
+.pwa-topbtn:hover { background: var(--green-dark); }
+@media (max-width: 520px) { .pwa-topbtn .pwa-topbtn-txt { display: none; } .pwa-topbtn { padding: 6px 9px; } }
 /* "צריכים תשומת לב" — כיתות */
 .attn-box { border: 1px solid var(--border); border-inline-start: 4px solid #dc2626; border-radius: 10px; padding: 11px 14px; margin: 4px 0 6px; background: var(--card); }
 .attn-box.ok { border-inline-start-color: #16a34a; color: var(--muted); font-size: 13.5px; }
